@@ -105,7 +105,7 @@ npm run dev        # login: isi username & password apa saja
   (redirect ke `/login` kalau belum ada token).
 - **Role-based menu** — menu sidebar disaring dari `ROLE_MENU` di `src/lib/constants.ts`
   (`admin/kapten/direktur/driver`).
-- **Status label Indonesia** — status DB (berjalan/selesai/bertugas/libur/ber/available) dipetakan di
+- **Status label Indonesia** — status DB (berjalan/selesai/bertugas/libur/tersedia/dst) dipetakan di
   `src/lib/constants.ts` `STATUS_LABELS`.
 - **Realtime** — Dashboard pakai `refetchInterval` (30s). Saat backend siap WebSocket, tinggal ganti sumber query.
 
