@@ -53,37 +53,32 @@ export const mockTrips: Trip[] = [
 /* ------------------------------------------------------------------ */
 
 export const mockDashboard: DashboardSummary = {
-  total_awb: 54058,
-  total_seller: 20,
+  // Armada
+  total_kendaraan: 15,
   armada_aktif: 11,
-  armada_total: 15,
-  implant_aktif: 32,
-  implant_total: 40,
+  armada_selesai: 2,
+  armada_idle: 2,
+  // Driver
+  total_driver: 16,
+  driver_aktif: 10,
+  driver_libur: 6,
+  driver_telat: 1,
+  // Operasional
+  total_ritase: 24,
+  ritase_aktif: 11,
+  ritase_selesai: 13,
+  ritase_hari_ini: 8,
+  total_awb: 54058,
+  total_awb_hari_ini: 12000,
+  total_koli: 475,
+  paket_tertinggal: 12,
+  // Lainnya
+  total_seller: 20,
+  seller_terlayani: 18,
+  total_drop_point: 3,
+  total_karyawan: 400,
   total_manpower: 400,
-
-  manpower_efektivitas: [
-    { lokasi: "Gudang OG", total_awb: 33483, manpower: 30, efektivitas: "1116,1 AWB/pcs" },
-    { lokasi: "Implant (OG)", total_awb: 20575, manpower: 13, efektivitas: "1582,7 AWB/pcs" },
-  ],
-
-  pop_karung_efektivitas: [
-    { lokasi: "Gudang OG", total_awb: 33483, total_koli: 475, efektivitas: "70 AWB/Karung" },
-    { lokasi: "Implant (OG)", total_awb: 20575, total_koli: 186, efektivitas: "111 AWB/Karung" },
-  ],
-
-  status_pengiriman: [
-    { id_kendaraan: "SHP-9021", driver: "Budi Santoso", asal_gudang: "Hub Pusat", tujuan: "Hub Jakarta Pusat", status: "in_transit" },
-    { id_kendaraan: "SHP-9022", driver: "Arief W.", asal_gudang: "Hub Pusat", tujuan: "DC Surabaya Timur", status: "loading" },
-    { id_kendaraan: "SHP-9023", driver: "Hendra G.", asal_gudang: "Hub Pusat", tujuan: "Hub Medan Kota", status: "weather_delay" },
-    { id_kendaraan: "SHP-9024", driver: "Rizky P.", asal_gudang: "Hub Pusat", tujuan: "Bandung Utama", status: "delivered" },
-    { id_kendaraan: "SHP-9025", driver: "Yudi M.", asal_gudang: "Hub Pusat", tujuan: "Makassar Port", status: "in_transit" },
-  ],
-
-  top_gudang: [
-    { nama: "Larangan/Cipadu", area: "JKT Area", total: 7180 },
-    { nama: "Kacamata Gruop", area: "SBY Area", total: 6297 },
-    { nama: "Titip Aja", area: "BDG Area", total: 6060 },
-    { nama: "Paimin", area: "SMG Area", total: 5798 },
-    { nama: "Somethinc", area: "JKT Area", total: 3535 },
-  ],
+  total_absensi: 15,
+  total_implant: 40,
+  total_tracking: 11,
 };

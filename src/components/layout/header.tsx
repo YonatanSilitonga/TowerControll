@@ -52,7 +52,7 @@ export function Header() {
             <DropdownMenuLabel>
               <p className="font-medium">{user?.name ?? "-"}</p>
               <p className="text-xs font-normal text-muted-foreground">
-                {user?.email} · {user?.role ? ROLE_LABEL[user.role] : "-"}
+                {user?.username} · {user?.role ? ROLE_LABEL[user.role] : "-"}
               </p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

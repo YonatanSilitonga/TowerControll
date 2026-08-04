@@ -1,13 +1,12 @@
-export type UserRole = "admin" | "supervisor" | "driver" | "vendor" | "finance";
+export type UserRole = "admin" | "kapten" | "direktur" | "driver";
 
 export interface User {
-  id: string;
+  id_user: number;
+  username: string;
   name: string;
-  email: string;
   role: UserRole;
-  active: boolean;
+  karyawan_id?: number | null;
   created_at?: string;
-  updated_at?: string;
 }
 
 export interface AuthResponse {

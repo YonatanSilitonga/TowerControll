@@ -24,7 +24,7 @@ function LoginForm() {
   const next = searchParams.get("next") ?? "/";
   const login = useAuthStore((s) => s.login);
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -34,7 +34,7 @@ function LoginForm() {
     setError(null);
     setSubmitting(true);
     try {
-      await login(email, password);
+      await login(username, password);
       router.replace(next);
     } catch (err) {
       setError(
@@ -61,15 +61,15 @@ function LoginForm() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="admin@slb.co.id"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                placeholder="direktur"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
-                autoComplete="email"
+                autoComplete="username"
               />
             </div>
             <div className="space-y-2">
@@ -97,8 +97,8 @@ function LoginForm() {
             </Button>
             <p className="text-center text-xs text-muted-foreground">
               {USE_MOCK
-                ? "Mode MOCK: isi email & password apa saja"
-                : "Akun demo: admin@slb.co.id / password123"}
+                ? "Mode MOCK: isi username & password apa saja"
+                : "Akun demo: direktur/direktur123"}
             </p>
           </CardFooter>
         </form>

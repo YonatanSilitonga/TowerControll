@@ -18,11 +18,10 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const simulateLatency = () => delay(250 + Math.random() * 350);
 
 const MOCK_USER: User = {
-  id: "usr-mock-001",
-  name: "Admin Operator",
-  email: "admin@slb.co.id",
-  role: "admin",
-  active: true,
+  id_user: 1,
+  username: "direktur",
+  name: "Direktur Operasional",
+  role: "direktur",
 };
 
 const MOCK_TOKEN = "mock-token-1|abcdef0123456789";
@@ -37,11 +36,11 @@ export async function mockRequest<T>(
 
   /* ---------- Auth ---------- */
   if (method === "POST" && path === "/auth/login") {
-    const { email, password } = (body ?? {}) as { email?: string; password?: string };
-    if (!email || !password) {
-      throw new ApiError(422, "Email dan password wajib diisi.");
+    const { username, password } = (body ?? {}) as { username?: string; password?: string };
+    if (!username || !password) {
+      throw new ApiError(422, "Username dan password wajib diisi.");
     }
-    const res: AuthResponse = { user: { ...MOCK_USER, email }, token: MOCK_TOKEN };
+    const res: AuthResponse = { user: { ...MOCK_USER, username }, token: MOCK_TOKEN };
     return res as T;
   }
 
@@ -56,6 +55,28 @@ export async function mockRequest<T>(
   /* ---------- Dashboard ---------- */
   if (method === "GET" && path === "/dashboard/summary") {
     return mockDashboard as T;
+  }
+
+  if (method === "GET" && path === "/dashboard/analisis") {
+    return {
+      durasi: {
+        rata_rata_loading: "40 menit",
+        rata_rata_perjalanan: "3.2 jam",
+        rata_rata_unloading: "25 menit",
+        total_ritase_dihitung: 8,
+      },
+      bottleneck: [
+        { kategori: "seller", label: "Kacamata Group", indikator: "ritase terbanyak", nilai: 3 },
+      ],
+      alerts: [
+        {
+          tingkat: "warning",
+          pesan: "Ritase RTS-0001 berhenti lebih dari 3 jam tanpa update",
+          kategori: "kendaraan_berhenti",
+          waktu: new Date().toISOString(),
+        },
+      ],
+    } as T;
   }
 
   /* ---------- Armada ---------- */

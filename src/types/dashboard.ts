@@ -1,49 +1,59 @@
-/** Tipe data untuk Dashboard Keseluruhan (sesuai desain aktual). */
-
-export interface ManpowerEfektivitas {
-  lokasi: string;
-  total_awb: number;
-  manpower: number;
-  efektivitas: string; // contoh: "1116,1 AWB/pcs"
-}
-
-export interface PopKarungEfektivitas {
-  lokasi: string;
-  total_awb: number;
-  total_koli: number;
-  efektivitas: string; // contoh: "70 AWB/Karung"
-}
-
-export type DeliveryStatus =
-  | "in_transit"
-  | "loading"
-  | "weather_delay"
-  | "delivered";
-
-export interface StatusPengiriman {
-  id_kendaraan: string;
-  driver: string;
-  asal_gudang: string;
-  tujuan: string;
-  status: DeliveryStatus;
-}
-
-export interface TopGudang {
-  nama: string;
-  area: string;
-  total: number;
-}
+/** Tipe data Dashboard — mengikuti bentuk API backend Go (skema DB). */
 
 export interface DashboardSummary {
-  total_awb: number;
-  total_seller: number;
+  // Armada
+  total_kendaraan: number;
   armada_aktif: number;
-  armada_total: number;
-  implant_aktif: number;
-  implant_total: number;
+  armada_selesai: number;
+  armada_idle: number;
+  // Driver
+  total_driver: number;
+  driver_aktif: number;
+  driver_libur: number;
+  driver_telat: number;
+  // Operasional
+  total_ritase: number;
+  ritase_aktif: number;
+  ritase_selesai: number;
+  ritase_hari_ini: number;
+  total_awb: number;
+  total_awb_hari_ini: number;
+  total_koli: number;
+  paket_tertinggal: number;
+  // Lainnya
+  total_seller: number;
+  seller_terlayani: number;
+  total_drop_point: number;
+  total_karyawan: number;
   total_manpower: number;
-  manpower_efektivitas: ManpowerEfektivitas[];
-  pop_karung_efektivitas: PopKarungEfektivitas[];
-  status_pengiriman: StatusPengiriman[];
-  top_gudang: TopGudang[];
+  total_absensi: number;
+  total_implant: number;
+  total_tracking: number;
+}
+
+export interface DurasiAnalisis {
+  rata_rata_loading: string;
+  rata_rata_perjalanan: string;
+  rata_rata_unloading: string;
+  total_ritase_dihitung: number;
+}
+
+export interface Bottleneck {
+  kategori: string;
+  label: string;
+  indikator: string;
+  nilai: number;
+}
+
+export interface AlertAnomali {
+  tingkat: "info" | "warning" | "critical";
+  pesan: string;
+  kategori: string;
+  waktu: string;
+}
+
+export interface DashboardAnalisis {
+  durasi: DurasiAnalisis | null;
+  bottleneck: Bottleneck[] | null;
+  alerts: AlertAnomali[] | null;
 }

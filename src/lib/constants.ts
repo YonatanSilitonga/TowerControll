@@ -1,6 +1,5 @@
 import type { UserRole } from "@/types/auth";
 import type { DriverStatus, FleetStatus, TripStatus, VehicleStatus } from "@/types/armada";
-import type { DeliveryStatus } from "@/types/dashboard";
 
 /** Base URL API backend. Fallback ke local dev. */
 export const API_URL =
@@ -16,22 +15,20 @@ export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 export const ROLE_LABEL: Record<UserRole, string> = {
   admin: "Admin",
-  supervisor: "Supervisor",
+  kapten: "Kapten",
+  direktur: "Direktur",
   driver: "Driver",
-  vendor: "Vendor",
-  finance: "Finance",
 };
 
 /** Mapping role -> modul yang boleh diakses (untuk menu & guard). */
 export const ROLE_MENU: Record<UserRole, string[]> = {
   admin: ["dashboard", "armada", "gudang", "absensi", "laporan"],
-  supervisor: ["dashboard", "armada", "gudang", "absensi", "laporan"],
+  kapten: ["dashboard", "armada"],
+  direktur: ["dashboard", "armada", "laporan"],
   driver: ["dashboard", "armada"],
-  vendor: ["dashboard", "gudang"],
-  finance: ["dashboard", "laporan"],
 };
 
-export const DELIVERY_STATUS_LABEL: Record<DeliveryStatus, string> = {
+export const DELIVERY_STATUS_LABEL: Record<string, string> = {
   in_transit: "IN TRANSIT",
   loading: "LOADING",
   weather_delay: "WEATHER DELAY",
@@ -68,6 +65,19 @@ export const STATUS_LABELS: Record<string, string> = {
   ...DRIVER_STATUS_LABEL,
   ...FLEET_STATUS_LABEL,
   ...TRIP_STATUS_LABEL,
+  // status Indonesia (skema DB logistik)
+  berjalan: "Berjalan",
+  selesai: "Selesai",
+  direncanakan: "Direncanakan",
+  batal: "Batal",
+  tersedia: "Tersedia",
+  bertugas: "Bertugas",
+  libur: "Libur",
+  maintenance: "Maintenance",
+  istirahat: "Istirahat",
+  aktif: "Aktif",
+  loading: "Loading",
+  unloading: "Unloading",
 };
 
 /** Ambil label untuk status apa pun. */
@@ -77,15 +87,17 @@ export function statusLabel(status: string | undefined | null): string {
 }
 
 /** Warna status pengiriman sesuai desain. */
-export function deliveryStatusTone(status: DeliveryStatus | string): string {
+export function deliveryStatusTone(status: string): string {
   switch (status) {
     case "in_transit":
+    case "berjalan":
       return "bg-[#1e3a5f] text-white";
     case "loading":
       return "bg-amber-400 text-amber-950";
     case "weather_delay":
       return "bg-rose-500 text-white";
     case "delivered":
+    case "selesai":
       return "bg-emerald-500 text-white";
     default:
       return "bg-muted text-muted-foreground";

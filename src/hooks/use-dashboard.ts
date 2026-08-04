@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { get } from "@/lib/api-client";
 import { POLL_INTERVAL } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth-store";
-import type { DashboardSummary } from "@/types/dashboard";
+import type { DashboardAnalisis, DashboardSummary } from "@/types/dashboard";
 
 /**
  * Dashboard Keseluruhan — polling otomatis tiap POLL_INTERVAL ms.
@@ -16,6 +16,18 @@ export function useDashboardSummary() {
   return useQuery({
     queryKey: ["dashboard-summary"],
     queryFn: () => get<DashboardSummary>("/dashboard/summary", { token }),
+    enabled: !!token,
+    refetchInterval: POLL_INTERVAL,
+  });
+}
+
+/** Analisis dashboard (durasi proses + bottleneck + alert anomali). */
+export function useDashboardAnalisis() {
+  const token = useAuthStore((s) => s.token);
+
+  return useQuery({
+    queryKey: ["dashboard-analisis"],
+    queryFn: () => get<DashboardAnalisis>("/dashboard/analisis", { token }),
     enabled: !!token,
     refetchInterval: POLL_INTERVAL,
   });

@@ -1,11 +1,14 @@
 "use client";
 
 import {
+  AlertTriangle,
+  BellRing,
+  Crosshair,
   Filter,
   MoreVertical,
-  Crosshair,
   PackageCheck,
   PackageSearch,
+  Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,13 +25,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useDashboardSummary } from "@/hooks/use-dashboard";
-import { deliveryStatusTone, DELIVERY_STATUS_LABEL } from "@/lib/constants";
+import {
+  useDashboardAnalisis,
+  useDashboardSummary,
+} from "@/hooks/use-dashboard";
+import { formatNumber } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import type { DashboardSummary } from "@/types/dashboard";
+import type {
+  AlertAnomali,
+  DashboardAnalisis,
+  DashboardSummary,
+} from "@/types/dashboard";
 
 /* ------------------------------------------------------------------ */
-/* KPI Card — simple, no icon                                          */
+/* KPI Card                                                            */
 /* ------------------------------------------------------------------ */
 
 function KpiCard({ label, value }: { label: string; value: string }) {
@@ -133,7 +143,6 @@ function IndonesiaMap() {
               </g>
             ))}
           </svg>
-          {/* Legend */}
           <div className="absolute bottom-3 right-3 flex flex-col gap-1.5 rounded-lg border bg-white/90 px-3 py-2 shadow-sm">
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
@@ -161,90 +170,49 @@ function IndonesiaMap() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Efektivitas Table                                                   */
+/* Analisis: durasi proses                                             */
 /* ------------------------------------------------------------------ */
 
-function EfektivitasTable({
-  title,
-  rows,
-  columns,
-}: {
-  title: string;
-  rows: { lokasi: string; val1: number; val2: number; ratio: string }[];
-  columns: [string, string];
-}) {
+function DurasiRow({ label, value }: { label: string; value: string }) {
   return (
-    <Card className="shadow-sm">
-      <CardHeader className="pb-2">
-        <p className="text-sm font-semibold uppercase tracking-wide text-slate-700">
-          {title}
+    <div className="flex items-center justify-between border-b border-slate-100 py-2.5 last:border-0">
+      <p className="text-sm text-slate-600">{label}</p>
+      <p className="text-sm font-bold tabular-nums text-slate-800">{value}</p>
+    </div>
+  );
+}
+
+function AlertRow({ alert }: { alert: AlertAnomali }) {
+  const tone =
+    alert.tingkat === "critical"
+      ? "bg-rose-50 text-rose-700"
+      : alert.tingkat === "warning"
+        ? "bg-amber-50 text-amber-700"
+        : "bg-sky-50 text-sky-700";
+  return (
+    <div className="flex items-start gap-2.5 border-b border-slate-100 py-2.5 last:border-0">
+      <AlertTriangle
+        className={cn(
+          "mt-0.5 h-4 w-4 shrink-0",
+          alert.tingkat === "critical"
+            ? "text-rose-500"
+            : alert.tingkat === "warning"
+              ? "text-amber-500"
+              : "text-sky-500"
+        )}
+      />
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-slate-800">{alert.pesan}</p>
+        <p
+          className={cn(
+            "mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+            tone
+          )}
+        >
+          {alert.tingkat} · {alert.kategori}
         </p>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow className="border-b border-slate-200">
-              <TableHead className="text-[11px] font-semibold uppercase text-slate-500">
-                Lokasi
-              </TableHead>
-              <TableHead className="text-right text-[11px] font-semibold uppercase text-slate-500">
-                {columns[0]}
-              </TableHead>
-              <TableHead className="text-right text-[11px] font-semibold uppercase text-slate-500">
-                {columns[1]}
-              </TableHead>
-              <TableHead className="text-right text-[11px] font-semibold uppercase text-slate-500">
-                Efektivitas
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r, i) => (
-              <TableRow
-                key={r.lokasi}
-                className={cn(
-                  "border-b border-slate-100",
-                  i === 0 && "text-red-600"
-                )}
-              >
-                <TableCell
-                  className={cn(
-                    "py-2.5 text-sm font-medium",
-                    i === 0 ? "text-red-600" : "text-slate-700"
-                  )}
-                >
-                  {r.lokasi}
-                </TableCell>
-                <TableCell
-                  className={cn(
-                    "py-2.5 text-right text-sm tabular-nums",
-                    i === 0 ? "text-red-600" : "text-slate-700"
-                  )}
-                >
-                  {r.val1.toLocaleString("id-ID")}
-                </TableCell>
-                <TableCell
-                  className={cn(
-                    "py-2.5 text-right text-sm tabular-nums",
-                    i === 0 ? "text-red-600" : "text-slate-700"
-                  )}
-                >
-                  {r.val2.toLocaleString("id-ID")}
-                </TableCell>
-                <TableCell
-                  className={cn(
-                    "py-2.5 text-right text-sm tabular-nums",
-                    i === 0 ? "text-red-600" : "text-slate-700"
-                  )}
-                >
-                  {r.ratio}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -282,6 +250,7 @@ function DashboardSkeleton() {
 
 export default function DashboardPage() {
   const { data, isLoading, isError } = useDashboardSummary();
+  const analisis = useDashboardAnalisis();
 
   if (isLoading) return <DashboardSkeleton />;
   if (isError || !data) {
@@ -295,10 +264,20 @@ export default function DashboardPage() {
     );
   }
 
-  return <DashboardView data={data} />;
+  return <DashboardView data={data} analisis={analisis.data} />;
 }
 
-function DashboardView({ data }: { data: DashboardSummary }) {
+function DashboardView({
+  data,
+  analisis,
+}: {
+  data: DashboardSummary;
+  analisis?: DashboardAnalisis | null;
+}) {
+  const durasi = analisis?.durasi;
+  const bottleneck = analisis?.bottleneck ?? [];
+  const alerts = analisis?.alerts ?? [];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -308,7 +287,7 @@ function DashboardView({ data }: { data: DashboardSummary }) {
             Dashboard Keseluruhan
           </h1>
           <p className="mt-0.5 text-sm text-slate-500">
-            Real-time metrics for current operational cycle.
+            Ringkasan operasional real-time — armada, driver & ritase.
           </p>
         </div>
         <Button className="bg-[#034075] text-white hover:bg-[#023060]">
@@ -320,91 +299,99 @@ function DashboardView({ data }: { data: DashboardSummary }) {
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
         <KpiCard
           label="Total AWB Hari Ini"
-          value={data.total_awb.toLocaleString("id-ID")}
-        />
-        <KpiCard
-          label="Total Seller Aktif"
-          value={data.total_seller.toLocaleString("id-ID")}
+          value={formatNumber(data.total_awb_hari_ini)}
         />
         <KpiCard
           label="Armada Aktif"
-          value={`${data.armada_aktif}/${data.armada_total}`}
+          value={`${formatNumber(data.armada_aktif)}/${formatNumber(data.total_kendaraan)}`}
         />
         <KpiCard
-          label="Implant Aktif"
-          value={`${data.implant_aktif} / ${data.implant_total}`}
+          label="Driver Bertugas"
+          value={`${formatNumber(data.driver_aktif)}/${formatNumber(data.total_driver)}`}
         />
         <KpiCard
-          label="Total Manpower"
-          value={data.total_manpower.toLocaleString("id-ID")}
+          label="Ritase Aktif"
+          value={`${formatNumber(data.ritase_aktif)}/${formatNumber(data.total_ritase)}`}
+        />
+        <KpiCard
+          label="Total Seller"
+          value={formatNumber(data.total_seller)}
+        />
+      </div>
+
+      {/* KPI baris 2 */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+        <KpiCard
+          label="Ritase Selesai"
+          value={formatNumber(data.ritase_selesai)}
+        />
+        <KpiCard
+          label="Total Koli"
+          value={formatNumber(data.total_koli)}
+        />
+        <KpiCard
+          label="Paket Tertinggal"
+          value={formatNumber(data.paket_tertinggal)}
+        />
+        <KpiCard
+          label="Drop Point"
+          value={formatNumber(data.total_drop_point)}
+        />
+        <KpiCard
+          label="Armada Idle"
+          value={formatNumber(data.armada_idle)}
         />
       </div>
 
       {/* 2-column layout */}
       <div className="grid gap-5 lg:grid-cols-5">
-        {/* LEFT column: Map + Status */}
+        {/* LEFT column: Map + status umum */}
         <div className="space-y-5 lg:col-span-3">
-          {/* Map */}
           <IndonesiaMap />
 
-          {/* Status Pengiriman */}
+          {/* Ringkasan status armada */}
           <Card className="shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <p className="text-sm font-semibold text-slate-800">
-                Status Pengiriman
+                Ringkasan Operasional
               </p>
-              <button className="text-xs font-semibold text-blue-600 hover:underline">
-                View Full Log
-              </button>
+              <Truck className="h-4 w-4 text-slate-400" />
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow className="border-b border-slate-200">
                     <TableHead className="text-[11px] font-semibold uppercase text-slate-500">
-                      ID Kendaraan
-                    </TableHead>
-                    <TableHead className="text-[11px] font-semibold uppercase text-slate-500">
-                      Driver
-                    </TableHead>
-                    <TableHead className="text-[11px] font-semibold uppercase text-slate-500">
-                      Asal Gudang
-                    </TableHead>
-                    <TableHead className="text-[11px] font-semibold uppercase text-slate-500">
-                      Tujuan
+                      Metrik
                     </TableHead>
                     <TableHead className="text-right text-[11px] font-semibold uppercase text-slate-500">
-                      Status
+                      Nilai
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.status_pengiriman.map((s) => (
+                  {[
+                    { label: "Kendaraan Total", value: data.total_kendaraan },
+                    { label: "Armada Aktif", value: data.armada_aktif },
+                    { label: "Armada Selesai", value: data.armada_selesai },
+                    { label: "Armada Idle", value: data.armada_idle },
+                    { label: "Driver Bertugas", value: data.driver_aktif },
+                    { label: "Driver Libur", value: data.driver_libur },
+                    { label: "Driver Terlambat", value: data.driver_telat },
+                    { label: "Ritase Hari Ini", value: data.ritase_hari_ini },
+                    { label: "Seller Terlayani", value: data.seller_terlayani },
+                    { label: "Karyawan", value: data.total_karyawan },
+                    { label: "Total AWB (semua)", value: data.total_awb },
+                  ].map((row) => (
                     <TableRow
-                      key={s.id_kendaraan}
+                      key={row.label}
                       className="border-b border-slate-100"
                     >
-                      <TableCell className="py-2.5 font-mono text-sm font-semibold text-slate-800">
-                        {s.id_kendaraan}
-                      </TableCell>
                       <TableCell className="py-2.5 text-sm text-slate-700">
-                        {s.driver}
+                        {row.label}
                       </TableCell>
-                      <TableCell className="py-2.5 text-sm text-slate-700">
-                        {s.asal_gudang}
-                      </TableCell>
-                      <TableCell className="py-2.5 text-sm text-slate-700">
-                        {s.tujuan}
-                      </TableCell>
-                      <TableCell className="py-2.5 text-right">
-                        <span
-                          className={cn(
-                            "inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                            deliveryStatusTone(s.status)
-                          )}
-                        >
-                          {DELIVERY_STATUS_LABEL[s.status]}
-                        </span>
+                      <TableCell className="py-2.5 text-right text-sm font-bold tabular-nums text-slate-800">
+                        {formatNumber(row.value)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -414,73 +401,93 @@ function DashboardView({ data }: { data: DashboardSummary }) {
           </Card>
         </div>
 
-        {/* RIGHT column: Efektivitas + Top Gudang */}
+        {/* RIGHT column: Analisis */}
         <div className="space-y-5 lg:col-span-2">
-          {/* Efektivitas Manpower */}
-          <EfektivitasTable
-            title="Efektivitas Manpower"
-            columns={["Total AWB", "Manpower"]}
-            rows={data.manpower_efektivitas.map((m) => ({
-              lokasi: m.lokasi,
-              val1: m.total_awb,
-              val2: m.manpower,
-              ratio: m.efektivitas,
-            }))}
-          />
-
-          {/* Efektivitas Pop Karung */}
-          <EfektivitasTable
-            title="Efektivitas Pop Karung"
-            columns={["Total AWB", "Total Koli"]}
-            rows={data.pop_karung_efektivitas.map((p) => ({
-              lokasi: p.lokasi,
-              val1: p.total_awb,
-              val2: p.total_koli,
-              ratio: p.efektivitas,
-            }))}
-          />
-
-          {/* Chart placeholder */}
-          <Card className="shadow-sm">
-            <CardContent className="flex h-[180px] items-center justify-center">
-              <p className="text-sm text-slate-400">Chart placeholder</p>
-            </CardContent>
-          </Card>
-
-          {/* Top 5 Gudang */}
+          {/* Durasi proses */}
           <Card className="shadow-sm">
             <CardHeader className="pb-2">
               <p className="text-sm font-semibold text-slate-800">
-                Top 5 Gudang Terproduktif
+                Durasi Proses (rata-rata)
               </p>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {data.top_gudang.map((g, i) => (
-                <div
-                  key={g.nama}
-                  className="flex items-center gap-3 border-b border-slate-100 pb-3 last:border-0 last:pb-0"
-                >
-                  <span
-                    className={cn(
-                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                      i === 0
-                        ? "bg-red-500 text-white"
-                        : "bg-slate-800 text-white"
-                    )}
+            <CardContent>
+              <DurasiRow
+                label="Loading"
+                value={durasi?.rata_rata_loading ?? "belum ada data"}
+              />
+              <DurasiRow
+                label="Perjalanan"
+                value={durasi?.rata_rata_perjalanan ?? "belum ada data"}
+              />
+              <DurasiRow
+                label="Unloading"
+                value={durasi?.rata_rata_unloading ?? "belum ada data"}
+              />
+              <p className="mt-2 text-[11px] text-slate-400">
+                {durasi?.total_ritase_dihitung ?? 0} ritase dihitung
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Bottleneck */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-2">
+              <p className="text-sm font-semibold text-slate-800">
+                Potensi Hambatan (Bottleneck)
+              </p>
+            </CardHeader>
+            <CardContent>
+              {bottleneck.length === 0 ? (
+                <p className="py-3 text-center text-sm text-slate-400">
+                  Belum ada bottleneck terdeteksi
+                </p>
+              ) : (
+                bottleneck.map((b) => (
+                  <div
+                    key={`${b.kategori}-${b.label}`}
+                    className="flex items-center justify-between border-b border-slate-100 py-2.5 last:border-0"
                   >
-                    {i + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-800">
-                      {g.nama}
-                    </p>
-                    <p className="text-xs text-slate-500">{g.area}</p>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-800">
+                        {b.label}
+                      </p>
+                      <p className="text-xs capitalize text-slate-500">
+                        {b.indikator} · {b.kategori}
+                      </p>
+                    </div>
+                    <span className="text-sm font-bold tabular-nums text-slate-800">
+                      {formatNumber(b.nilai)}
+                    </span>
                   </div>
-                  <span className="text-sm font-bold tabular-nums text-slate-800">
-                    {g.total.toLocaleString("id-ID")}
-                  </span>
-                </div>
-              ))}
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Alert anomali */}
+          <Card className="shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <p className="text-sm font-semibold text-slate-800">
+                Alert Anomali
+              </p>
+              <BellRing className="h-4 w-4 text-slate-400" />
+            </CardHeader>
+            <CardContent>
+              {alerts.length === 0 ? (
+                <p className="py-3 text-center text-sm text-slate-400">
+                  Tidak ada anomali 🎉
+                </p>
+              ) : (
+                alerts.map((a, i) => <AlertRow key={i} alert={a} />)
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Placeholder chart */}
+          <Card className="shadow-sm">
+            <CardContent className="flex h-[140px] items-center justify-center">
+              <PackageCheck className="mr-2 h-4 w-4 text-slate-400" />
+              <p className="text-sm text-slate-400">Chart placeholder</p>
             </CardContent>
           </Card>
         </div>

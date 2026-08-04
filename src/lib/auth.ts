@@ -7,10 +7,10 @@ import type { AuthResponse, User } from "@/types/auth";
  */
 
 export async function loginRequest(
-  email: string,
+  username: string,
   password: string
 ): Promise<AuthResponse> {
-  return post<AuthResponse>("/auth/login", { email, password });
+  return post<AuthResponse>("/auth/login", { username, password });
 }
 
 export async function meRequest(token: string): Promise<User> {
