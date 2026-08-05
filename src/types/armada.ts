@@ -51,3 +51,45 @@ export interface Trip {
   created_at?: string;
   updated_at?: string;
 }
+
+/* ---------- Live Tracking ---------- */
+
+export interface TrackingVehicle {
+  id_tracking: number;
+  id_kendaraan: number;
+  plat_nomor: string;
+  id_driver: number;
+  nama_driver: string;
+  latitude: number;
+  longitude: number;
+  kecepatan?: number | null;
+  arah?: number | null;
+  status?: string | null;
+  last_update: string;
+}
+
+export interface SellerLocation {
+  id_seller: number;
+  nama_seller: string;
+  alamat: string;
+  kota: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface TrackingMap {
+  vehicles: TrackingVehicle[];
+  sellers: SellerLocation[];
+}
+
+export interface TrackingCheckpoint {
+  id_event: number;
+  id_ritase: number;
+  kode_ritase: string;
+  status: string;
+  catatan?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  durasi_detik?: number | null;
+  created_at: string;
+}

@@ -9,6 +9,8 @@ import {
   mockDashboard,
   mockDrivers,
   mockFleets,
+  mockTrackingHistory,
+  mockTrackingMap,
   mockTrips,
   mockVehicles,
 } from "./data";
@@ -101,6 +103,11 @@ export async function mockRequest<T>(
     if (t) t.status = ((body as { status?: string })?.status as typeof t.status) ?? t.status;
     return t as T;
   }
+
+  /* ---------- Live Tracking ---------- */
+  if (method === "GET" && path === "/armada/tracking/map") return mockTrackingMap as T;
+
+  if (method === "GET" && path === "/armada/tracking/history") return mockTrackingHistory as T;
 
   /* ---------- Fallback ---------- */
   throw new ApiError(404, `Mock: endpoint tidak dikenali ${method} ${path}`);

@@ -6,6 +6,7 @@ import {
   BarChart3,
   ClipboardCheck,
   LayoutDashboard,
+  MapPin,
   RadioTower,
   Truck,
   Warehouse,
@@ -17,6 +18,7 @@ import { useAuthStore } from "@/stores/auth-store";
 const NAV = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard, key: "dashboard" },
   { label: "Armada", href: "/armada", icon: Truck, key: "armada" },
+  { label: "Live Map", href: "/armada/live-map", icon: MapPin, key: "live-map" },
   { label: "Gudang", href: "/gudang", icon: Warehouse, key: "gudang" },
   { label: "Absensi", href: "/absensi", icon: ClipboardCheck, key: "absensi" },
   { label: "Laporan", href: "/laporan", icon: BarChart3, key: "laporan" },

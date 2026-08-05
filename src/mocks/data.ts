@@ -4,6 +4,7 @@
  */
 
 import type { Driver, Fleet, Trip, Vehicle } from "@/types/armada";
+import type { TrackingCheckpoint, TrackingMap } from "@/types/armada";
 import type { DashboardSummary } from "@/types/dashboard";
 
 const NOW = Date.now();
@@ -46,6 +47,116 @@ export const mockTrips: Trip[] = [
   { id: "trp-004", kode: "TRP-0004", vehicle_id: "veh-006", driver_id: "drv-005", asal: "Surabaya", tujuan: "Semarang", jarak_km: 320, status: "planned", started_at: null, completed_at: null },
   { id: "trp-005", kode: "TRP-0005", vehicle_id: "veh-004", driver_id: "drv-003", asal: "Jakarta", tujuan: "Yogyakarta", jarak_km: 540, status: "cancelled", started_at: null, completed_at: null },
   { id: "trp-006", kode: "TRP-0006", vehicle_id: "veh-008", driver_id: "drv-006", asal: "Medan", tujuan: "Pekanbaru", jarak_km: 560, status: "completed", started_at: ago(60 * 50), completed_at: ago(60 * 30) },
+];
+
+/* ------------------------------------------------------------------ */
+/* Live Tracking (peta)                                                */
+/* ------------------------------------------------------------------ */
+
+export const mockTrackingMap: TrackingMap = {
+  vehicles: [
+    {
+      id_tracking: 1,
+      id_kendaraan: 2,
+      plat_nomor: "B 9806 UXV",
+      id_driver: 3,
+      nama_driver: "AWALUDIN",
+      latitude: -6.1616,
+      longitude: 106.6311,
+      kecepatan: 30,
+      arah: 120,
+      status: "Menuju SKI",
+      last_update: ago(2),
+    },
+    {
+      id_tracking: 2,
+      id_kendaraan: 5,
+      plat_nomor: "B 1234 SLB",
+      id_driver: 1,
+      nama_driver: "Budi Santoso",
+      latitude: -6.1836,
+      longitude: 106.5952,
+      kecepatan: 0,
+      arah: 0,
+      status: "Tiba di TITIP AJA",
+      last_update: ago(9),
+    },
+    {
+      id_tracking: 3,
+      id_kendaraan: 8,
+      plat_nomor: "B 9012 SLB",
+      id_driver: 2,
+      nama_driver: "Agus Wijaya",
+      latitude: -6.2402,
+      longitude: 106.5856,
+      kecepatan: 45,
+      arah: 270,
+      status: "Menuju Gateway Tangerang",
+      last_update: ago(1),
+    },
+  ],
+  sellers: [
+    {
+      id_seller: 1,
+      nama_seller: "SKI",
+      alamat: "Jl. Pajajaran XIV No.62, Gandasari, Jatiuwung",
+      kota: "Kota Tangerang",
+      latitude: -6.1616,
+      longitude: 106.6311,
+    },
+    {
+      id_seller: 2,
+      nama_seller: "TITIP AJA",
+      alamat: "RMM9+49Q, Poris Plawad, Batuceper",
+      kota: "Kota Tangerang",
+      latitude: -6.1836,
+      longitude: 106.5952,
+    },
+    {
+      id_seller: 3,
+      nama_seller: "Gateway Tangerang",
+      alamat: "Gateway Sorting Center Hub",
+      kota: "Kota Tangerang",
+      latitude: -6.2402,
+      longitude: 106.5856,
+    },
+  ],
+};
+
+export const mockTrackingHistory: TrackingCheckpoint[] = [
+  {
+    id_event: 1,
+    id_ritase: 5,
+    kode_ritase: "RTS-0005",
+    status: "mulai_loading",
+    catatan: "Mulai bongkar muat",
+    latitude: -6.1616,
+    longitude: 106.6311,
+    durasi_detik: 1920,
+    created_at: ago(62),
+  },
+  {
+    id_event: 2,
+    id_ritase: 5,
+    kode_ritase: "RTS-0005",
+    status: "berangkat_gudang",
+    catatan: "Keluar gudang outgoing",
+    latitude: -6.1616,
+    longitude: 106.6311,
+    durasi_detik: 1920,
+    created_at: ago(30),
+  },
+  {
+    id_event: 3,
+    id_ritase: 5,
+    kode_ritase: "RTS-0005",
+    status: "sampai_gudang",
+    catatan: "Tiba di SKI",
+    latitude: -6.1616,
+    longitude: 106.6311,
+    durasi_detik: 1740,
+    created_at: ago(1),
+  },
 ];
 
 /* ------------------------------------------------------------------ */

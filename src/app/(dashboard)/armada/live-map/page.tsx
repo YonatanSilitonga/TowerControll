@@ -1,0 +1,208 @@
+"use client";
+
+import dynamic from "next/dynamic";
+import { useState } from "react";
+import { MapPin, RadioTower } from "lucide-react";
+import { PageHeader } from "@/components/layout/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  useTrackingHistory,
+  useTrackingMap,
+} from "@/hooks/use-tracking";
+import { statusLabel } from "@/lib/constants";
+import { cn, formatDateTime } from "@/lib/utils";
+import type { TrackingVehicle } from "@/types/armada";
+
+const LiveMap = dynamic(
+  () => import("@/components/map/live-map").then((m) => m.LiveMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        Memuat peta...
+      </div>
+    ),
+  }
+);
+
+function formatDuration(seconds?: number | null): string {
+  if (!seconds) return "-";
+  if (seconds < 60) return `${seconds} dtk`;
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  if (rest === 0) return `${minutes} mnt`;
+  return `${minutes} mnt ${rest} dtk`;
+}
+
+export default function LiveMapPage() {
+  const { data, isLoading } = useTrackingMap();
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const { data: history, isLoading: loadingHistory } = useTrackingHistory(selectedId);
+
+  const vehicles = data?.vehicles ?? [];
+  const sellers = data?.sellers ?? [];
+  const selectedVehicle =
+    vehicles.find((v) => v.id_kendaraan === selectedId) ?? null;
+
+  return (
+    <div>
+      <PageHeader
+        title="Live Tracking"
+        description="Posisi terkini armada + lokasi seller (auto-refresh tiap 10 detik)"
+        actions={
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <RadioTower className="h-4 w-4 text-emerald-600" />
+            <span>{vehicles.length} truk aktif</span>
+            <span className="text-slate-300">|</span>
+            <span>{sellers.length} seller</span>
+          </div>
+        }
+      />
+
+      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+        {/* Peta */}
+        <Card className="min-h-[420px] overflow-hidden lg:min-h-[560px]">
+          <CardContent className="h-full p-0">
+            <div className="h-[420px] lg:h-[560px]">
+              {isLoading ? (
+                <Skeleton className="h-full w-full" />
+              ) : (
+                <LiveMap
+                  vehicles={vehicles}
+                  sellers={sellers}
+                  selectedVehicleId={selectedId}
+                  onSelectVehicle={setSelectedId}
+                />
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Panel samping */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <RadioTower className="h-4 w-4 text-[#1e3a5f]" />
+                Armada Aktif
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="max-h-[280px] space-y-2 overflow-y-auto">
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-14 w-full" />
+                ))
+              ) : vehicles.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  Belum ada armada mengirim posisi
+                </p>
+              ) : (
+                vehicles.map((v) => (
+                  <VehicleItem
+                    key={v.id_kendaraan}
+                    vehicle={v}
+                    selected={selectedId === v.id_kendaraan}
+                    onSelect={() =>
+                      setSelectedId((cur) =>
+                        cur === v.id_kendaraan ? null : v.id_kendaraan
+                      )
+                    }
+                  />
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          {selectedVehicle && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <MapPin className="h-4 w-4 text-amber-600" />
+                  Riwayat · {selectedVehicle.plat_nomor || "-"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="max-h-[320px] space-y-0 overflow-y-auto">
+                {loadingHistory ? (
+                  <Skeleton className="h-24 w-full" />
+                ) : (history ?? []).length === 0 ? (
+                  <p className="py-6 text-center text-sm text-muted-foreground">
+                    Belum ada riwayat status
+                  </p>
+                ) : (
+                  (history ?? []).map((h, idx) => (
+                    <div key={h.id_event} className="flex gap-3">
+                      <div className="flex flex-col items-center">
+                        <div
+                          className={cn(
+                            "mt-1 h-3 w-3 shrink-0 rounded-full border-2 border-white shadow",
+                            idx === 0 ? "bg-amber-500" : "bg-[#1e3a5f]"
+                          )}
+                        />
+                        {idx < (history?.length ?? 0) - 1 && (
+                          <div className="w-px flex-1 bg-slate-200" />
+                        )}
+                      </div>
+                      <div className="pb-4">
+                        <p className="text-sm font-medium">
+                          {statusLabel(h.status)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDateTime(h.created_at)} · {formatDuration(h.durasi_detik)}
+                        </p>
+                        {h.catatan && (
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {h.catatan}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VehicleItem({
+  vehicle,
+  selected,
+  onSelect,
+}: {
+  vehicle: TrackingVehicle;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        "w-full rounded-lg border p-3 text-left transition-colors",
+        selected
+          ? "border-amber-400 bg-amber-50"
+          : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-semibold text-sm">{vehicle.plat_nomor || "-"}</p>
+        <span className="text-[11px] text-muted-foreground">
+          {formatDateTime(vehicle.last_update)}
+        </span>
+      </div>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        {vehicle.nama_driver || "-"}
+      </p>
+      <div className="mt-1 flex items-center justify-between">
+        <span className="text-xs">{vehicle.status ?? "-"}</span>
+        <span className="text-xs text-muted-foreground">
+          {vehicle.kecepatan ?? 0} km/h
+        </span>
+      </div>
+    </button>
+  );
+}

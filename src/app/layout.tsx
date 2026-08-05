@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { QueryProvider } from "@/providers/query-provider";
+import "leaflet/dist/leaflet.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
