@@ -1,16 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import Cluster from "react-leaflet-cluster";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import type { SellerLocation, TrackingVehicle } from "@/types/armada";
-import { formatDateTime } from "@/lib/utils";
+import { displayTrackingStatus } from "@/lib/constants";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 const JAKARTA: [number, number] = [-6.2088, 106.8456];
+
+// Ikon dibuat SEKALI di level modul & DIBAGIKAN antar marker.
+// Sebelumnya: `createTruckIcon(...)`/`createSellerIcon()` dipanggil per marker per
+// render → tiap poll 10 detik semua marker di-setIcon ulang → keliatan "refresh terus".
+// Leaflet icon itu stateless, aman dipakai bareng (shared instance).
+const TRUCK_ICON = createTruckIcon(false);
+const TRUCK_ICON_SELECTED = createTruckIcon(true);
+const SELLER_ICON = createSellerIcon();
 
 function createTruckIcon(selected: boolean) {
   return L.divIcon({
@@ -72,14 +83,46 @@ function FitBounds({ vehicles, sellers }: { vehicles: TrackingVehicle[]; sellers
     return coords;
   }, [vehicles, sellers]);
 
-  const key = points.map((p) => `${p[0]},${p[1]}`).join("|");
+  // FitBounds cuma sekali (atau saat SET marker berubah: truk/seller masuk-keluar).
+  // JANGAN ikut posisi — kalau ikut posisi, tiap poll 10 detik view user ke-reset terus.
+  const key = useMemo(() => {
+    const ids = [
+      ...vehicles.map((v) => `v:${v.id_kendaraan}`),
+      ...sellers.map((s) => `s:${s.id_seller}`),
+    ];
+    return ids.sort().join(",");
+  }, [vehicles, sellers]);
 
-  useEffect(() => {
+  const fit = () => {
     if (points.length === 0) return;
     map.fitBounds(L.latLngBounds(points), { padding: [48, 48] });
+  };
+
+  useEffect(() => {
+    fit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
+  return null;
+}
+
+/** Saat kendaraan dipilih (klik di panel armada / peta) → zoom IN ke truknya
+ *  biar detail; popup-nya dibuka otomatis oleh VehicleMarker. */
+function FocusSelected({
+  vehicles,
+  selectedVehicleId,
+}: {
+  vehicles: TrackingVehicle[];
+  selectedVehicleId: number | null;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    const v = vehicles.find((x) => x.id_kendaraan === selectedVehicleId);
+    if (!v) return;
+    // Zoom 14 = perbesaran detail truk (lebih deket dari skala kota).
+    map.setView([v.latitude, v.longitude], 14, { animate: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVehicleId]);
   return null;
 }
 
@@ -90,53 +133,127 @@ interface LiveMapProps {
   onSelectVehicle: (id: number | null) => void;
 }
 
+/** Satu marker truk. Saat `selected` jadi true → popup langsung dibuka. */
+function VehicleMarker({
+  vehicle: v,
+  selected,
+  onSelect,
+}: {
+  vehicle: TrackingVehicle;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const markerRef = useRef<L.Marker>(null);
+  const lastT = new Date(v.last_update).getTime();
+  const stale = !Number.isNaN(lastT) && Date.now() - lastT > 5 * 60 * 1000;
+
+  useEffect(() => {
+    if (selected) markerRef.current?.openPopup();
+    else markerRef.current?.closePopup();
+  }, [selected]);
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={[v.latitude, v.longitude]}
+      icon={selected ? TRUCK_ICON_SELECTED : TRUCK_ICON}
+      eventHandlers={{ click: onSelect }}
+    >
+      <Popup>
+        <div className="min-w-[210px] text-sm">
+          <p className="font-semibold text-[#1e3a5f]">{v.plat_nomor || "-"}</p>
+          <p className="text-xs text-muted-foreground">Driver: {v.nama_driver || "-"}</p>
+          <p className="text-xs">Status: {displayTrackingStatus(v.status, v.kecepatan, v.last_update)}</p>
+          <p className="text-xs">Kecepatan: {v.kecepatan ?? 0} km/h</p>
+          <p className={stale ? "text-xs font-medium text-amber-600" : "text-xs text-muted-foreground"}>
+            Update: {minutesAgo(v.last_update)}
+            {stale ? " (data lama)" : ""}
+          </p>
+        </div>
+      </Popup>
+    </Marker>
+  );
+}
+
+function minutesAgo(iso?: string | null): string {
+  if (!iso) return "-";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "-";
+  const m = Math.floor((Date.now() - t) / 60000);
+  if (m < 1) return "baru saja";
+  if (m < 60) return `${m} mnt lalu`;
+  return `${Math.floor(m / 60)} jam ${m % 60} mnt lalu`;
+}
+
 export function LiveMap({ vehicles, sellers, selectedVehicleId, onSelectVehicle }: LiveMapProps) {
   return (
-    <MapContainer
-      center={JAKARTA}
-      zoom={11}
-      className="h-full w-full"
-      style={{ zIndex: 0 }}
-    >
-      <TileLayer url={OSM_TILE_URL} attribution={OSM_ATTRIBUTION} />
-      <FitBounds vehicles={vehicles} sellers={sellers} />
+    <div className="relative h-full w-full">
+      <MapContainer
+        center={JAKARTA}
+        zoom={11}
+        className="h-full w-full"
+        style={{ zIndex: 0 }}
+      >
+        <TileLayer url={OSM_TILE_URL} attribution={OSM_ATTRIBUTION} />
+        <FitBounds vehicles={vehicles} sellers={sellers} />
+        <FocusSelected vehicles={vehicles} selectedVehicleId={selectedVehicleId} />
 
-      {sellers.map((s) => (
-        <Marker
-          key={`seller-${s.id_seller}`}
-          position={[s.latitude, s.longitude]}
-          icon={createSellerIcon()}
-        >
-          <Popup>
-            <div className="min-w-[180px] text-sm">
-              <p className="font-semibold text-emerald-700">{s.nama_seller}</p>
-              <p className="text-xs text-muted-foreground">{s.alamat}</p>
-              <p className="text-xs text-muted-foreground">{s.kota}</p>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
+        <Cluster>
+          {sellers.map((s) => (
+            <Marker
+              key={`seller-${s.id_seller}`}
+              position={[s.latitude, s.longitude]}
+              icon={SELLER_ICON}
+            >
+              <Popup>
+                <div className="min-w-[200px] text-sm">
+                  <p className="font-semibold text-emerald-700">
+                    {s.nama_seller}
+                    {s.kode_seller && (
+                      <span className="ml-1 text-[10px] font-normal text-slate-400">({s.kode_seller})</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{s.alamat}</p>
+                  <p className="text-xs text-muted-foreground">{s.kota}</p>
+                  {s.pic && <p className="mt-1 text-xs">PIC: <b>{s.pic}</b></p>}
+                  {s.no_hp && <p className="text-xs">No HP: <b>{s.no_hp}</b></p>}
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+        </Cluster>
 
-      {vehicles.map((v) => (
-        <Marker
-          key={`vehicle-${v.id_kendaraan}`}
-          position={[v.latitude, v.longitude]}
-          icon={createTruckIcon(selectedVehicleId === v.id_kendaraan)}
-          eventHandlers={{ click: () => onSelectVehicle(v.id_kendaraan) }}
-        >
-          <Popup>
-            <div className="min-w-[200px] text-sm">
-              <p className="font-semibold text-[#1e3a5f]">{v.plat_nomor || "-"}</p>
-              <p className="text-xs text-muted-foreground">Driver: {v.nama_driver || "-"}</p>
-              <p className="text-xs">Status: {v.status ?? "-"}</p>
-              <p className="text-xs">Kecepatan: {v.kecepatan ?? 0} km/h</p>
-              <p className="text-xs text-muted-foreground">
-                Update: {formatDateTime(v.last_update)}
-              </p>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+        {/* Truk TIDAK dikluster — armada itu yang dipantau tiap detik, harus selalu
+            keliatan satu-satu walau posisinya berdekatan (mis. dua truk di hub yang sama).
+            Saat terpilih → popup otomatis kebuka. */}
+        {vehicles.map((v) => (
+          <VehicleMarker
+            key={`vehicle-${v.id_kendaraan}`}
+            vehicle={v}
+            selected={selectedVehicleId === v.id_kendaraan}
+            onSelect={() => onSelectVehicle(v.id_kendaraan)}
+          />
+        ))}
+      </MapContainer>
+
+      {/* Legend */}
+      <div className="pointer-events-none absolute right-3 top-3 z-[500] rounded-lg border bg-white/95 px-3 py-2 text-[11px] shadow-sm">
+        <p className="mb-1.5 font-semibold text-slate-700">Legenda</p>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-3 w-3 rounded-full border-2 border-white bg-[#1e3a5f] shadow" />
+            <span className="text-slate-600">Truk aktif</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-3 w-3 rounded-full border-2 border-white bg-[#ff8f00] shadow" />
+            <span className="text-slate-600">Truk terpilih</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-3 w-3 rounded-full border-2 border-white bg-[#10b981] shadow" />
+            <span className="text-slate-600">Seller</span>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

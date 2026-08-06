@@ -33,7 +33,7 @@ export function Sidebar() {
   const nav = NAV.filter((item) => allowed.includes(item.key));
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col bg-[#034075] text-slate-200 lg:flex">
+    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-[#034075] text-slate-200 lg:flex">
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-white/10 px-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-400 text-[#101c2c]">

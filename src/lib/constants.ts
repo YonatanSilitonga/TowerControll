@@ -23,10 +23,13 @@ export const ROLE_LABEL: Record<UserRole, string> = {
 /** Mapping role -> modul yang boleh diakses (untuk menu & guard). */
 export const ROLE_MENU: Record<UserRole, string[]> = {
   admin: ["dashboard", "armada", "gudang", "absensi", "laporan"],
-  kapten: ["dashboard", "armada", "live-map"],
-  direktur: ["dashboard", "armada", "laporan", "live-map"],
+  kapten: ["dashboard", "armada"],
+  direktur: ["dashboard", "armada", "laporan"],
   driver: ["dashboard", "armada"],
 };
+
+/** Role yang boleh masuk dashboard WEB (direktur & kapten). Driver = mobile. */
+export const ALLOWED_WEB_ROLES: UserRole[] = ["direktur", "kapten"];
 
 export const DELIVERY_STATUS_LABEL: Record<string, string> = {
   in_transit: "IN TRANSIT",
@@ -84,6 +87,29 @@ export const STATUS_LABELS: Record<string, string> = {
 export function statusLabel(status: string | undefined | null): string {
   if (!status) return "-";
   return STATUS_LABELS[status] ?? status.replace(/_/g, " ");
+}
+
+/** Status tracking yang rapi: kalau string mentah (bukan status dikenal) → "Idle"/"Bergerak"/"Aktif". */
+export function displayTrackingStatus(
+  status?: string | null,
+  speed?: number | null,
+  lastUpdate?: string | null
+): string {
+  const s = (status ?? "").toLowerCase();
+  const known = [
+    "bongkar", "muat", "keluar", "menuju", "tiba", "sampai",
+    "selesai", "berjalan", "berhenti", "istirahat", "loading", "unloading",
+  ].some((k) => s.includes(k));
+  if (known) return statusLabel(status);
+
+  // status mentah → tentukan dari freshness update + kecepatan
+  let stale = false;
+  if (lastUpdate) {
+    const t = new Date(lastUpdate).getTime();
+    if (!Number.isNaN(t)) stale = Date.now() - t > 5 * 60 * 1000; // > 5 menit
+  }
+  if (stale) return "Idle";
+  return (speed ?? 0) > 0 ? "Bergerak" : "Aktif";
 }
 
 /** Warna status pengiriman sesuai desain. */

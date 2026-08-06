@@ -1,24 +1,67 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
+import { ALLOWED_WEB_ROLES } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth-store";
 
 /**
- * Layout dashboard — semua halaman di bawah (dashboard) group.
- * Guard: kalau belum login (token gak ada), redirect ke /login.
+ * Layout dashboard — guard yang benar:
+ * - Tunggu store ke-hydrate (baca localStorage) dulu, biar refresh gak salah redirect.
+ * - Kalau ada token → validasi via /auth/me (keep kalau valid, clear kalau expired).
+ * - Web khusus direktur/kapten (driver pakai mobile).
  */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const hasHydrated = useAuthStore((s) => s.hasHydrated);
   const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!token) {
-      router.replace("/login");
-    }
-  }, [token, router]);
+    let active = true;
+
+    (async () => {
+      const st = useAuthStore.getState();
+      // Validasi token kalau ada (keep/clear otomatis di fetchMe)
+      if (st.token) {
+        try {
+          await st.fetchMe();
+        } catch {
+          /* fetchMe sudah clear kalau gagal */
+        }
+      }
+      if (!active) return;
+      setReady(true);
+
+      const after = useAuthStore.getState();
+      if (!after.token) {
+        router.replace("/login");
+        return;
+      }
+      // Role tidak diizinkan untuk web → keluar
+      if (after.user && !ALLOWED_WEB_ROLES.includes(after.user.role)) {
+        after.clear();
+        router.replace("/login");
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Tunggu store selesai hydrate & validasi boot
+  if (!hasHydrated || !ready) {
+    return (
+      <main className="flex min-h-screen items-center justify-center">
+        <p className="text-sm text-muted-foreground">Memuat...</p>
+      </main>
+    );
+  }
 
   if (!token) {
     return (

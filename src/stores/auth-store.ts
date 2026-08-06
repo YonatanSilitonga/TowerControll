@@ -9,10 +9,12 @@ interface AuthState {
   user: User | null;
   token: string | null;
   loading: boolean;
+  hasHydrated: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   fetchMe: () => Promise<void>;
   clear: () => void;
+  setHasHydrated: (v: boolean) => void;
 }
 
 const TOKEN_KEY = "tc-token";
@@ -29,6 +31,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       loading: false,
+      hasHydrated: false,
 
       login: async (username, password) => {
         set({ loading: true });
@@ -66,10 +69,15 @@ export const useAuthStore = create<AuthState>()(
       },
 
       clear: () => set({ user: null, token: null, loading: false }),
+
+      setHasHydrated: (v) => set({ hasHydrated: v }),
     }),
     {
       name: "tower-control-auth",
       partialize: (state) => ({ user: state.user, token: state.token }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

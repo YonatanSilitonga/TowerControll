@@ -12,7 +12,7 @@ import {
 } from "@/hooks/use-tracking";
 import { statusLabel } from "@/lib/constants";
 import { cn, formatDateTime } from "@/lib/utils";
-import type { TrackingVehicle } from "@/types/armada";
+import { VehicleItem } from "@/components/armada/vehicle-item";
 
 const LiveMap = dynamic(
   () => import("@/components/map/live-map").then((m) => m.LiveMap),
@@ -183,44 +183,5 @@ export default function LiveMapPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-function VehicleItem({
-  vehicle,
-  selected,
-  onSelect,
-}: {
-  vehicle: TrackingVehicle;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={cn(
-        "w-full rounded-lg border p-3 text-left transition-colors",
-        selected
-          ? "border-amber-400 bg-amber-50"
-          : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-      )}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <p className="font-semibold text-sm">{vehicle.plat_nomor || "-"}</p>
-        <span className="text-[11px] text-muted-foreground">
-          {formatDateTime(vehicle.last_update)}
-        </span>
-      </div>
-      <p className="mt-0.5 text-xs text-muted-foreground">
-        {vehicle.nama_driver || "-"}
-      </p>
-      <div className="mt-1 flex items-center justify-between">
-        <span className="text-xs">{vehicle.status ?? "-"}</span>
-        <span className="text-xs text-muted-foreground">
-          {vehicle.kecepatan ?? 0} km/h
-        </span>
-      </div>
-    </button>
   );
 }

@@ -70,9 +70,12 @@ export interface TrackingVehicle {
 
 export interface SellerLocation {
   id_seller: number;
+  kode_seller?: string;
   nama_seller: string;
   alamat: string;
   kota: string;
+  pic?: string;
+  no_hp?: string;
   latitude: number;
   longitude: number;
 }
@@ -92,4 +95,78 @@ export interface TrackingCheckpoint {
   longitude?: number | null;
   durasi_detik?: number | null;
   created_at: string;
+}
+
+/* ---------- Tipe sesuai API backend (skema DB) ---------- */
+
+export interface Kendaraan {
+  id_kendaraan: number;
+  plat_nomor: string;
+  jenis_kendaraan?: string | null;
+  kapasitas_kg?: number | null;
+  status_kendaraan: string;
+}
+
+export interface DriverArmada {
+  id_driver: number;
+  nama_driver: string;
+  no_hp?: string | null;
+  status_driver: string;
+  jenis_driver?: string | null; // tetap | kondisional
+}
+
+export interface Ritase {
+  id_ritase: number;
+  kode_ritase: string;
+  tanggal: string;
+  id_driver: number;
+  nama_driver: string;
+  id_kendaraan: number;
+  plat_nomor: string;
+  // id_seller dihapus: skema DB pindahin relasi seller ke ritase_stop (bisa banyak seller).
+  // nama_seller diisi backend (gabungan nama seller dari stops).
+  nama_seller: string;
+  id_drop_point: number;
+  nama_drop_point: string;
+  ritase_ke?: number | null;
+  total_awb?: number | null;
+  total_koli?: number | null;
+  paket_tertinggal?: number | null;
+  alasan_tertinggal?: string | null;
+  jam_berangkat?: string | null;
+  jam_tiba?: string | null;
+  jam_mulai?: string | null;   // jadwal RIT mulai
+  jam_selesai?: string | null; // jadwal RIT selesai
+  status: string;
+}
+
+export interface RitaseStop {
+  id_stop: number;
+  id_ritase: number;
+  urutan: number;
+  jenis_stop: string; // gudang | seller | drop_point
+  id_gudang?: number | null;
+  nama_gudang?: string | null;
+  tipe_gudang?: string | null;
+  id_seller?: number | null;
+  id_drop_point?: number | null;
+  nama_seller?: string | null;
+  nama_drop_point?: string | null;
+  keterangan?: string | null;
+}
+
+export interface RitaseEvent {
+  id_event: number;
+  id_ritase: number;
+  status: string;
+  catatan?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  durasi_detik?: number | null;
+  created_at: string;
+}
+
+export interface RitaseDetail extends Ritase {
+  events: RitaseEvent[];
+  stops: RitaseStop[];
 }
