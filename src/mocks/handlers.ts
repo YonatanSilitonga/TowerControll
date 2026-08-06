@@ -107,7 +107,13 @@ export async function mockRequest<T>(
   /* ---------- Live Tracking ---------- */
   if (method === "GET" && path === "/armada/tracking/map") return mockTrackingMap as T;
 
-  if (method === "GET" && path === "/armada/tracking/history") return mockTrackingHistory as T;
+  if (method === "GET" && path === "/armada/tracking/history") {
+    const tanggal = query?.tanggal as string | undefined;
+    if (tanggal) {
+      return mockTrackingHistory.filter((h) => h.created_at.slice(0, 10) === tanggal) as T;
+    }
+    return mockTrackingHistory as T;
+  }
 
   /* ---------- Fallback ---------- */
   throw new ApiError(404, `Mock: endpoint tidak dikenali ${method} ${path}`);

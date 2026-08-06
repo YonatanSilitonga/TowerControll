@@ -35,10 +35,19 @@ function formatDuration(seconds?: number | null): string {
   return `${minutes} mnt ${rest} dtk`;
 }
 
+/** Tanggal lokal (WIB) dalam format YYYY-MM-DD. */
+function todayLocal(): string {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
 export default function LiveMapPage() {
   const { data, isLoading } = useTrackingMap();
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const { data: history, isLoading: loadingHistory } = useTrackingHistory(selectedId);
+  const [selectedDate, setSelectedDate] = useState<string>(todayLocal());
+  const { data: history, isLoading: loadingHistory } = useTrackingHistory(selectedId, selectedDate);
 
   const vehicles = data?.vehicles ?? [];
   const sellers = data?.sellers ?? [];
@@ -121,6 +130,15 @@ export default function LiveMapPage() {
                   <MapPin className="h-4 w-4 text-amber-600" />
                   Riwayat · {selectedVehicle.plat_nomor || "-"}
                 </CardTitle>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  max={todayLocal()}
+                  onChange={(e) =>
+                    setSelectedDate(e.target.value || todayLocal())
+                  }
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20"
+                />
               </CardHeader>
               <CardContent className="max-h-[320px] space-y-0 overflow-y-auto">
                 {loadingHistory ? (

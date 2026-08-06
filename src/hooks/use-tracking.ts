@@ -21,15 +21,15 @@ export function useTrackingMap() {
   });
 }
 
-/** Riwayat status (checkpoint) untuk satu kendaraan. */
-export function useTrackingHistory(idKendaraan: number | null) {
+/** Riwayat status (checkpoint) untuk satu kendaraan, opsional filter tanggal (YYYY-MM-DD). */
+export function useTrackingHistory(idKendaraan: number | null, tanggal?: string) {
   const token = useAuthStore(tokenSelector);
   return useQuery({
-    queryKey: ["tracking-history", idKendaraan],
+    queryKey: ["tracking-history", idKendaraan, tanggal],
     queryFn: () =>
       get<TrackingCheckpoint[]>("/armada/tracking/history", {
         token,
-        query: { kendaraan_id: idKendaraan ?? undefined },
+        query: { kendaraan_id: idKendaraan ?? undefined, tanggal },
       }),
     enabled: !!token && idKendaraan != null,
   });
