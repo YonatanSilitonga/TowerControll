@@ -22,15 +22,39 @@ interface VehicleItemProps {
   durasi?: string;
 }
 
-/** Item armada klik-klik — dipakai di dashboard (panel kanan) & halaman Live Map. */
+/** Item armada klik-klik — dipakai di dashboard (panel kanan) & halaman Live Map.
+ *  Model status: LIVE (GPS ≤ ambang) / Online (session aktif, GPS stale) / Offline. */
 export function VehicleItem({ vehicle, selected, onSelect, durasi }: VehicleItemProps) {
-  // Offline: flag dari backend, atau fallback hitung client-side (> 5 menit).
-  const stale =
-    vehicle.offline ??
-    (() => {
-      const t = new Date(vehicle.last_update).getTime();
-      return !Number.isNaN(t) && Date.now() - t > 5 * 60 * 1000;
-    })();
+  const live =
+    !(vehicle.offline ??
+      (() => {
+        const t = new Date(vehicle.last_update).getTime();
+        return Number.isNaN(t) ? true : Date.now() - t > 15 * 60 * 1000;
+      })());
+  const session = !!vehicle.session_online;
+
+  let statusNode: React.ReactNode;
+  if (live) {
+    const label = displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update);
+    statusNode = (
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+        {label}
+      </span>
+    );
+  } else if (session) {
+    statusNode = (
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">
+        Online · data lama
+      </span>
+    );
+  } else {
+    statusNode = (
+      <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">
+        Offline
+      </span>
+    );
+  }
 
   return (
     <button
@@ -49,15 +73,7 @@ export function VehicleItem({ vehicle, selected, onSelect, durasi }: VehicleItem
       </div>
       <p className="mt-0.5 text-xs text-slate-500">{vehicle.nama_driver || "-"}</p>
       <div className="mt-1 flex items-center justify-between">
-        {stale ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">
-            Offline
-          </span>
-        ) : (
-          <span className="text-xs font-medium text-slate-700">
-            {displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update)}
-          </span>
-        )}
+        {statusNode}
         <span className="text-xs text-slate-400">{vehicle.kecepatan ?? 0} km/h</span>
       </div>
       {durasi && <p className="mt-1 text-[11px] tabular-nums text-slate-400">{durasi}</p>}

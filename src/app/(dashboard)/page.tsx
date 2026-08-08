@@ -125,14 +125,14 @@ export default function DashboardPage() {
   );
   const histories = useQueries({ queries: historyQueries });
 
-  // Definisi "Aktif": kendaraan dengan GPS terbaru ≤ 5 menit (offline = tidak aktif).
+  // Definisi "Aktif": sudah login (session) ATAU GPS ≤ ambang 15 menit.
   const isOnline = (v: TrackingVehicle) =>
-    typeof v.offline === "boolean"
-      ? !v.offline
-      : (() => {
-          const t = new Date(v.last_update).getTime();
-          return Number.isNaN(t) ? false : Date.now() - t <= 5 * 60 * 1000;
-        })();
+    !!v.session_online ||
+    !(v.offline ??
+      (() => {
+        const t = new Date(v.last_update).getTime();
+        return Number.isNaN(t) ? true : Date.now() - t > 15 * 60 * 1000;
+      })());
   const onlineVehicles = vehicles.filter(isOnline);
   const offlineVehicles = vehicles.filter((v) => !isOnline(v));
   const histById = new Map<number, TrackingCheckpoint[]>(

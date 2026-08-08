@@ -66,8 +66,10 @@ export interface TrackingVehicle {
   arah?: number | null;
   status?: string | null;
   last_update: string;
-  /** Backend: true kalau last_update > 5 menit (gak ada GPS terbaru). */
+  /** Backend: true kalau last_update > ambang offline (default 15 mnt). */
   offline?: boolean;
+  /** Backend: true kalau driver belum logout (session aktif) — background/screen-off tetap Online. */
+  session_online?: boolean;
 }
 
 export interface SellerLocation {
