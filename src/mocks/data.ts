@@ -177,6 +177,7 @@ export const mockDashboard: DashboardSummary = {
   armada_aktif: 11,
   armada_selesai: 2,
   armada_idle: 2,
+  armada_online: 10,
   // Driver
   total_driver: 16,
   driver_aktif: 10,

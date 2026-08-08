@@ -15,6 +15,7 @@ import { statusLabel } from "@/lib/constants";
 import { cn, formatDateTime } from "@/lib/utils";
 import { VehicleItem } from "@/components/armada/vehicle-item";
 import { InfoTip } from "@/components/ui/info-tip";
+import type { TrackingVehicle } from "@/types/armada";
 
 const LiveMap = dynamic(
   () => import("@/components/map/live-map").then((m) => m.LiveMap),
@@ -65,6 +66,17 @@ function LiveMapBody() {
   const selectedVehicle =
     vehicles.find((v) => v.id_kendaraan === selectedId) ?? null;
 
+  // Definisi "Aktif": GPS terbaru ≤ 5 menit (offline = tidak aktif).
+  const isOnline = (v: TrackingVehicle) =>
+    typeof v.offline === "boolean"
+      ? !v.offline
+      : (() => {
+          const t = new Date(v.last_update).getTime();
+          return Number.isNaN(t) ? false : Date.now() - t <= 5 * 60 * 1000;
+        })();
+  const onlineVehicles = vehicles.filter(isOnline);
+  const offlineVehicles = vehicles.filter((v) => !isOnline(v));
+
   return (
     <div>
       <PageHeader
@@ -73,7 +85,7 @@ function LiveMapBody() {
         actions={
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <RadioTower className="h-4 w-4 text-emerald-600" />
-            <span>{vehicles.length} truk aktif</span>
+            <span>{onlineVehicles.length} truk aktif</span>
             <span className="text-slate-300">|</span>
             <span>{sellers.length} seller</span>
           </div>
@@ -116,23 +128,44 @@ function LiveMapBody() {
                 Array.from({ length: 3 }).map((_, i) => (
                   <Skeleton key={i} className="h-14 w-full" />
                 ))
-              ) : vehicles.length === 0 ? (
+              ) : onlineVehicles.length === 0 && offlineVehicles.length === 0 ? (
                 <p className="py-6 text-center text-sm text-muted-foreground">
                   Belum ada armada mengirim posisi
                 </p>
               ) : (
-                vehicles.map((v) => (
-                  <VehicleItem
-                    key={v.id_kendaraan}
-                    vehicle={v}
-                    selected={selectedId === v.id_kendaraan}
-                    onSelect={() =>
-                      setSelectedId((cur) =>
-                        cur === v.id_kendaraan ? null : v.id_kendaraan
-                      )
-                    }
-                  />
-                ))
+                <>
+                  {onlineVehicles.map((v) => (
+                    <VehicleItem
+                      key={v.id_kendaraan}
+                      vehicle={v}
+                      selected={selectedId === v.id_kendaraan}
+                      onSelect={() =>
+                        setSelectedId((cur) =>
+                          cur === v.id_kendaraan ? null : v.id_kendaraan
+                        )
+                      }
+                    />
+                  ))}
+                  {offlineVehicles.length > 0 && (
+                    <>
+                      <p className="pt-1 text-[10px] font-bold uppercase tracking-wider text-rose-500">
+                        Offline ({offlineVehicles.length})
+                      </p>
+                      {offlineVehicles.map((v) => (
+                        <VehicleItem
+                          key={v.id_kendaraan}
+                          vehicle={v}
+                          selected={selectedId === v.id_kendaraan}
+                          onSelect={() =>
+                            setSelectedId((cur) =>
+                              cur === v.id_kendaraan ? null : v.id_kendaraan
+                            )
+                          }
+                        />
+                      ))}
+                    </>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

@@ -33,7 +33,7 @@ import { StatusTimeline } from "@/components/armada/status-timeline";
 import { VehicleItem } from "@/components/armada/vehicle-item";
 import { InfoTip } from "@/components/ui/info-tip";
 import { cn, formatNumber } from "@/lib/utils";
-import type { TrackingCheckpoint } from "@/types/armada";
+import type { TrackingCheckpoint, TrackingVehicle } from "@/types/armada";
 
 const LiveMap = dynamic(
   () => import("@/components/map/live-map").then((m) => m.LiveMap),
@@ -125,6 +125,26 @@ export default function DashboardPage() {
   );
   const histories = useQueries({ queries: historyQueries });
 
+  // Definisi "Aktif": kendaraan dengan GPS terbaru ≤ 5 menit (offline = tidak aktif).
+  const isOnline = (v: TrackingVehicle) =>
+    typeof v.offline === "boolean"
+      ? !v.offline
+      : (() => {
+          const t = new Date(v.last_update).getTime();
+          return Number.isNaN(t) ? false : Date.now() - t <= 5 * 60 * 1000;
+        })();
+  const onlineVehicles = vehicles.filter(isOnline);
+  const offlineVehicles = vehicles.filter((v) => !isOnline(v));
+  const histById = new Map<number, TrackingCheckpoint[]>(
+    vehicles.map((v, i) => [v.id_kendaraan, histories[i]?.data ?? []])
+  );
+  const durasiOf = (v: TrackingVehicle) => {
+    const sum = summarizeEvents(histById.get(v.id_kendaraan) ?? []);
+    return sum.total > 0
+      ? `L ${fmtShort(sum.loading)} · J ${fmtShort(sum.perjalanan)} · T ${fmtShort(sum.total)}`
+      : undefined;
+  };
+
   const { data: history, isLoading: loadingHistory } = useTrackingHistory(
     selectedId,
     selectedDate || undefined
@@ -187,7 +207,7 @@ export default function DashboardPage() {
   const summaryCards = [
     { label: "Total Armada", value: formatNumber(d?.total_kendaraan ?? 0), icon: Truck, tone: "bg-slate-100 text-slate-600" },
     { label: "Selesai", value: formatNumber(d?.armada_selesai ?? 0), icon: CheckCircle2, tone: "bg-emerald-100 text-emerald-700" },
-    { label: "Berjalan", value: formatNumber(d?.armada_aktif ?? 0), icon: PlayCircle, tone: "bg-sky-100 text-sky-700" },
+    { label: "Aktif Online", value: formatNumber(d?.armada_online ?? d?.armada_aktif ?? 0), icon: PlayCircle, tone: "bg-sky-100 text-sky-700" },
     { label: "Rata² Loading", value: fmtShort(avgLoading), icon: PackageCheck, tone: "bg-amber-100 text-amber-700" },
     { label: "Rata² Perjalanan", value: fmtShort(avgPerjalanan), icon: RouteIcon, tone: "bg-blue-100 text-blue-700" },
     { label: "Rata² Unloading", value: fmtShort(avgUnloading), icon: PackageOpen, tone: "bg-violet-100 text-violet-700" },
@@ -284,9 +304,10 @@ export default function DashboardPage() {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                 <Truck className="h-4 w-4 text-[#034075]" /> Armada Aktif
-                <InfoTip text="Klik armada untuk lihat riwayat & durasi di panel bawah; peta zoom ke truknya." />
+                <InfoTip text="Aktif = GPS terbaru ≤ 5 menit. Klik armada untuk lihat riwayat & durasi; peta zoom ke truknya." />
                 <span className="ml-auto text-xs font-normal text-slate-400">
-                  {vehicles.length} truk
+                  {onlineVehicles.length} aktif
+                  {offlineVehicles.length > 0 && <span className="text-rose-500"> · {offlineVehicles.length} offline</span>}
                 </span>
               </CardTitle>
             </CardHeader>
@@ -295,18 +316,13 @@ export default function DashboardPage() {
                 Array.from({ length: 3 }).map((_, i) => (
                   <Skeleton key={i} className="h-16 w-full" />
                 ))
-              ) : vehicles.length === 0 ? (
+              ) : onlineVehicles.length === 0 && offlineVehicles.length === 0 ? (
                 <p className="py-6 text-center text-sm text-slate-400">
                   Belum ada armada mengirim posisi
                 </p>
               ) : (
-                vehicles.map((v, idx) => {
-                  const sum = summarizeEvents(histories[idx]?.data ?? []);
-                  const durasi =
-                    sum.total > 0
-                      ? `L ${fmtShort(sum.loading)} · J ${fmtShort(sum.perjalanan)} · T ${fmtShort(sum.total)}`
-                      : undefined;
-                  return (
+                <>
+                  {onlineVehicles.map((v) => (
                     <VehicleItem
                       key={v.id_kendaraan}
                       vehicle={v}
@@ -316,10 +332,30 @@ export default function DashboardPage() {
                           cur === v.id_kendaraan ? null : v.id_kendaraan
                         )
                       }
-                      durasi={durasi}
+                      durasi={durasiOf(v)}
                     />
-                  );
-                })
+                  ))}
+                  {offlineVehicles.length > 0 && (
+                    <>
+                      <p className="pt-1 text-[10px] font-bold uppercase tracking-wider text-rose-500">
+                        Offline ({offlineVehicles.length})
+                      </p>
+                      {offlineVehicles.map((v) => (
+                        <VehicleItem
+                          key={v.id_kendaraan}
+                          vehicle={v}
+                          selected={selectedId === v.id_kendaraan}
+                          onSelect={() =>
+                            setSelectedId((cur) =>
+                              cur === v.id_kendaraan ? null : v.id_kendaraan
+                            )
+                          }
+                          durasi={durasiOf(v)}
+                        />
+                      ))}
+                    </>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

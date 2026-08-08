@@ -6,6 +6,8 @@ export interface DashboardSummary {
   armada_aktif: number;
   armada_selesai: number;
   armada_idle: number;
+  /** Jumlah armada dengan GPS terbaru ≤ 5 menit. */
+  armada_online: number;
   // Driver
   total_driver: number;
   driver_aktif: number;
