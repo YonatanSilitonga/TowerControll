@@ -27,6 +27,7 @@ export default function ArmadaOverviewPage() {
       <PageHeader
         title="Armada"
         description="Kelola kendaraan, driver, seller, dan ritase (rute perjalanan)"
+        crumbs={[{ label: "Armada" }]}
       />
       <ArmadaTabs />
 

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
@@ -13,12 +15,17 @@ import type { Ritase } from "@/types/armada";
 export default function RitasePage() {
   const { data, isLoading } = useRitase();
   const [tanggal, setTanggal] = useState("");
+  const router = useRouter();
 
   const rows = (data ?? []).filter((r) => (tanggal ? r.tanggal === tanggal : true));
 
   return (
     <div>
-      <PageHeader title="Ritase" description="Daftar RIT / penugasan perjalanan" />
+      <PageHeader
+        title="Ritase"
+        description="Daftar RIT / penugasan perjalanan — klik baris untuk lihat detail rute & timeline"
+        crumbs={[{ label: "Armada", href: "/armada" }, { label: "Ritase" }]}
+      />
       <ArmadaTabs />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -46,6 +53,7 @@ export default function RitasePage() {
           r.plat_nomor.toLowerCase().includes(q.toLowerCase())
         }
         emptyText="Belum ada ritase"
+        onRowClick={(r) => router.push(`/armada/trips/${r.id_ritase}`)}
         columns={[
           {
             header: "Kode",
@@ -66,6 +74,18 @@ export default function RitasePage() {
               r.jam_mulai && r.jam_selesai ? `${r.jam_mulai} – ${r.jam_selesai}` : "-",
           },
           { header: "Status", render: (r) => <StatusBadge status={r.status} /> },
+          {
+            header: "Detail",
+            className: "text-right",
+            render: (r) => (
+              <Link
+                href={`/armada/trips/${r.id_ritase}`}
+                className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:border-[#034075]/40 hover:text-[#034075]"
+              >
+                <Eye className="h-3 w-3" /> Buka
+              </Link>
+            ),
+          },
         ]}
       />
     </div>

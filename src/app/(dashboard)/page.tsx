@@ -25,7 +25,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardAnalisis, useDashboardSummary } from "@/hooks/use-dashboard";
 import { useTrackingHistory, useTrackingMap } from "@/hooks/use-tracking";
-import { useRitaseDetail } from "@/hooks/use-armada";
+import { useDriver, useRitaseDetail } from "@/hooks/use-armada";
 import { get } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
 import { DriverSummary, summarizeEvents } from "@/components/armada/driver-summary";
@@ -46,24 +46,24 @@ const LiveMap = dynamic(
 function fmtShort(sec: number): string {
   if (sec <= 0) return "-";
   const s = Math.round(sec);
-  if (s < 60) return `${s}dtk`;
+  if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);
   const r = s % 60;
-  if (m < 60) return r === 0 ? `${m}m` : `${m}m ${r}dtk`;
+  if (m < 60) return r === 0 ? `${m}m` : `${m}m ${r}s`;
   return `${Math.floor(m / 60)}j ${m % 60}m`;
 }
 
 function fmtFull(sec: number): string {
   if (sec <= 0) return "-";
   const s = Math.round(sec);
-  if (s < 60) return `${s} detik`;
+  if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);
   const r = s % 60;
-  if (m < 60) return r === 0 ? `${m} menit` : `${m} menit ${r} detik`;
+  if (m < 60) return r === 0 ? `${m}m` : `${m}m ${r}s`;
   const h = Math.floor(m / 60);
   const rm = m % 60;
-  if (rm === 0) return `${h} jam`;
-  return `${h} jam ${rm} menit`;
+  if (rm === 0) return `${h}j`;
+  return `${h}j ${rm}m`;
 }
 
 function minutesAgo(iso?: string | null): string {
@@ -72,9 +72,9 @@ function minutesAgo(iso?: string | null): string {
   if (Number.isNaN(t)) return "-";
   const m = Math.floor((Date.now() - t) / 60000);
   if (m < 1) return "baru saja";
-  if (m < 60) return `${m} menit lalu`;
+  if (m < 60) return `${m} m lalu`;
   const h = Math.floor(m / 60);
-  return `${h} jam ${m % 60} mnt lalu`;
+  return `${h} jam ${m % 60} m lalu`;
 }
 
 /** Tanggal lokal (WIB) format YYYY-MM-DD — buat batas maksimum input tanggal. */
@@ -89,10 +89,17 @@ export default function DashboardPage() {
   const summary = useDashboardSummary();
   const analisis = useDashboardAnalisis();
   const map = useTrackingMap();
+  const { data: drivers } = useDriver();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   // "" = semua tanggal; kalau diisi → filter riwayat per hari.
   const [selectedDate, setSelectedDate] = useState<string>("");
   const token = useAuthStore((s) => s.token);
+
+  // No HP per driver (lowercase) — buat tombol "Telpon Driver" di popup peta.
+  const phones: Record<string, string> = {};
+  for (const dr of drivers ?? []) {
+    if (dr.nama_driver && dr.no_hp) phones[dr.nama_driver.toLowerCase()] = dr.no_hp;
+  }
 
   const vehicles = map.data?.vehicles ?? [];
   // Kunci stabil dari set id kendaraan (bukan posisi) — biar re-render peta
@@ -181,9 +188,9 @@ export default function DashboardPage() {
     { label: "Total Armada", value: formatNumber(d?.total_kendaraan ?? 0), icon: Truck, tone: "bg-slate-100 text-slate-600" },
     { label: "Selesai", value: formatNumber(d?.armada_selesai ?? 0), icon: CheckCircle2, tone: "bg-emerald-100 text-emerald-700" },
     { label: "Berjalan", value: formatNumber(d?.armada_aktif ?? 0), icon: PlayCircle, tone: "bg-sky-100 text-sky-700" },
-    { label: "Rata² Loading", value: fmtFull(avgLoading), icon: PackageCheck, tone: "bg-amber-100 text-amber-700" },
-    { label: "Rata² Perjalanan", value: fmtFull(avgPerjalanan), icon: RouteIcon, tone: "bg-blue-100 text-blue-700" },
-    { label: "Rata² Unloading", value: fmtFull(avgUnloading), icon: PackageOpen, tone: "bg-violet-100 text-violet-700" },
+    { label: "Rata² Loading", value: fmtShort(avgLoading), icon: PackageCheck, tone: "bg-amber-100 text-amber-700" },
+    { label: "Rata² Perjalanan", value: fmtShort(avgPerjalanan), icon: RouteIcon, tone: "bg-blue-100 text-blue-700" },
+    { label: "Rata² Unloading", value: fmtShort(avgUnloading), icon: PackageOpen, tone: "bg-violet-100 text-violet-700" },
   ];
 
   return (
@@ -245,9 +252,10 @@ export default function DashboardPage() {
           <CardHeader className="border-b pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
               <RadioTower className="h-4 w-4 text-[#034075]" /> Peta Live
-              <span className="ml-auto flex items-center gap-3 text-xs font-normal text-slate-400">
-                <span>{vehicles.length} truk</span>
+              <InfoTip text="Posisi realtime armada, seller, dan gudang (Outgoing/DC). Auto-refresh tiap 10 detik." />
+              <span className="ml-auto flex flex-wrap items-center gap-3 text-xs font-normal text-slate-400">
                 <span>{sellers.length} seller</span>
+                <span>{vehicles.length} truk</span>
                 <span className="inline-flex items-center gap-1">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
                   live 10s
@@ -260,6 +268,9 @@ export default function DashboardPage() {
               <LiveMap
                 vehicles={vehicles}
                 sellers={sellers}
+                gudang={map.data?.gudang ?? []}
+                dropPoints={map.data?.drop_points ?? []}
+                phones={phones}
                 selectedVehicleId={selectedId}
                 onSelectVehicle={setSelectedId}
               />
@@ -273,6 +284,7 @@ export default function DashboardPage() {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                 <Truck className="h-4 w-4 text-[#034075]" /> Armada Aktif
+                <InfoTip text="Klik armada untuk lihat riwayat & durasi di panel bawah; peta zoom ke truknya." />
                 <span className="ml-auto text-xs font-normal text-slate-400">
                   {vehicles.length} truk
                 </span>
@@ -318,6 +330,7 @@ export default function DashboardPage() {
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                   <MapPin className="h-4 w-4 text-amber-600" />
                   Riwayat · {selectedVehicle.plat_nomor || "-"}
+                  <InfoTip text="Timeline status kendaraan terpilih. Isi tanggal untuk filter per hari (kosong = semua)." />
                   <span className="ml-auto text-xs font-normal text-slate-400">
                     {selectedVehicle.nama_driver || "-"}
                   </span>

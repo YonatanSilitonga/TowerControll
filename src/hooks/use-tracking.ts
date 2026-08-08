@@ -21,7 +21,8 @@ export function useTrackingMap() {
   });
 }
 
-/** Riwayat status (checkpoint) untuk satu kendaraan, opsional filter tanggal (YYYY-MM-DD). */
+/** Riwayat status (checkpoint) untuk satu kendaraan, opsional filter tanggal (YYYY-MM-DD).
+ *  Auto-refresh tiap 15s biar timeline ikut update saat ada event baru. */
 export function useTrackingHistory(idKendaraan: number | null, tanggal?: string) {
   const token = useAuthStore(tokenSelector);
   return useQuery({
@@ -32,5 +33,6 @@ export function useTrackingHistory(idKendaraan: number | null, tanggal?: string)
         query: { kendaraan_id: idKendaraan ?? undefined, tanggal },
       }),
     enabled: !!token && idKendaraan != null,
+    refetchInterval: 15_000,
   });
 }

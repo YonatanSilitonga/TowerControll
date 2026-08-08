@@ -78,11 +78,40 @@ export interface SellerLocation {
   no_hp?: string;
   latitude: number;
   longitude: number;
+  /** Jarak tempuh (jalan) dari GUDANG OUTGOING ke seller, km. Diisi backend sekali. */
+  jarak_tempuh_km?: number | null;
+  /** Jarak tempuh (jalan) dari GUDANG DC (Buaran Indah) ke seller, km. */
+  jarak_dc_km?: number | null;
 }
 
 export interface TrackingMap {
   vehicles: TrackingVehicle[];
   sellers: SellerLocation[];
+  /** Posisi gudang (Outgoing/Incoming=DC) — dinamis dari backend. */
+  gudang?: GudangPoint[];
+  /** Posisi drop point (Gateway JKT/SEG) — dinamis dari backend. */
+  drop_points?: DropPointPoi[];
+}
+
+export interface DropPointPoi {
+  id_drop_point: number;
+  kode_dp?: string;
+  nama_drop_point?: string;
+  latitude: number;
+  longitude: number;
+  /** Jarak tempuh (jalan) dari GUDANG OUTGOING ke drop point, km. */
+  jarak_tempuh_km?: number | null;
+  /** Jarak tempuh (jalan) dari GUDANG DC ke drop point, km. */
+  jarak_dc_km?: number | null;
+}
+
+export interface GudangPoint {
+  id_gudang: number;
+  nama_gudang: string;
+  /** outgoing | incoming (incoming = DC) */
+  tipe: string;
+  latitude: number;
+  longitude: number;
 }
 
 export interface TrackingCheckpoint {

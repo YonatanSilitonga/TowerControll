@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { MapPin, RadioTower } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +14,7 @@ import {
 import { statusLabel } from "@/lib/constants";
 import { cn, formatDateTime } from "@/lib/utils";
 import { VehicleItem } from "@/components/armada/vehicle-item";
+import { InfoTip } from "@/components/ui/info-tip";
 
 const LiveMap = dynamic(
   () => import("@/components/map/live-map").then((m) => m.LiveMap),
@@ -43,11 +45,20 @@ function todayLocal(): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
-export default function LiveMapPage() {
+function LiveMapBody() {
+  const searchParams = useSearchParams();
+  const kendaraanParam = searchParams.get("kendaraan");
+  const sellerParam = searchParams.get("seller");
+
   const { data, isLoading } = useTrackingMap();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(todayLocal());
   const { data: history, isLoading: loadingHistory } = useTrackingHistory(selectedId, selectedDate);
+
+  // Fokus mobil dari tabel armada (`?kendaraan=ID`)
+  useEffect(() => {
+    if (kendaraanParam) setSelectedId(Number(kendaraanParam));
+  }, [kendaraanParam]);
 
   const vehicles = data?.vehicles ?? [];
   const sellers = data?.sellers ?? [];
@@ -80,6 +91,9 @@ export default function LiveMapPage() {
                 <LiveMap
                   vehicles={vehicles}
                   sellers={sellers}
+                  gudang={data?.gudang ?? []}
+                  dropPoints={data?.drop_points ?? []}
+                  initialFocus={sellerParam ? { type: "seller", id: Number(sellerParam) } : undefined}
                   selectedVehicleId={selectedId}
                   onSelectVehicle={setSelectedId}
                 />
@@ -94,7 +108,7 @@ export default function LiveMapPage() {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <RadioTower className="h-4 w-4 text-[#1e3a5f]" />
-                Armada Aktif
+                Armada Aktif <InfoTip text="Posisi realtime armada. Klik untuk parkir popup & riwayat di bawah." />
               </CardTitle>
             </CardHeader>
             <CardContent className="max-h-[280px] space-y-2 overflow-y-auto">
@@ -129,6 +143,7 @@ export default function LiveMapPage() {
                 <CardTitle className="flex items-center gap-2 text-base">
                   <MapPin className="h-4 w-4 text-amber-600" />
                   Riwayat · {selectedVehicle.plat_nomor || "-"}
+                  <InfoTip text="Timeline status kendaraan terpilih. Filter tanggal untuk lihat hari tertentu." />
                 </CardTitle>
                 <input
                   type="date"
@@ -183,5 +198,13 @@ export default function LiveMapPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LiveMapPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-slate-400">Memuat peta live...</div>}>
+      <LiveMapBody />
+    </Suspense>
   );
 }

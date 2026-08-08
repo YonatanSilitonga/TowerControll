@@ -121,6 +121,14 @@ export const mockTrackingMap: TrackingMap = {
       longitude: 106.5856,
     },
   ],
+  gudang: [
+    { id_gudang: 1, nama_gudang: "Gudang Outgoing", tipe: "outgoing", latitude: -6.171496, longitude: 106.657155 },
+    { id_gudang: 2, nama_gudang: "Gudang DC", tipe: "incoming", latitude: -6.1848, longitude: 106.6511 },
+  ],
+  drop_points: [
+    { id_drop_point: 2, kode_dp: "DP-GTW", nama_drop_point: "Gudang J&T Express JKT999", latitude: -6.138, longitude: 106.685861 },
+    { id_drop_point: 3, kode_dp: "DP-SEG", nama_drop_point: "J&T Express Gateway SEG777", latitude: -6.196778, longitude: 106.537667 },
+  ],
 };
 
 export const mockTrackingHistory: TrackingCheckpoint[] = [

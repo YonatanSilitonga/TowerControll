@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { ROLE_MENU, ROLE_LABEL } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth-store";
 
-const NAV = [
+const NAV: { label: string; href: string; icon: React.ComponentType<{ className?: string }>; key: string }[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard, key: "dashboard" },
   { label: "Armada", href: "/armada", icon: Truck, key: "armada" },
   { label: "Live Map", href: "/armada/live-map", icon: MapPin, key: "live-map" },
@@ -24,13 +24,18 @@ const NAV = [
   { label: "Laporan", href: "/laporan", icon: BarChart3, key: "laporan" },
 ];
 
+/** Item menu sesuai role — dipakai sidebar desktop & drawer mobile. */
+export function filterNav(role?: string) {
+  const allowed = role ? ROLE_MENU[role as keyof typeof ROLE_MENU] ?? [] : [];
+  return NAV.filter((item) => allowed.includes(item.key));
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const role = useAuthStore((s) => s.user?.role);
   const user = useAuthStore((s) => s.user);
 
-  const allowed = role ? ROLE_MENU[role] : [];
-  const nav = NAV.filter((item) => allowed.includes(item.key));
+  const nav = filterNav(role);
 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-[#034075] text-slate-200 lg:flex">

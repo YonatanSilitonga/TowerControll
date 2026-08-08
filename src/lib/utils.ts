@@ -44,3 +44,17 @@ export function formatDate(value?: string | null): string {
     year: "numeric",
   }).format(date);
 }
+
+/** Format durasi KOMPAK (detik) — "22s", "1m 10s", "1j 5m". Buat UI yang sempit. */
+export function formatDur(sec?: number | null): string {
+  if (!sec || sec <= 0) return "-";
+  const s = Math.round(sec);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  if (m < 60) return r === 0 ? `${m}m` : `${m}m ${r}s`;
+  const h = Math.floor(m / 60);
+  const rm = m % 60;
+  if (rm === 0) return `${h}j`;
+  return `${h}j ${rm}m`;
+}

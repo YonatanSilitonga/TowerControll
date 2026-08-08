@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ROLE_LABEL, USE_MOCK } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth-store";
+import { MobileNav } from "@/components/layout/mobile-nav";
 
 export function Header() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-white px-5 dark:bg-background">
       <div className="flex items-center gap-3">
+        <MobileNav />
         <span className="text-lg font-semibold">Logistics Tower</span>
         {USE_MOCK && (
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">

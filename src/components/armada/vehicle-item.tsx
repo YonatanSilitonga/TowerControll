@@ -10,8 +10,8 @@ function minutesAgo(iso?: string | null): string {
   if (Number.isNaN(t)) return "-";
   const m = Math.floor((Date.now() - t) / 60000);
   if (m < 1) return "baru saja";
-  if (m < 60) return `${m} mnt lalu`;
-  return `${Math.floor(m / 60)} jam ${m % 60} mnt lalu`;
+  if (m < 60) return `${m} m lalu`;
+  return `${Math.floor(m / 60)} jam ${m % 60} m lalu`;
 }
 
 interface VehicleItemProps {

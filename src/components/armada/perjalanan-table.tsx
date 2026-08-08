@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDur } from "@/lib/utils";
 import type { RitaseStop } from "@/types/armada";
 
 interface Ev {
@@ -25,19 +26,6 @@ function catOf(status: string): "tiba" | "lain" {
   const s = status.toLowerCase();
   if (s.includes("tiba") || s.includes("sampai")) return "tiba";
   return "lain";
-}
-
-function fmt(sec: number): string {
-  if (sec <= 0) return "-";
-  const s = Math.round(sec);
-  if (s < 60) return `${s} detik`;
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  if (m < 60) return r === 0 ? `${m} menit` : `${m} menit ${r} detik`;
-  const h = Math.floor(m / 60);
-  const rm = m % 60;
-  if (rm === 0) return `${h} jam`;
-  return `${h} jam ${rm} menit`;
 }
 
 /** Tabel perjalanan per titik (leg): Dari → Ke · Durasi. Pakai rute (stops) + timeline event. */
@@ -102,14 +90,14 @@ export function PerjalananTable({ stops, events }: { stops?: RitaseStop[]; event
             <tr key={i} className="border-b border-slate-100 last:border-0">
               <td className="px-3 py-2 text-xs text-slate-400">{i + 1}</td>
               <td className="px-3 py-2 font-medium text-slate-700">{r.name}</td>
-              <td className="px-3 py-2 text-right font-bold tabular-nums text-slate-800">{fmt(r.dur)}</td>
+              <td className="px-3 py-2 text-right font-bold tabular-nums text-slate-800">{formatDur(r.dur)}</td>
             </tr>
           ))}
           <tr className="bg-slate-50">
             <td className="px-3 py-2" colSpan={2}>
               <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Total Perjalanan</span>
             </td>
-            <td className="px-3 py-2 text-right font-bold tabular-nums text-[#034075]">{fmt(total)}</td>
+            <td className="px-3 py-2 text-right font-bold tabular-nums text-[#034075]">{formatDur(total)}</td>
           </tr>
         </tbody>
       </table>

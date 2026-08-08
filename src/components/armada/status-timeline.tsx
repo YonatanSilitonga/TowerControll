@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn, formatDur } from "@/lib/utils";
 import { statusLabel } from "@/lib/constants";
 import type { RitaseStop } from "@/types/armada";
 
@@ -20,19 +20,6 @@ function stopName(s?: RitaseStop): string {
   if (s.nama_drop_point) return s.nama_drop_point;
   if (s.keterangan) return s.keterangan;
   return s.jenis_stop;
-}
-
-function formatDur(seconds?: number | null): string {
-  if (!seconds) return "";
-  const s = Math.round(seconds);
-  if (s < 60) return `${s} detik`;
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  if (m < 60) return r === 0 ? `${m} menit` : `${m} menit ${r} detik`;
-  const h = Math.floor(m / 60);
-  const rm = m % 60;
-  if (rm === 0) return `${h} jam`;
-  return `${h} jam ${rm} menit`;
 }
 
 function toneOf(status: string): string {
@@ -139,11 +126,11 @@ export function StatusTimeline({
                         </span>
                       )}
                       <span className="text-xs text-slate-400">{timeOnly(ev.created_at)}</span>
-                      {formatDur(ev.durasi_detik) && (
+                      {ev.durasi_detik ? formatDur(ev.durasi_detik) && (
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                           {formatDur(ev.durasi_detik)}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                     {ev.catatan && <p className="mt-0.5 text-xs text-slate-400">{ev.catatan}</p>}
                   </div>

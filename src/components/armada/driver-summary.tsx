@@ -1,7 +1,7 @@
 "use client";
 
 import { Clock, PackageCheck, Route as RouteIcon, Timer } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatDur } from "@/lib/utils";
 import { statusLabel } from "@/lib/constants";
 import { PerjalananTable } from "@/components/armada/perjalanan-table";
 import type { RitaseStop } from "@/types/armada";
@@ -18,19 +18,6 @@ interface Ev {
 
 function toSec(s?: number | null): number {
   return s && s > 0 ? s : 0;
-}
-
-function fmt(sec: number): string {
-  if (sec <= 0) return "-";
-  const s = Math.round(sec);
-  if (s < 60) return `${s} detik`;
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  if (m < 60) return r === 0 ? `${m} menit` : `${m} menit ${r} detik`;
-  const h = Math.floor(m / 60);
-  const rm = m % 60;
-  if (rm === 0) return `${h} jam`;
-  return `${h} jam ${rm} menit`;
 }
 
 function catOf(status: string): "loading" | "perjalanan" | "tiba" | "selesai" | "lain" {
@@ -91,45 +78,60 @@ export function DriverSummary({
   const total = sum.total;
 
   const tiles = [
-    { label: "Loading", value: fmt(catDur.loading), icon: PackageCheck, tone: "bg-amber-100 text-amber-700" },
-    { label: "Perjalanan", value: fmt(catDur.perjalanan), icon: RouteIcon, tone: "bg-sky-100 text-sky-700" },
-    { label: "Tiba", value: fmt(catDur.tiba), icon: Clock, tone: "bg-emerald-100 text-emerald-700" },
-    { label: "Selesai", value: fmt(catDur.selesai), icon: Timer, tone: "bg-green-100 text-green-700" },
+    { label: "Loading", value: formatDur(catDur.loading), icon: PackageCheck, tone: "bg-amber-100 text-amber-700" },
+    { label: "Perjalanan", value: formatDur(catDur.perjalanan), icon: RouteIcon, tone: "bg-sky-100 text-sky-700" },
+    { label: "Tiba", value: formatDur(catDur.tiba), icon: Clock, tone: "bg-emerald-100 text-emerald-700" },
+    { label: "Selesai", value: formatDur(catDur.selesai), icon: Timer, tone: "bg-green-100 text-green-700" },
   ];
 
   return (
     <div className="space-y-3">
       {title && <p className="text-sm font-semibold text-slate-800">{title}</p>}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+
+      {/* Tiles durasi — 2x2 biar tetap rapi di panel sempit */}
+      <div className="grid grid-cols-2 gap-2">
         {tiles.map((t) => (
           <div key={t.label} className="rounded-lg border border-slate-100 px-3 py-2">
-            <div className={cn("mb-1 inline-flex h-6 w-6 items-center justify-center rounded-md", t.tone)}>
-              <t.icon className="h-3.5 w-3.5" />
+            <div className="flex items-center gap-1.5">
+              <span className={cn("inline-flex h-5 w-5 items-center justify-center rounded-md", t.tone)}>
+                <t.icon className="h-3 w-3" />
+              </span>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
             </div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
-            <p className="text-base font-bold tabular-nums text-slate-800">{t.value}</p>
+            <p className="mt-1 text-sm font-bold tabular-nums text-slate-800">{t.value}</p>
           </div>
         ))}
-        <div className="rounded-lg border border-[#034075]/20 bg-[#034075]/5 px-3 py-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Total</p>
-          <p className="text-base font-bold tabular-nums text-[#034075]">{fmt(total)}</p>
-        </div>
       </div>
 
-      {/* Stacked bar proporsi durasi */}
+      {/* Total — full-width */}
+      <div className="flex items-center justify-between rounded-lg border border-[#034075]/20 bg-[#034075]/5 px-3 py-2">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Durasi</p>
+        <p className="text-sm font-bold tabular-nums text-[#034075]">{formatDur(total)}</p>
+      </div>
+
+      {/* Stacked bar proporsi + legend cuma yang non-zero */}
       {total > 0 && (
         <div>
-          <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+          <div className="flex h-2 w-full overflow-hidden rounded-full bg-slate-100">
             <div className="bg-amber-400" style={{ width: `${(sum.loading / total) * 100}%` }} />
             <div className="bg-sky-500" style={{ width: `${(sum.perjalanan / total) * 100}%` }} />
             <div className="bg-emerald-400" style={{ width: `${(sum.tiba / total) * 100}%` }} />
             <div className="bg-green-600" style={{ width: `${(sum.selesai / total) * 100}%` }} />
           </div>
           <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400">
-            <span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-amber-400" />Loading {Math.round((sum.loading / total) * 100)}%</span>
-            <span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-sky-500" />Perjalanan {Math.round((sum.perjalanan / total) * 100)}%</span>
-            <span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-emerald-400" />Tiba {Math.round((sum.tiba / total) * 100)}%</span>
-            <span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-green-600" />Selesai {Math.round((sum.selesai / total) * 100)}%</span>
+            {[
+              { label: "Loading", v: sum.loading, color: "bg-amber-400" },
+              { label: "Perjalanan", v: sum.perjalanan, color: "bg-sky-500" },
+              { label: "Tiba", v: sum.tiba, color: "bg-emerald-400" },
+              { label: "Selesai", v: sum.selesai, color: "bg-green-600" },
+            ]
+              .filter((p) => p.v > 0)
+              .map((p) => (
+                <span key={p.label} className="inline-flex items-center gap-1">
+                  <i className={cn("h-2 w-2 rounded-full", p.color)} />
+                  {p.label} {Math.round((p.v / total) * 100)}%
+                </span>
+              ))}
           </div>
         </div>
       )}
