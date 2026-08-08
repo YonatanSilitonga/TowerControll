@@ -109,7 +109,7 @@ export function displayTrackingStatus(
     const t = new Date(lastUpdate).getTime();
     if (!Number.isNaN(t)) stale = Date.now() - t > 5 * 60 * 1000; // > 5 menit
   }
-  if (stale) return "Idle";
+  if (stale) return "Offline";
   return (speed ?? 0) > 0 ? "Bergerak" : "Aktif";
 }
 

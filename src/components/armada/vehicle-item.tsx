@@ -24,6 +24,14 @@ interface VehicleItemProps {
 
 /** Item armada klik-klik — dipakai di dashboard (panel kanan) & halaman Live Map. */
 export function VehicleItem({ vehicle, selected, onSelect, durasi }: VehicleItemProps) {
+  // Offline: flag dari backend, atau fallback hitung client-side (> 5 menit).
+  const stale =
+    vehicle.offline ??
+    (() => {
+      const t = new Date(vehicle.last_update).getTime();
+      return !Number.isNaN(t) && Date.now() - t > 5 * 60 * 1000;
+    })();
+
   return (
     <button
       type="button"
@@ -41,9 +49,15 @@ export function VehicleItem({ vehicle, selected, onSelect, durasi }: VehicleItem
       </div>
       <p className="mt-0.5 text-xs text-slate-500">{vehicle.nama_driver || "-"}</p>
       <div className="mt-1 flex items-center justify-between">
-        <span className="text-xs font-medium text-slate-700">
-          {displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update)}
-        </span>
+        {stale ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">
+            Offline
+          </span>
+        ) : (
+          <span className="text-xs font-medium text-slate-700">
+            {displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update)}
+          </span>
+        )}
         <span className="text-xs text-slate-400">{vehicle.kecepatan ?? 0} km/h</span>
       </div>
       {durasi && <p className="mt-1 text-[11px] tabular-nums text-slate-400">{durasi}</p>}

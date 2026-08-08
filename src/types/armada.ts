@@ -66,6 +66,8 @@ export interface TrackingVehicle {
   arah?: number | null;
   status?: string | null;
   last_update: string;
+  /** Backend: true kalau last_update > 5 menit (gak ada GPS terbaru). */
+  offline?: boolean;
 }
 
 export interface SellerLocation {
