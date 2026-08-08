@@ -1,9 +1,10 @@
 import type { UserRole } from "@/types/auth";
 import type { DriverStatus, FleetStatus, TripStatus, VehicleStatus } from "@/types/armada";
 
-/** Base URL API backend. Fallback ke local dev. */
+/** Base URL API backend. Default: backend ngrok kawan (office).
+ *  Bisa dioverride via env NEXT_PUBLIC_API_URL (mis. di .env.local). */
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api/v1";
+  process.env.NEXT_PUBLIC_API_URL ?? "https://violator-krypton-image.ngrok-free.dev/api/v1";
 
 /** Interval polling summary dashboard (ms). */
 export const POLL_INTERVAL = Number(
