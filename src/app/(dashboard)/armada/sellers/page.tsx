@@ -1,68 +1,175 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin } from "lucide-react";
+import { Eye, MapPin, Phone, User } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { PageHeader } from "@/components/layout/page-header";
 import { ArmadaTabs } from "@/components/armada/armada-tabs";
+import { InfoTip } from "@/components/ui/info-tip";
 import { useSeller } from "@/hooks/use-seller";
 import type { Seller } from "@/types/seller";
 
 export default function SellersPage() {
   const { data, isLoading } = useSeller();
   const router = useRouter();
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const selected = (data ?? []).find((s) => s.id === selectedId) ?? null;
 
   return (
     <div>
       <PageHeader
         title="Seller"
-        description="Daftar seller (titik pickup) & kontak — klik baris untuk lihat di peta"
+        description="Daftar seller (titik pickup) & kontak — klik baris ke peta, tombol Detail untuk info lengkap"
         crumbs={[{ label: "Armada", href: "/armada" }, { label: "Seller" }]}
       />
       <ArmadaTabs />
 
-      <DataTable<Seller>
-        loading={isLoading}
-        rows={data ?? []}
-        rowKey={(s) => String(s.id)}
-        searchPlaceholder="Cari nama / kota seller..."
-        searchFilter={(s, q) =>
-          s.name.toLowerCase().includes(q.toLowerCase()) ||
-          (s.city ?? "").toLowerCase().includes(q.toLowerCase())
-        }
-        emptyText="Belum ada seller"
-        onRowClick={(s) => router.push(`/armada/live-map?seller=${s.id}`)}
-        columns={[
-          { header: "Kode", className: "font-mono text-xs", render: (s) => s.code },
-          { header: "Nama", className: "font-medium", render: (s) => s.name },
-          { header: "Kota", render: (s) => s.city },
-          {
-            header: "Alamat",
-            render: (s) =>
-              s.address ? (
-                <span title={s.address} className="block max-w-[260px] truncate text-slate-600">
-                  {s.address}
-                </span>
-              ) : (
-                "-"
+      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+        <DataTable<Seller>
+          loading={isLoading}
+          rows={data ?? []}
+          rowKey={(s) => String(s.id)}
+          searchPlaceholder="Cari nama / kota / alamat seller..."
+          searchFilter={(s, q) =>
+            s.name.toLowerCase().includes(q.toLowerCase()) ||
+            (s.city ?? "").toLowerCase().includes(q.toLowerCase()) ||
+            (s.address ?? "").toLowerCase().includes(q.toLowerCase())
+          }
+          emptyText="Belum ada seller"
+          onRowClick={(s) => router.push(`/armada/live-map?seller=${s.id}`)}
+          columns={[
+            { header: "Kode", className: "font-mono text-xs", render: (s) => s.code },
+            { header: "Nama", className: "font-medium", render: (s) => s.name },
+            { header: "Kota", render: (s) => s.city },
+            {
+              header: "Alamat",
+              render: (s) =>
+                s.address ? (
+                  <span title={s.address} className="block max-w-[240px] truncate text-slate-600">
+                    {s.address}
+                  </span>
+                ) : (
+                  "-"
+                ),
+            },
+            { header: "PIC", render: (s) => s.pic ?? "-" },
+            {
+              header: "No HP",
+              render: (s) =>
+                s.no_hp ? (
+                  <a href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`} className="text-emerald-700 hover:underline">
+                    {s.no_hp}
+                  </a>
+                ) : (
+                  "-"
+                ),
+            },
+            {
+              header: "Aksi",
+              className: "text-right",
+              render: (s) => (
+                <div className="flex items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedId((cur) => (cur === s.id ? null : s.id));
+                    }}
+                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-600 hover:border-[#034075]/40 hover:text-[#034075]"
+                  >
+                    <Eye className="h-3 w-3" /> Detail
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/armada/live-map?seller=${s.id}`);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-[#034075] hover:bg-[#034075] hover:text-white"
+                  >
+                    <MapPin className="h-3 w-3" /> Map
+                  </button>
+                </div>
               ),
-          },
-          { header: "PIC", render: (s) => s.pic ?? "-" },
-          {
-            header: "No HP",
-            render: (s) => (s.no_hp ? <a href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`} className="text-emerald-700 hover:underline">{s.no_hp}</a> : "-"),
-          },
-          {
-            header: "Peta",
-            className: "text-right",
-            render: (s) => (
-              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-[#034075]">
-                <MapPin className="h-3 w-3" /> Lihat di map
-              </span>
-            ),
-          },
-        ]}
-      />
+            },
+          ]}
+        />
+
+        {/* Detail seller */}
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">
+              Detail Seller
+              <InfoTip text="Info lengkap seller. Klik tombol Detail di baris tabel untuk memilih." />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!selected ? (
+              <p className="py-6 text-center text-sm text-slate-400">
+                Klik "Detail" pada baris seller
+              </p>
+            ) : (
+              <div className="space-y-3 text-sm">
+                <div>
+                  <p className="text-base font-bold text-emerald-700">{selected.name}</p>
+                  <p className="text-xs text-slate-400">{selected.code}</p>
+                </div>
+                <div className="space-y-1.5">
+                  <DetailRow label="Kota" value={selected.city ?? "-"} />
+                  <DetailRow label="Alamat" value={selected.address ?? "-"} />
+                  <DetailRow
+                    label="PIC"
+                    value={
+                      selected.pic ? (
+                        <span className="inline-flex items-center gap-1">
+                          <User className="h-3 w-3" /> {selected.pic}
+                        </span>
+                      ) : (
+                        "-"
+                      )
+                    }
+                  />
+                  <DetailRow
+                    label="No HP"
+                    value={
+                      selected.no_hp ? (
+                        <a href={`tel:${selected.no_hp.replace(/[^+\d]/g, "")}`} className="inline-flex items-center gap-1 text-emerald-700 hover:underline">
+                          <Phone className="h-3 w-3" /> {selected.no_hp}
+                        </a>
+                      ) : (
+                        "-"
+                      )
+                    }
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => router.push(`/armada/live-map?seller=${selected.id}`)}
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-[#034075] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0a5aa8]"
+                >
+                  <MapPin className="h-4 w-4" /> Lihat di map
+                </button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-2 border-b border-slate-100 py-1.5 last:border-0">
+      <span className="shrink-0 text-xs text-slate-500">{label}</span>
+      <span className="text-right text-sm font-medium text-slate-800">{value}</span>
     </div>
   );
 }
