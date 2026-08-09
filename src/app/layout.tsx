@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import NextTopLoader from "nextjs-toploader";
 import { QueryProvider } from "@/providers/query-provider";
 import "leaflet/dist/leaflet.css";
 import "./globals.css";
@@ -18,6 +19,7 @@ export default function RootLayout({
   return (
     <html lang="id">
       <body className="font-sans antialiased">
+        <NextTopLoader color="#034075" showSpinner={false} height={3} />
         <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
