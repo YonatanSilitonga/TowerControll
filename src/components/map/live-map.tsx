@@ -250,6 +250,9 @@ function VehicleMarker({
             Update: {minutesAgo(v.last_update)}
             {stale ? " (data lama)" : ""}
           </p>
+          {v.last_open && (
+            <p className="text-xs text-muted-foreground">App dibuka: {minutesAgo(v.last_open)}</p>
+          )}
           {phone && (
             <a
               href={`tel:${phone.replace(/[^+\d]/g, "")}`}

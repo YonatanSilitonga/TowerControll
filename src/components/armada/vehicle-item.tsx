@@ -44,13 +44,20 @@ export function VehicleItem({ vehicle, selected, onSelect, durasi }: VehicleItem
     );
   } else if (session) {
     statusNode = (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">
+      <span
+        title={`Session aktif (belum logout) • posisi terakhir ${minutesAgo(vehicle.last_update)} • app terakhir dibuka ${vehicle.last_open ? minutesAgo(vehicle.last_open) : "-"}`}
+        className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700"
+      >
         Online · data lama
       </span>
     );
   } else {
+    // Logout / belum login → LANGSUNG Offline (gak nunggu GPS stale).
     statusNode = (
-      <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">
+      <span
+        title={`Sesi selesai (logout) atau belum login • posisi terakhir ${minutesAgo(vehicle.last_update)} • app terakhir dibuka ${vehicle.last_open ? minutesAgo(vehicle.last_open) : "-"}`}
+        className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700"
+      >
         Offline
       </span>
     );

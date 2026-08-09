@@ -70,6 +70,8 @@ export interface TrackingVehicle {
   offline?: boolean;
   /** Backend: true kalau driver belum logout (session aktif) — background/screen-off tetap Online. */
   session_online?: boolean;
+  /** Backend: kapan terakhir app mobile dibuka (telemetry). */
+  last_open?: string | null;
 }
 
 export interface SellerLocation {
