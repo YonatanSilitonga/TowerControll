@@ -36,6 +36,17 @@ export default function SellersPage() {
           { header: "Kode", className: "font-mono text-xs", render: (s) => s.code },
           { header: "Nama", className: "font-medium", render: (s) => s.name },
           { header: "Kota", render: (s) => s.city },
+          {
+            header: "Alamat",
+            render: (s) =>
+              s.address ? (
+                <span title={s.address} className="block max-w-[260px] truncate text-slate-600">
+                  {s.address}
+                </span>
+              ) : (
+                "-"
+              ),
+          },
           { header: "PIC", render: (s) => s.pic ?? "-" },
           {
             header: "No HP",
