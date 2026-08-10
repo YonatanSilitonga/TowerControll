@@ -103,7 +103,10 @@ export const get = <T>(path: string, options?: RequestOptions) =>
 export const post = <T>(path: string, body?: unknown, options?: RequestOptions) =>
   apiRequest<T>(path, { method: "POST", body, ...options });
 
-/** PUT / PATCH (partial update). */
+/** PUT / PATCH (update). */
+export const put = <T>(path: string, body?: unknown, options?: RequestOptions) =>
+  apiRequest<T>(path, { method: "PUT", body, ...options });
+
 export const patch = <T>(
   path: string,
   body?: unknown,

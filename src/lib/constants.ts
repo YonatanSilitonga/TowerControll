@@ -23,14 +23,14 @@ export const ROLE_LABEL: Record<UserRole, string> = {
 
 /** Mapping role -> modul yang boleh diakses (untuk menu & guard). */
 export const ROLE_MENU: Record<UserRole, string[]> = {
-  admin: ["dashboard", "armada", "gudang", "absensi", "laporan"],
-  kapten: ["dashboard", "armada"],
-  direktur: ["dashboard", "armada", "laporan"],
+  admin: ["dashboard", "armada", "jadwal", "gudang", "absensi", "laporan"],
+  kapten: ["dashboard", "armada", "jadwal"],
+  direktur: ["dashboard", "armada", "jadwal", "laporan"],
   driver: ["dashboard", "armada"],
 };
 
-/** Role yang boleh masuk dashboard WEB (direktur & kapten). Driver = mobile. */
-export const ALLOWED_WEB_ROLES: UserRole[] = ["direktur", "kapten"];
+/** Role yang boleh masuk dashboard WEB (admin, direktur & kapten). Driver = mobile. */
+export const ALLOWED_WEB_ROLES: UserRole[] = ["admin", "direktur", "kapten"];
 
 export const DELIVERY_STATUS_LABEL: Record<string, string> = {
   in_transit: "IN TRANSIT",

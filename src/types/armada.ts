@@ -54,6 +54,45 @@ export interface Trip {
 
 /* ---------- Live Tracking ---------- */
 
+export interface CheckpointAggregated {
+  waktu: string;
+  lat: number;
+  lng: number;
+  durasi_berhenti_detik: number;
+  tipe_checkpoint: "seller" | "gudang" | "drop_point" | "lintas_wilayah" | "persinggahan";
+  label: string;
+  keterangan?: string;
+  total_koli_sampai?: number;
+  total_ecer_sampai?: number;
+}
+
+export interface AdminRitaseStop {
+  id_stop: number;
+  urutan: number;
+  jenis_stop: string;
+  id_seller?: number | null;
+  id_drop_point?: number | null;
+  id_gudang?: number | null;
+  keterangan?: string | null;
+  nama_lokasi: string;
+}
+
+export interface AdminRitaseItem {
+  id_ritase: number;
+  kode_ritase: string;
+  tanggal: string;
+  id_driver: number;
+  nama_driver: string;
+  jabatan_driver: string;
+  id_kendaraan: number;
+  nopol: string;
+  id_drop_point: number;
+  nama_drop_point: string;
+  ritase_ke: number;
+  status: string;
+  stops: AdminRitaseStop[];
+}
+
 export interface TrackingVehicle {
   id_tracking: number;
   id_kendaraan: number;
