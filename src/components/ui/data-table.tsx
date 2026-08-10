@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,8 @@ interface DataTableProps<T> {
   rowKey: (row: T) => string;
   searchPlaceholder?: string;
   searchFilter?: (row: T, q: string) => boolean;
+  /** Kontrol tambahan yang tampil SEJAJAR dengan search (mis. filter tanggal). */
+  toolbar?: React.ReactNode;
   loading?: boolean;
   skeletonRows?: number;
   onRowClick?: (row: T) => void;
@@ -33,6 +35,7 @@ export function DataTable<T>({
   rowKey,
   searchPlaceholder,
   searchFilter,
+  toolbar,
   loading,
   skeletonRows = 5,
   onRowClick,
@@ -43,6 +46,29 @@ export function DataTable<T>({
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultPageSize);
+
+  // Lebar kolom (drag header untuk resize).
+  const [widths, setWidths] = useState<Record<number, number>>({});
+  const resizing = useRef<{ idx: number; startX: number; startW: number } | null>(null);
+
+  const startResize = (e: React.MouseEvent, idx: number) => {
+    e.preventDefault();
+    resizing.current = { idx, startX: e.clientX, startW: widths[idx] ?? 0 };
+    const onMove = (ev: MouseEvent) => {
+      if (!resizing.current) return;
+      const delta = ev.clientX - resizing.current.startX;
+      const w = Math.max(80, resizing.current.startW + delta);
+      const i = resizing.current.idx;
+      setWidths((prev) => ({ ...prev, [i]: w }));
+    };
+    const onUp = () => {
+      resizing.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
 
   const filtered = useMemo(() => {
     if (!q.trim() || !searchFilter) return rows;
@@ -56,20 +82,23 @@ export function DataTable<T>({
 
   return (
     <div>
-      {searchFilter && (
-        <div className="mb-4 max-w-sm">
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-            <Input
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
-                setPage(1);
-              }}
-              placeholder={searchPlaceholder ?? "Cari..."}
-              className="pl-9"
-            />
-          </div>
+      {(searchFilter || toolbar) && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          {searchFilter && (
+            <div className="relative max-w-sm flex-1 basis-56">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <Input
+                value={q}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  setPage(1);
+                }}
+                placeholder={searchPlaceholder ?? "Cari..."}
+                className="pl-9"
+              />
+            </div>
+          )}
+          {toolbar && <div className="flex flex-wrap items-center gap-2">{toolbar}</div>}
         </div>
       )}
 
@@ -78,9 +107,17 @@ export function DataTable<T>({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
-              {columns.map((c) => (
-                <th key={c.header} className={cn("px-4 py-2.5 font-semibold", c.className)}>
+              {columns.map((c, idx) => (
+                <th
+                  key={c.header}
+                  className={cn("relative px-4 py-2.5 font-semibold select-none", c.className)}
+                  style={{ width: widths[idx] ?? undefined }}
+                >
                   {c.header}
+                  <span
+                    onMouseDown={(e) => startResize(e, idx)}
+                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize bg-transparent transition-colors hover:bg-[#034075]/30"
+                  />
                 </th>
               ))}
             </tr>
@@ -113,7 +150,7 @@ export function DataTable<T>({
                   )}
                 >
                   {columns.map((c, j) => (
-                    <td key={j} className={cn("px-4 py-3", c.className)}>
+                    <td key={j} className={cn("px-4 py-3", c.className)} style={{ width: widths[j] ?? undefined }}>
                       {c.render(row)}
                     </td>
                   ))}

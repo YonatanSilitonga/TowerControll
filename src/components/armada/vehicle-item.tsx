@@ -81,7 +81,7 @@ export function VehicleItem({ vehicle, selected, onSelect, durasi }: VehicleItem
       <p className="mt-0.5 text-xs text-slate-500">{vehicle.nama_driver || "-"}</p>
       <div className="mt-1 flex items-center justify-between">
         {statusNode}
-        <span className="text-xs text-slate-400">{vehicle.kecepatan ?? 0} km/h</span>
+        <span className="text-xs text-slate-400">{live ? `${vehicle.kecepatan ?? 0} km/h` : "-"}</span>
       </div>
       {durasi && <p className="mt-1 text-[11px] tabular-nums text-slate-400">{durasi}</p>}
     </button>

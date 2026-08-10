@@ -45,6 +45,16 @@ export function formatDate(value?: string | null): string {
   }).format(date);
 }
 
+/** Format tanggal (YYYY-MM-DD atau ISO) ke DD/MM/YYYY. */
+export function formatDateDMY(value?: string | null): string {
+  if (!value) return "-";
+  // Backend kirim "YYYY-MM-DD" — parse manual biar gak geser timezone.
+  const m = value.slice(0, 10).split("-").map(Number);
+  if (m.length !== 3 || m.some(Number.isNaN)) return value.slice(0, 10);
+  const [y, mo, d] = m;
+  return `${String(d).padStart(2, "0")}/${String(mo).padStart(2, "0")}/${y}`;
+}
+
 /** Format durasi KOMPAK (detik) — "22s", "1m 10s", "1j 5m". Buat UI yang sempit. */
 export function formatDur(sec?: number | null): string {
   if (!sec || sec <= 0) return "-";

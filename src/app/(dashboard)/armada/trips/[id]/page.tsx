@@ -27,7 +27,7 @@ import { DriverSummary, summarizeEvents } from "@/components/armada/driver-summa
 import { StatusTimeline } from "@/components/armada/status-timeline";
 import { InfoTip } from "@/components/ui/info-tip";
 import { useRitaseDetail } from "@/hooks/use-armada";
-import { cn, formatDur, formatNumber } from "@/lib/utils";
+import { cn, formatDateDMY, formatDur, formatNumber } from "@/lib/utils";
 
 export default function RitaseDetailPage({ params }: { params: { id: string } }) {
   const { data, isLoading } = useRitaseDetail(params.id);
@@ -86,7 +86,7 @@ export default function RitaseDetailPage({ params }: { params: { id: string } })
     <div className="space-y-5">
       <PageHeader
         title={data.kode_ritase}
-        description={`RIT ${data.ritase_ke ?? "-"} · ${data.tanggal}`}
+        description={`RIT ${data.ritase_ke ?? "-"} · ${formatDateDMY(data.tanggal)}`}
         crumbs={[
           { label: "Armada", href: "/armada" },
           { label: "Ritase", href: "/armada/trips" },

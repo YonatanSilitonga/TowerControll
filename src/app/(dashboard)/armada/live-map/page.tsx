@@ -46,6 +46,16 @@ function todayLocal(): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
+function minutesAgo(iso?: string | null): string {
+  if (!iso) return "-";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "-";
+  const m = Math.floor((Date.now() - t) / 60000);
+  if (m < 1) return "baru saja";
+  if (m < 60) return `${m} m lalu`;
+  return `${Math.floor(m / 60)} jam ${m % 60} m lalu`;
+}
+
 function LiveMapBody() {
   const searchParams = useSearchParams();
   const kendaraanParam = searchParams.get("kendaraan");
@@ -69,6 +79,13 @@ function LiveMapBody() {
   // Definisi "Aktif": sudah login (session) ATAU GPS ≤ ambang 15 menit.
   const isOnline = (v: TrackingVehicle) =>
     !!v.session_online ||
+    !(v.offline ??
+      (() => {
+        const t = new Date(v.last_update).getTime();
+        return Number.isNaN(t) ? true : Date.now() - t > 15 * 60 * 1000;
+      })());
+  // LIVE = GPS masih fresh (≤ 15 menit), terlepas dari session.
+  const isLive = (v: TrackingVehicle) =>
     !(v.offline ??
       (() => {
         const t = new Date(v.last_update).getTime();
@@ -175,8 +192,8 @@ function LiveMapBody() {
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <MapPin className="h-4 w-4 text-amber-600" />
-                  Riwayat · {selectedVehicle.plat_nomor || "-"}
-                  <InfoTip text="Timeline status kendaraan terpilih. Filter tanggal untuk lihat hari tertentu." />
+                  Detail Armada · {selectedVehicle.plat_nomor || "-"}
+                  <InfoTip text="Status terkini + riwayat log kendaraan. Filter tanggal untuk lihat hari tertentu." />
                 </CardTitle>
                 <input
                   type="date"
@@ -188,7 +205,38 @@ function LiveMapBody() {
                   className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20"
                 />
               </CardHeader>
-              <CardContent className="max-h-[320px] space-y-0 overflow-y-auto">
+              <CardContent className="max-h-[420px] space-y-3 overflow-y-auto">
+                {(() => {
+                  const selLive = isLive(selectedVehicle);
+                  const selSession = !!selectedVehicle.session_online;
+                  return (
+                    <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 pb-2">
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[11px] font-bold",
+                          selLive
+                            ? "bg-emerald-100 text-emerald-700"
+                            : selSession
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-rose-100 text-rose-700"
+                        )}
+                      >
+                        {selLive ? "LIVE" : selSession ? "Online · data lama" : "Offline"}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                        {selLive ? `${selectedVehicle.kecepatan ?? 0} km/h` : "- km/h"}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                        Update {minutesAgo(selectedVehicle.last_update)}
+                      </span>
+                      {selectedVehicle.last_open && (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                          App dibuka {minutesAgo(selectedVehicle.last_open)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
                 {loadingHistory ? (
                   <Skeleton className="h-24 w-full" />
                 ) : (history ?? []).length === 0 ? (

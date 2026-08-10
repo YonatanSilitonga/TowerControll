@@ -133,6 +133,13 @@ export default function DashboardPage() {
         const t = new Date(v.last_update).getTime();
         return Number.isNaN(t) ? true : Date.now() - t > 15 * 60 * 1000;
       })());
+  // LIVE = GPS masih fresh (≤ 15 menit), terlepas dari session.
+  const isLive = (v: TrackingVehicle) =>
+    !(v.offline ??
+      (() => {
+        const t = new Date(v.last_update).getTime();
+        return Number.isNaN(t) ? true : Date.now() - t > 15 * 60 * 1000;
+      })());
   const onlineVehicles = vehicles.filter(isOnline);
   const offlineVehicles = vehicles.filter((v) => !isOnline(v));
   const histById = new Map<number, TrackingCheckpoint[]>(
@@ -267,7 +274,7 @@ export default function DashboardPage() {
 
       {/* PETA KIRI + ARMADA KANAN */}
       <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
-        {/* KIRI: peta live — mengikuti tinggi panel kanan (grid stretch) */}
+        {/* KIRI: peta live — MEMBESAR mengikuti panel kanan (render cepat via auto-resize + CARTO) */}
         <Card className="flex flex-col overflow-hidden rounded-2xl shadow-sm">
           <CardHeader className="border-b pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
@@ -365,12 +372,47 @@ export default function DashboardPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                   <MapPin className="h-4 w-4 text-amber-600" />
-                  Riwayat · {selectedVehicle.plat_nomor || "-"}
-                  <InfoTip text="Timeline status kendaraan terpilih. Isi tanggal untuk filter per hari (kosong = semua)." />
+                  Detail Armada · {selectedVehicle.plat_nomor || "-"}
+                  <InfoTip text="Status terkini + riwayat log kendaraan. Isi tanggal untuk filter per hari (kosong = semua)." />
                   <span className="ml-auto text-xs font-normal text-slate-400">
                     {selectedVehicle.nama_driver || "-"}
                   </span>
                 </CardTitle>
+              </CardHeader>
+              <CardContent className="max-h-[500px] space-y-3 overflow-y-auto pt-0">
+                {/* Info strip: status live/session, kecepatan, update, app dibuka */}
+                {(() => {
+                  const selLive = isLive(selectedVehicle);
+                  const selSession = !!selectedVehicle.session_online;
+                  return (
+                    <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 pb-2">
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[11px] font-bold",
+                          selLive
+                            ? "bg-emerald-100 text-emerald-700"
+                            : selSession
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-rose-100 text-rose-700"
+                        )}
+                      >
+                        {selLive ? "LIVE" : selSession ? "Online · data lama" : "Offline"}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                        {selLive ? `${selectedVehicle.kecepatan ?? 0} km/h` : "- km/h"}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                        Update {minutesAgo(selectedVehicle.last_update)}
+                      </span>
+                      {selectedVehicle.last_open && (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                          App dibuka {minutesAgo(selectedVehicle.last_open)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 <input
                   type="date"
                   value={selectedDate}
@@ -378,8 +420,7 @@ export default function DashboardPage() {
                   onChange={(e) => setSelectedDate(e.target.value || "")}
                   className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm focus:border-[#034075] focus:outline-none focus:ring-2 focus:ring-[#034075]/20"
                 />
-              </CardHeader>
-              <CardContent className="max-h-[420px] overflow-y-auto pt-0">
+
                 {loadingHistory ? (
                   <Skeleton className="h-24 w-full" />
                 ) : (history ?? []).length === 0 ? (

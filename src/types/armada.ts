@@ -148,6 +148,12 @@ export interface DriverArmada {
   no_hp?: string | null;
   status_driver: string;
   jenis_driver?: string | null; // tetap | kondisional
+  /** Kendaraan terakhir yang dia track (lagi nyetir apa). */
+  plat_nomor?: string | null;
+  /** id kendaraan terakhir yang dia track. */
+  id_kendaraan?: number | null;
+  /** true kalau posisi terakhir masih segar (≤ ambang offline) — sedang aktif. */
+  tracking_fresh?: boolean;
 }
 
 export interface Ritase {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Phone } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
@@ -10,12 +11,13 @@ import type { DriverArmada } from "@/types/armada";
 
 export default function DriversPage() {
   const { data, isLoading } = useDriver();
+  const router = useRouter();
 
   return (
     <div>
       <PageHeader
         title="Driver"
-        description="Daftar driver armada (tetap / kondisional)"
+        description="Daftar driver armada (tetap / kondisional) — klik baris untuk detail & log"
         crumbs={[{ label: "Armada", href: "/armada" }, { label: "Driver" }]}
       />
       <ArmadaTabs />
@@ -30,8 +32,29 @@ export default function DriversPage() {
           (d.no_hp ?? "").toLowerCase().includes(q.toLowerCase())
         }
         emptyText="Belum ada driver"
+        onRowClick={(d) => router.push(`/armada/drivers/${d.id_driver}`)}
         columns={[
           { header: "Nama", className: "font-medium", render: (d) => d.nama_driver },
+          {
+            header: "Kendaraan",
+            render: (d) =>
+              d.plat_nomor ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono text-xs font-medium text-slate-800">{d.plat_nomor}</span>
+                  {d.tracking_fresh ? (
+                    <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                      Aktif
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+                      Lama
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-xs text-slate-300">-</span>
+              ),
+          },
           { header: "Telepon", render: (d) => d.no_hp ?? "-" },
           {
             header: "Jenis",

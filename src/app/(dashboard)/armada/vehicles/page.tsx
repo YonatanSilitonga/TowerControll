@@ -18,7 +18,7 @@ export default function KendaraanPage() {
     <div>
       <PageHeader
         title="Kendaraan"
-        description="Daftar kendaraan armada & statusnya — klik baris untuk lihat di peta"
+        description="Daftar kendaraan armada & statusnya — klik baris untuk detail & log"
         crumbs={[{ label: "Armada", href: "/armada" }, { label: "Kendaraan" }]}
       />
       <ArmadaTabs />
@@ -33,7 +33,7 @@ export default function KendaraanPage() {
           (k.jenis_kendaraan ?? "").toLowerCase().includes(q.toLowerCase())
         }
         emptyText="Belum ada kendaraan"
-        onRowClick={(k) => router.push(`/armada/live-map?kendaraan=${k.id_kendaraan}`)}
+        onRowClick={(k) => router.push(`/armada/vehicles/${k.id_kendaraan}`)}
         columns={[
           { header: "Plat", className: "font-mono text-xs font-medium", render: (k) => k.plat_nomor },
           { header: "Jenis", render: (k) => k.jenis_kendaraan ?? "-" },

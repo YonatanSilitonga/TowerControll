@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, MapPin, Phone, User } from "lucide-react";
+import { Building2, Eye, MapPin, Phone, User } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -20,34 +20,50 @@ export default function SellersPage() {
   const { data, isLoading } = useSeller();
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const selected = (data ?? []).find((s) => s.id === selectedId) ?? null;
+
+  const sellers = data ?? [];
+  const selected = sellers.find((s) => s.id === selectedId) ?? null;
+  const kotaCount = new Set(sellers.map((s) => s.city ?? "").filter(Boolean)).size;
 
   return (
     <div>
       <PageHeader
         title="Seller"
-        description="Daftar seller (titik pickup) & kontak — klik baris ke peta, tombol Detail untuk info lengkap"
+        description="Master data titik pickup — informasi kontak & posisi"
         crumbs={[{ label: "Armada", href: "/armada" }, { label: "Seller" }]}
       />
+
+      {!isLoading && sellers.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-600">
+            <Building2 className="h-3.5 w-3.5 text-[#034075]" /> {sellers.length} seller
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-600">
+            <MapPin className="h-3.5 w-3.5 text-emerald-600" /> {kotaCount} kota
+          </span>
+          <span className="text-slate-400">Geser header kolom untuk atur lebar · klik baris → peta</span>
+        </div>
+      )}
+
       <ArmadaTabs />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+      <div className="grid items-start gap-4 lg:grid-cols-[1fr_340px]">
         <DataTable<Seller>
           loading={isLoading}
-          rows={data ?? []}
+          rows={sellers}
           rowKey={(s) => String(s.id)}
-          searchPlaceholder="Cari nama / kota / alamat seller..."
+          searchPlaceholder="Cari nama / kota / alamat..."
           searchFilter={(s, q) =>
             s.name.toLowerCase().includes(q.toLowerCase()) ||
             (s.city ?? "").toLowerCase().includes(q.toLowerCase()) ||
-            (s.address ?? "").toLowerCase().includes(q.toLowerCase())
+            (s.address ?? "").toLowerCase().includes(q.toLowerCase()) ||
+            (s.pic ?? "").toLowerCase().includes(q.toLowerCase())
           }
           emptyText="Belum ada seller"
           onRowClick={(s) => router.push(`/armada/live-map?seller=${s.id}`)}
           columns={[
             { header: "Kode", className: "font-mono text-xs", render: (s) => s.code },
             { header: "Nama", className: "font-medium", render: (s) => s.name },
-            { header: "Kota", render: (s) => s.city },
             {
               header: "Alamat",
               render: (s) =>
@@ -64,11 +80,14 @@ export default function SellersPage() {
               header: "No HP",
               render: (s) =>
                 s.no_hp ? (
-                  <a href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`} className="text-emerald-700 hover:underline">
-                    {s.no_hp}
+                  <a
+                    href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`}
+                    className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                  >
+                    <Phone className="h-3 w-3" /> Telepon
                   </a>
                 ) : (
-                  "-"
+                  <span className="text-xs text-slate-300">-</span>
                 ),
             },
             {
@@ -102,8 +121,8 @@ export default function SellersPage() {
           ]}
         />
 
-        {/* Detail seller */}
-        <Card className="h-fit">
+        {/* Panel Detail Seller (sticky) */}
+        <Card className="lg:sticky lg:top-24">
           <CardHeader>
             <CardTitle className="text-sm font-semibold">
               Detail Seller
@@ -117,9 +136,14 @@ export default function SellersPage() {
               </p>
             ) : (
               <div className="space-y-3 text-sm">
-                <div>
-                  <p className="text-base font-bold text-emerald-700">{selected.name}</p>
-                  <p className="text-xs text-slate-400">{selected.code}</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-base font-bold text-emerald-700">
+                    {(selected.name || "?").charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-bold text-slate-800">{selected.name}</p>
+                    <p className="font-mono text-xs text-slate-400">{selected.code}</p>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <DetailRow label="Kota" value={selected.city ?? "-"} />
@@ -140,7 +164,10 @@ export default function SellersPage() {
                     label="No HP"
                     value={
                       selected.no_hp ? (
-                        <a href={`tel:${selected.no_hp.replace(/[^+\d]/g, "")}`} className="inline-flex items-center gap-1 text-emerald-700 hover:underline">
+                        <a
+                          href={`tel:${selected.no_hp.replace(/[^+\d]/g, "")}`}
+                          className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                        >
                           <Phone className="h-3 w-3" /> {selected.no_hp}
                         </a>
                       ) : (

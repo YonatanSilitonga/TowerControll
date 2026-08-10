@@ -10,6 +10,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { PageHeader } from "@/components/layout/page-header";
 import { ArmadaTabs } from "@/components/armada/armada-tabs";
 import { useRitase } from "@/hooks/use-armada";
+import { formatDateDMY } from "@/lib/utils";
 import type { Ritase } from "@/types/armada";
 
 export default function RitasePage() {
@@ -28,25 +29,26 @@ export default function RitasePage() {
       />
       <ArmadaTabs />
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Input
-          type="date"
-          value={tanggal}
-          onChange={(e) => setTanggal(e.target.value)}
-          className="w-auto"
-        />
-        {tanggal && (
-          <button onClick={() => setTanggal("")} className="text-xs font-semibold text-primary hover:underline">
-            Reset tanggal
-          </button>
-        )}
-      </div>
-
       <DataTable<Ritase>
         loading={isLoading}
         rows={rows}
         rowKey={(r) => String(r.id_ritase)}
         searchPlaceholder="Cari kode / driver / plat..."
+        toolbar={
+          <>
+            <Input
+              type="date"
+              value={tanggal}
+              onChange={(e) => setTanggal(e.target.value)}
+              className="w-auto"
+            />
+            {tanggal && (
+              <button onClick={() => setTanggal("")} className="text-xs font-semibold text-primary hover:underline">
+                Reset
+              </button>
+            )}
+          </>
+        }
         searchFilter={(r, q) =>
           r.kode_ritase.toLowerCase().includes(q.toLowerCase()) ||
           r.nama_driver.toLowerCase().includes(q.toLowerCase()) ||
@@ -64,7 +66,7 @@ export default function RitasePage() {
               </Link>
             ),
           },
-          { header: "Tanggal", render: (r) => r.tanggal },
+          { header: "Tanggal", className: "tabular-nums", render: (r) => formatDateDMY(r.tanggal) },
           { header: "Driver", className: "font-medium", render: (r) => r.nama_driver },
           { header: "Plat", className: "font-mono text-xs", render: (r) => r.plat_nomor },
           { header: "RIT", className: "text-right", render: (r) => r.ritase_ke ?? "-" },

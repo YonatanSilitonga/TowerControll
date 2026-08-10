@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { Phone, Search } from "lucide-react";
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
@@ -8,9 +8,10 @@ import type { DropPointPoi, GudangPoint, SellerLocation, TrackingVehicle } from 
 import { displayTrackingStatus } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const OSM_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+// Tile CARTO (gratis & lebih cepat dari OSM publik) — render area baru jauh lebih responsif.
+const TILE_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+const TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>';
 
 const JAKARTA: [number, number] = [-6.2088, 106.8456];
 
@@ -245,7 +246,7 @@ function VehicleMarker({
           <p className="font-semibold text-[#1e3a5f]">{v.plat_nomor || "-"}</p>
           <p className="text-xs text-muted-foreground">Driver: {v.nama_driver || "-"}</p>
           <p className="text-xs">Status: {displayTrackingStatus(v.status, v.kecepatan, v.last_update)}</p>
-          <p className="text-xs">Kecepatan: {v.kecepatan ?? 0} km/h</p>
+          {!stale && <p className="text-xs">Kecepatan: {v.kecepatan ?? 0} km/h</p>}
           <p className={stale ? "text-xs font-medium text-amber-600" : "text-xs text-muted-foreground"}>
             Update: {minutesAgo(v.last_update)}
             {stale ? " (data lama)" : ""}
@@ -310,6 +311,21 @@ function FocusPoi({ focus }: { focus: { lat: number; lng: number; ts: number } |
   return null;
 }
 
+/** Auto-resize: saat container map membesar (mis. panel Detail Armada muncul),
+ *  beri tahu Leaflet supaya re-render area baru cepat (tile langsung keisi). */
+function MapAutoResize() {
+  const map = useMap();
+  useEffect(() => {
+    const el = map.getContainer();
+    const ro = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [map]);
+  return null;
+}
+
 function minutesAgo(iso?: string | null): string {
   if (!iso) return "-";
   const t = new Date(iso).getTime();
@@ -349,7 +365,7 @@ const typeColor = (t: string) =>
     ? "bg-sky-100 text-sky-700"
     : "bg-orange-100 text-orange-700";
 
-export function LiveMap({
+function LiveMapView({
   vehicles,
   sellers,
   gudang,
@@ -546,7 +562,8 @@ export function LiveMap({
         className="h-full w-full"
         style={{ zIndex: 0 }}
       >
-        <TileLayer url={OSM_TILE_URL} attribution={OSM_ATTRIBUTION} />
+        <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />
+        <MapAutoResize />
         <FitBounds vehicles={vehicles} sellers={sellers} gudang={gudangList} dropPoints={dropList} />
         <FocusSelected vehicles={vehicles} selectedVehicleId={selectedVehicleId} />
         <FitRoutes routes={routes} />
@@ -766,3 +783,32 @@ function LegendToggle({
     </button>
   );
 }
+
+/** Comparator: hanya render ulang kalau ada yang BERUBAH (posisi/status/id), bukan tiap poll. */
+function liveMapPropsEqual(prev: LiveMapProps, next: LiveMapProps): boolean {
+  if (prev.selectedVehicleId !== next.selectedVehicleId) return false;
+  if (prev.initialFocus !== next.initialFocus) return false;
+  if (prev.phones !== next.phones) return false;
+
+  const vSig = (arr?: TrackingVehicle[]) =>
+    (arr ?? [])
+      .map((v) =>
+        [v.id_kendaraan, v.latitude?.toFixed(5), v.longitude?.toFixed(5), v.offline, v.session_online, v.last_update].join(":")
+      )
+      .join("|");
+  const sSig = (arr?: SellerLocation[]) =>
+    (arr ?? []).map((s) => [s.id_seller, s.latitude.toFixed(5), s.longitude.toFixed(5)].join(":")).join("|");
+  const gSig = (arr?: GudangPoint[]) =>
+    (arr ?? []).map((g) => [g.id_gudang, g.latitude.toFixed(5), g.longitude.toFixed(5)].join(":")).join("|");
+  const dSig = (arr?: DropPointPoi[]) =>
+    (arr ?? []).map((p) => [p.id_drop_point, p.latitude.toFixed(5), p.longitude.toFixed(5)].join(":")).join("|");
+
+  return (
+    vSig(prev.vehicles) === vSig(next.vehicles) &&
+    sSig(prev.sellers) === sSig(next.sellers) &&
+    gSig(prev.gudang) === gSig(next.gudang) &&
+    dSig(prev.dropPoints) === dSig(next.dropPoints)
+  );
+}
+
+export const LiveMap = memo(LiveMapView, liveMapPropsEqual);
