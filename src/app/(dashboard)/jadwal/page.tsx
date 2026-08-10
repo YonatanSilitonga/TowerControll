@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import {
   useAdminRitase,
+  useCreateRitase,
   useDeleteRitase,
   useGenerateDailyRitase,
   useUpdateRitase,
@@ -42,12 +43,34 @@ export default function JadwalPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showGenerateModal, setShowGenerateModal] = useState<boolean>(false);
+  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [editingRitase, setEditingRitase] = useState<AdminRitaseItem | null>(null);
+
+  // New manual ritase state
+  const [newRitase, setNewRitase] = useState<{
+    tanggal: string;
+    id_driver: number;
+    id_kendaraan: number;
+    id_drop_point: number;
+    ritase_ke: number;
+    stops: AdminRitaseStop[];
+  }>({
+    tanggal: todayStr,
+    id_driver: 1,
+    id_kendaraan: 1,
+    id_drop_point: 2,
+    ritase_ke: 1,
+    stops: [
+      { id_stop: 1, urutan: 1, jenis_stop: "gudang", id_gudang: 1, nama_lokasi: "Gudang 1", keterangan: "Mulai dari Gudang 1" },
+      { id_stop: 2, urutan: 2, jenis_stop: "drop_point", id_drop_point: 2, nama_lokasi: "Drop Point 2", keterangan: "Tujuan akhir Drop Point 2" },
+    ],
+  });
 
   const { data: ritases, isLoading, isError, refetch } = useAdminRitase(selectedDate);
   const generateMutation = useGenerateDailyRitase();
-  const deleteMutation = useDeleteRitase();
+  const createMutation = useCreateRitase();
   const updateMutation = useUpdateRitase();
+  const deleteMutation = useDeleteRitase();
 
   const handleGenerate = () => {
     generateMutation.mutate(undefined, {
@@ -67,7 +90,6 @@ export default function JadwalPage() {
     e.preventDefault();
     if (!editingRitase) return;
 
-    // Ensure urutan stops are correctly indexed from 1 to N
     const reindexedStops = editingRitase.stops.map((s, idx) => ({
       ...s,
       urutan: idx + 1,
@@ -89,49 +111,79 @@ export default function JadwalPage() {
     );
   };
 
+  const handleSaveCreate = (e: React.FormEvent) => {
+    e.preventDefault();
+    const reindexedStops = newRitase.stops.map((s, idx) => ({
+      ...s,
+      urutan: idx + 1,
+      id_lokasi: s.id_seller || s.id_gudang || s.id_drop_point || 1,
+    }));
+
+    createMutation.mutate(
+      {
+        ...newRitase,
+        stops: reindexedStops,
+      },
+      {
+        onSuccess: () => {
+          setShowCreateModal(false);
+        },
+      }
+    );
+  };
+
   // Helper functions for editing stops in modal
-  const handleAddStop = () => {
-    if (!editingRitase) return;
+  const handleAddStop = (isEdit: boolean) => {
     const newStop: AdminRitaseStop = {
       id_stop: Date.now(),
-      urutan: editingRitase.stops.length + 1,
+      urutan: isEdit ? (editingRitase?.stops ?? []).length + 1 : newRitase.stops.length + 1,
       jenis_stop: "seller",
       id_seller: 1,
       nama_lokasi: "Seller 1",
       keterangan: "Singgah / Ambil paket",
     };
 
-    setEditingRitase({
-      ...editingRitase,
-      stops: [...editingRitase.stops, newStop],
-    });
+    if (isEdit && editingRitase) {
+      setEditingRitase({ ...editingRitase, stops: [...(editingRitase.stops ?? []), newStop] });
+    } else {
+      setNewRitase({ ...newRitase, stops: [...newRitase.stops, newStop] });
+    }
   };
 
-  const handleRemoveStop = (index: number) => {
-    if (!editingRitase) return;
-    const updated = editingRitase.stops.filter((_, idx) => idx !== index);
-    setEditingRitase({ ...editingRitase, stops: updated });
+  const handleRemoveStop = (isEdit: boolean, index: number) => {
+    if (isEdit && editingRitase) {
+      setEditingRitase({ ...editingRitase, stops: (editingRitase.stops ?? []).filter((_, i) => i !== index) });
+    } else {
+      setNewRitase({ ...newRitase, stops: newRitase.stops.filter((_, i) => i !== index) });
+    }
   };
 
-  const handleMoveStop = (index: number, direction: "up" | "down") => {
-    if (!editingRitase) return;
-    const stops = [...editingRitase.stops];
+  const handleMoveStop = (isEdit: boolean, index: number, direction: "up" | "down") => {
+    const stops = isEdit ? [...(editingRitase?.stops ?? [])] : [...newRitase.stops];
     const targetIndex = direction === "up" ? index - 1 : index + 1;
-
     if (targetIndex < 0 || targetIndex >= stops.length) return;
 
     const temp = stops[index];
     stops[index] = stops[targetIndex];
     stops[targetIndex] = temp;
 
-    setEditingRitase({ ...editingRitase, stops });
+    if (isEdit && editingRitase) {
+      setEditingRitase({ ...editingRitase, stops });
+    } else {
+      setNewRitase({ ...newRitase, stops });
+    }
   };
 
-  const handleUpdateStopField = (index: number, field: keyof AdminRitaseStop, value: any) => {
-    if (!editingRitase) return;
-    const stops = [...editingRitase.stops];
-    stops[index] = { ...stops[index], [field]: value };
-    setEditingRitase({ ...editingRitase, stops });
+  const handleUpdateStopField = (isEdit: boolean, index: number, field: keyof AdminRitaseStop, value: any) => {
+    if (isEdit && editingRitase) {
+      const stops = [...(editingRitase.stops ?? [])];
+      stops[index] = { ...stops[index], [field]: value };
+      setEditingRitase({ ...editingRitase, stops });
+    } else {
+      const stops = [...newRitase.stops];
+      stops[index] = { ...stops[index], [field]: value };
+      setNewRitase({ ...newRitase, stops });
+    }
   };
 
   // Filter ritases
@@ -147,7 +199,6 @@ export default function JadwalPage() {
     return matchSearch && matchStatus;
   });
 
-  // Calculate statistics
   const totalRitase = ritases?.length ?? 0;
   const uniqueDrivers = new Set(ritases?.map((r) => r.id_driver)).size;
   const inProgress = ritases?.filter((r) => r.status === "berjalan" || r.status === "proses").length ?? 0;
@@ -167,16 +218,29 @@ export default function JadwalPage() {
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Kelola penugasan rute armada, ubah urutan stop perjalanan, dan generate rute harian otomatis dalam 1-klik.
+            Kelola penugasan rute armada, buat jadwal manual/otomatis, dan atur rute tempat perjalanan.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Tombol Buat Jadwal Manual */}
+          <button
+            type="button"
+            onClick={() => {
+              setNewRitase({ ...newRitase, tanggal: selectedDate });
+              setShowCreateModal(true);
+            }}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          >
+            <Plus className="h-4 w-4 text-amber-500" />
+            <span>+ Buat Jadwal Manual</span>
+          </button>
+
           {/* Tombol Utama: 1-Klik Generate Otomatis */}
           <button
             type="button"
             onClick={() => setShowGenerateModal(true)}
-            className="group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition-all hover:scale-[1.02] hover:shadow-orange-500/40 active:scale-[0.98]"
+            className="group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-orange-500/25 transition-all hover:scale-[1.02] hover:shadow-orange-500/40 active:scale-[0.98]"
           >
             <Zap className="h-4 w-4 transition-transform group-hover:rotate-12" />
             <span>Generate Otomatis (1-Klik)</span>
@@ -486,6 +550,185 @@ export default function JadwalPage() {
         </div>
       )}
 
+      {/* ── MODAL BUAT JADWAL MANUAL ── */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  + Buat Jadwal Ritase Manual
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Tambahkan tugas ritase khusus untuk driver dan atur rute tempat tujuannya
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCreate} className="flex-1 overflow-y-auto mt-4 space-y-4 pr-1">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Tanggal Perjalanan
+                  </label>
+                  <input
+                    type="date"
+                    value={newRitase.tanggal}
+                    onChange={(e) => setNewRitase({ ...newRitase, tanggal: e.target.value })}
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+                    ID Driver
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="Contoh: 3"
+                    value={newRitase.id_driver}
+                    onChange={(e) => setNewRitase({ ...newRitase, id_driver: parseInt(e.target.value, 10) || 1 })}
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+                    ID Kendaraan
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="Contoh: 2"
+                    value={newRitase.id_kendaraan}
+                    onChange={(e) => setNewRitase({ ...newRitase, id_kendaraan: parseInt(e.target.value, 10) || 1 })}
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+                    ID Drop Point Tujuan
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="Contoh: 2"
+                    value={newRitase.id_drop_point}
+                    onChange={(e) => setNewRitase({ ...newRitase, id_drop_point: parseInt(e.target.value, 10) || 2 })}
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  />
+                </div>
+              </div>
+
+              {/* Stops Editor for Create Modal */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Urutan Stop Tempat Perjalanan ({newRitase.stops.length}):
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleAddStop(false)}
+                    className="inline-flex items-center gap-1 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-600 hover:bg-amber-500/20 dark:text-amber-400"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Tambah Stop
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {newRitase.stops.map((stop, idx) => (
+                    <div
+                      key={stop.id_stop || idx}
+                      className="flex items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-800/50"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-xs font-bold text-white shadow-sm">
+                          {idx + 1}
+                        </span>
+                        <div className="flex flex-col">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => handleMoveStop(false, idx, "up")}
+                            className="p-0.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 dark:hover:text-slate-200"
+                          >
+                            <ArrowUp className="h-3 w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === newRitase.stops.length - 1}
+                            onClick={() => handleMoveStop(false, idx, "down")}
+                            className="p-0.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 dark:hover:text-slate-200"
+                          >
+                            <ArrowDown className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <select
+                        value={stop.jenis_stop}
+                        onChange={(e) => handleUpdateStopField(false, idx, "jenis_stop", e.target.value)}
+                        className="rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                      >
+                        <option value="gudang">Gudang</option>
+                        <option value="seller">Seller / Toko</option>
+                        <option value="drop_point">Drop Point</option>
+                      </select>
+
+                      <input
+                        type="text"
+                        placeholder="Nama Lokasi / Tempat..."
+                        value={stop.nama_lokasi}
+                        onChange={(e) => handleUpdateStopField(false, idx, "nama_lokasi", e.target.value)}
+                        className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveStop(false, idx)}
+                        className="p-1.5 text-slate-400 transition-colors hover:text-rose-500"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={createMutation.isPending}
+                  className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-amber-500/20 hover:bg-amber-600 disabled:opacity-50"
+                >
+                  {createMutation.isPending ? (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      <span>Membuat Jadwal...</span>
+                    </>
+                  ) : (
+                    <span>Simpan Jadwal Baru</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* ── MODAL EDIT RITASE & RUTE STOPS ── */}
       {editingRitase && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
@@ -546,11 +789,11 @@ export default function JadwalPage() {
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                    Urutan Stop Rute Tempat Perjalanan ({editingRitase.stops.length}):
+                    Urutan Stop Rute Tempat Perjalanan ({(editingRitase.stops ?? []).length}):
                   </label>
                   <button
                     type="button"
-                    onClick={handleAddStop}
+                    onClick={() => handleAddStop(true)}
                     className="inline-flex items-center gap-1 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-600 hover:bg-amber-500/20 dark:text-amber-400"
                   >
                     <Plus className="h-3.5 w-3.5" /> Tambah Stop
@@ -558,12 +801,11 @@ export default function JadwalPage() {
                 </div>
 
                 <div className="space-y-2">
-                  {editingRitase.stops.map((stop, idx) => (
+                  {(editingRitase.stops ?? []).map((stop, idx) => (
                     <div
                       key={stop.id_stop || idx}
                       className="flex items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-800/50"
                     >
-                      {/* Urutan Badge & Reorder Buttons */}
                       <div className="flex items-center gap-1">
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-xs font-bold text-white shadow-sm">
                           {idx + 1}
@@ -572,15 +814,15 @@ export default function JadwalPage() {
                           <button
                             type="button"
                             disabled={idx === 0}
-                            onClick={() => handleMoveStop(idx, "up")}
+                            onClick={() => handleMoveStop(true, idx, "up")}
                             className="p-0.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 dark:hover:text-slate-200"
                           >
                             <ArrowUp className="h-3 w-3" />
                           </button>
                           <button
                             type="button"
-                            disabled={idx === editingRitase.stops.length - 1}
-                            onClick={() => handleMoveStop(idx, "down")}
+                            disabled={idx === (editingRitase.stops ?? []).length - 1}
+                            onClick={() => handleMoveStop(true, idx, "down")}
                             className="p-0.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 dark:hover:text-slate-200"
                           >
                             <ArrowDown className="h-3 w-3" />
@@ -588,10 +830,9 @@ export default function JadwalPage() {
                         </div>
                       </div>
 
-                      {/* Tipe Stop */}
                       <select
                         value={stop.jenis_stop}
-                        onChange={(e) => handleUpdateStopField(idx, "jenis_stop", e.target.value)}
+                        onChange={(e) => handleUpdateStopField(true, idx, "jenis_stop", e.target.value)}
                         className="rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                       >
                         <option value="gudang">Gudang</option>
@@ -599,21 +840,18 @@ export default function JadwalPage() {
                         <option value="drop_point">Drop Point</option>
                       </select>
 
-                      {/* Nama / Ket Lokasi */}
                       <input
                         type="text"
                         placeholder="Nama Lokasi / Tempat..."
                         value={stop.nama_lokasi}
-                        onChange={(e) => handleUpdateStopField(idx, "nama_lokasi", e.target.value)}
+                        onChange={(e) => handleUpdateStopField(true, idx, "nama_lokasi", e.target.value)}
                         className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                       />
 
-                      {/* Hapus Stop */}
                       <button
                         type="button"
-                        onClick={() => handleRemoveStop(idx)}
+                        onClick={() => handleRemoveStop(true, idx)}
                         className="p-1.5 text-slate-400 transition-colors hover:text-rose-500"
-                        title="Hapus Stop Ini"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

@@ -30,6 +30,26 @@ export function useGenerateDailyRitase() {
   });
 }
 
+/** Create Ritase Mutation */
+export function useCreateRitase() {
+  const token = useAuthStore(tokenSelector);
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      tanggal?: string;
+      id_driver: number;
+      id_kendaraan: number;
+      id_drop_point: number;
+      ritase_ke: number;
+      stops: any[];
+    }) => post<{ id_ritase: number; message: string }>("/admin/ritase", data, { token }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-ritases"] });
+    },
+  });
+}
+
 /** Update Ritase Mutation */
 export function useUpdateRitase() {
   const token = useAuthStore(tokenSelector);
