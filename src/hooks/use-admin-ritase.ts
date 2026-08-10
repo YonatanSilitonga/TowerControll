@@ -17,6 +17,23 @@ export function useAdminRitase(tanggal?: string) {
   });
 }
 
+export interface MasterOptions {
+  drivers: Array<{ id_driver: number; nama_driver: string; jabatan: string }>;
+  kendaraan: Array<{ id_kendaraan: number; plat_nomor: string; jenis_kendaraan: string }>;
+  drop_points: Array<{ id_drop_point: number; nama_drop_point: string; kode_dp: string }>;
+  sellers: Array<{ id_seller: number; nama_seller: string; kode_seller: string }>;
+  gudangs: Array<{ id_gudang: number; nama_gudang: string; jenis: string }>;
+}
+
+/** Fetch master options (drivers, kendaraan, drop_points, sellers, gudangs). */
+export function useAdminMasterOptions() {
+  const token = useAuthStore(tokenSelector);
+  return useQuery({
+    queryKey: ["admin-master-options"],
+    queryFn: () => get<MasterOptions>("/admin/master-options", { token }),
+  });
+}
+
 /** 1-Click Auto-Generate Daily Ritases Mutation */
 export function useGenerateDailyRitase() {
   const token = useAuthStore(tokenSelector);

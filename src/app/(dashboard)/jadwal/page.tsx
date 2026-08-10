@@ -22,6 +22,7 @@ import {
   Zap,
 } from "lucide-react";
 import {
+  useAdminMasterOptions,
   useAdminRitase,
   useCreateRitase,
   useDeleteRitase,
@@ -46,6 +47,9 @@ export default function JadwalPage() {
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [editingRitase, setEditingRitase] = useState<AdminRitaseItem | null>(null);
 
+  // Fetch Master Data Options (Drivers, Vehicles, Sellers, Drop Points, Gudangs)
+  const { data: masterOptions } = useAdminMasterOptions();
+
   // New manual ritase state
   const [newRitase, setNewRitase] = useState<{
     tanggal: string;
@@ -58,11 +62,11 @@ export default function JadwalPage() {
     tanggal: todayStr,
     id_driver: 1,
     id_kendaraan: 1,
-    id_drop_point: 2,
+    id_drop_point: 1,
     ritase_ke: 1,
     stops: [
       { id_stop: 1, urutan: 1, jenis_stop: "gudang", id_gudang: 1, nama_lokasi: "Gudang 1", keterangan: "Mulai dari Gudang 1" },
-      { id_stop: 2, urutan: 2, jenis_stop: "drop_point", id_drop_point: 2, nama_lokasi: "Drop Point 2", keterangan: "Tujuan akhir Drop Point 2" },
+      { id_stop: 2, urutan: 2, jenis_stop: "drop_point", id_drop_point: 1, nama_lokasi: "Drop Point 1", keterangan: "Tujuan akhir Drop Point" },
     ],
   });
 
@@ -90,7 +94,7 @@ export default function JadwalPage() {
     e.preventDefault();
     if (!editingRitase) return;
 
-    const reindexedStops = editingRitase.stops.map((s, idx) => ({
+    const reindexedStops = (editingRitase.stops ?? []).map((s, idx) => ({
       ...s,
       urutan: idx + 1,
     }));
@@ -132,14 +136,15 @@ export default function JadwalPage() {
     );
   };
 
-  // Helper functions for editing stops in modal
+  // Helper functions for Editing Stops
   const handleAddStop = (isEdit: boolean) => {
+    const defaultSeller = masterOptions?.sellers[0];
     const newStop: AdminRitaseStop = {
       id_stop: Date.now(),
       urutan: isEdit ? (editingRitase?.stops ?? []).length + 1 : newRitase.stops.length + 1,
       jenis_stop: "seller",
-      id_seller: 1,
-      nama_lokasi: "Seller 1",
+      id_seller: defaultSeller?.id_seller ?? 1,
+      nama_lokasi: defaultSeller?.nama_seller ?? "Seller 1",
       keterangan: "Singgah / Ambil paket",
     };
 
@@ -186,6 +191,47 @@ export default function JadwalPage() {
     }
   };
 
+  // Select location from database dropdown
+  const handleSelectLocationOption = (isEdit: boolean, index: number, selectedId: number) => {
+    const stops = isEdit ? [...(editingRitase?.stops ?? [])] : [...newRitase.stops];
+    const currentStop = stops[index];
+
+    let updatedName = "";
+    let idSeller: number | undefined;
+    let idGudang: number | undefined;
+    let idDropPoint: number | undefined;
+
+    if (currentStop.jenis_stop === "seller") {
+      idSeller = selectedId;
+      const found = masterOptions?.sellers.find((s) => s.id_seller === selectedId);
+      updatedName = found?.nama_seller ?? `Seller #${selectedId}`;
+    } else if (currentStop.jenis_stop === "gudang") {
+      idGudang = selectedId;
+      const found = masterOptions?.gudangs.find((g) => g.id_gudang === selectedId);
+      updatedName = found?.nama_gudang ?? `Gudang #${selectedId}`;
+    } else {
+      idDropPoint = selectedId;
+      const found = masterOptions?.drop_points.find((dp) => dp.id_drop_point === selectedId);
+      updatedName = found?.nama_drop_point ?? `Drop Point #${selectedId}`;
+    }
+
+    const updatedStop: AdminRitaseStop = {
+      ...currentStop,
+      id_seller: idSeller,
+      id_gudang: idGudang,
+      id_drop_point: idDropPoint,
+      nama_lokasi: updatedName,
+    };
+
+    stops[index] = updatedStop;
+
+    if (isEdit && editingRitase) {
+      setEditingRitase({ ...editingRitase, stops });
+    } else {
+      setNewRitase({ ...newRitase, stops });
+    }
+  };
+
   // Filter ritases
   const filteredRitases = (ritases ?? []).filter((r) => {
     const matchSearch =
@@ -218,7 +264,7 @@ export default function JadwalPage() {
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Kelola penugasan rute armada, buat jadwal manual/otomatis, dan atur rute tempat perjalanan.
+            Kelola penugasan rute armada, pilih driver & lokasi terdaftar database, dan generate rute harian 1-klik.
           </p>
         </div>
 
@@ -227,7 +273,13 @@ export default function JadwalPage() {
           <button
             type="button"
             onClick={() => {
-              setNewRitase({ ...newRitase, tanggal: selectedDate });
+              setNewRitase({
+                ...newRitase,
+                tanggal: selectedDate,
+                id_driver: masterOptions?.drivers[0]?.id_driver ?? 1,
+                id_kendaraan: masterOptions?.kendaraan[0]?.id_kendaraan ?? 1,
+                id_drop_point: masterOptions?.drop_points[0]?.id_drop_point ?? 1,
+              });
               setShowCreateModal(true);
             }}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
@@ -505,10 +557,10 @@ export default function JadwalPage() {
                 {/* Timeline Stops */}
                 <div className="mt-4 space-y-2">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                    Urutan Rute Perjalanan ({r.stops?.length ?? 0} Stop):
+                    Urutan Rute Perjalanan ({(r.stops ?? []).length} Stop):
                   </p>
                   <div className="relative pl-4 space-y-2.5 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
-                    {r.stops?.map((stop) => (
+                    {(r.stops ?? []).map((stop) => (
                       <div key={stop.id_stop} className="relative flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
                           <span
@@ -560,7 +612,7 @@ export default function JadwalPage() {
                   + Buat Jadwal Ritase Manual
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Tambahkan tugas ritase khusus untuk driver dan atur rute tempat tujuannya
+                  Pilih driver & lokasi terdaftar di database untuk alokasi tugas ritase baru
                 </p>
               </div>
               <button
@@ -588,41 +640,53 @@ export default function JadwalPage() {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                    ID Driver
+                    Pilih Driver
                   </label>
-                  <input
-                    type="number"
-                    placeholder="Contoh: 3"
+                  <select
                     value={newRitase.id_driver}
-                    onChange={(e) => setNewRitase({ ...newRitase, id_driver: parseInt(e.target.value, 10) || 1 })}
+                    onChange={(e) => setNewRitase({ ...newRitase, id_driver: parseInt(e.target.value, 10) })}
                     className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                  />
+                  >
+                    {masterOptions?.drivers.map((d) => (
+                      <option key={d.id_driver} value={d.id_driver}>
+                        {d.nama_driver} ({d.jabatan})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                    ID Kendaraan
+                    Pilih Kendaraan Armada
                   </label>
-                  <input
-                    type="number"
-                    placeholder="Contoh: 2"
+                  <select
                     value={newRitase.id_kendaraan}
-                    onChange={(e) => setNewRitase({ ...newRitase, id_kendaraan: parseInt(e.target.value, 10) || 1 })}
+                    onChange={(e) => setNewRitase({ ...newRitase, id_kendaraan: parseInt(e.target.value, 10) })}
                     className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                  />
+                  >
+                    {masterOptions?.kendaraan.map((k) => (
+                      <option key={k.id_kendaraan} value={k.id_kendaraan}>
+                        {k.plat_nomor} ({k.jenis_kendaraan})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                    ID Drop Point Tujuan
+                    Drop Point Tujuan Akhir
                   </label>
-                  <input
-                    type="number"
-                    placeholder="Contoh: 2"
+                  <select
                     value={newRitase.id_drop_point}
-                    onChange={(e) => setNewRitase({ ...newRitase, id_drop_point: parseInt(e.target.value, 10) || 2 })}
+                    onChange={(e) => setNewRitase({ ...newRitase, id_drop_point: parseInt(e.target.value, 10) })}
                     className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                  />
+                  >
+                    {masterOptions?.drop_points.map((dp) => (
+                      <option key={dp.id_drop_point} value={dp.id_drop_point}>
+                        {dp.nama_drop_point} ({dp.kode_dp})
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -671,9 +735,21 @@ export default function JadwalPage() {
                         </div>
                       </div>
 
+                      {/* Tipe Stop */}
                       <select
                         value={stop.jenis_stop}
-                        onChange={(e) => handleUpdateStopField(false, idx, "jenis_stop", e.target.value)}
+                        onChange={(e) => {
+                          const newType = e.target.value;
+                          handleUpdateStopField(false, idx, "jenis_stop", newType);
+                          // Auto set default ID from DB
+                          if (newType === "seller" && masterOptions?.sellers[0]) {
+                            handleSelectLocationOption(false, idx, masterOptions.sellers[0].id_seller);
+                          } else if (newType === "gudang" && masterOptions?.gudangs[0]) {
+                            handleSelectLocationOption(false, idx, masterOptions.gudangs[0].id_gudang);
+                          } else if (newType === "drop_point" && masterOptions?.drop_points[0]) {
+                            handleSelectLocationOption(false, idx, masterOptions.drop_points[0].id_drop_point);
+                          }
+                        }}
                         className="rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                       >
                         <option value="gudang">Gudang</option>
@@ -681,13 +757,44 @@ export default function JadwalPage() {
                         <option value="drop_point">Drop Point</option>
                       </select>
 
-                      <input
-                        type="text"
-                        placeholder="Nama Lokasi / Tempat..."
-                        value={stop.nama_lokasi}
-                        onChange={(e) => handleUpdateStopField(false, idx, "nama_lokasi", e.target.value)}
-                        className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                      />
+                      {/* Select Option Terhubung Ke Database */}
+                      {stop.jenis_stop === "seller" ? (
+                        <select
+                          value={stop.id_seller || masterOptions?.sellers[0]?.id_seller}
+                          onChange={(e) => handleSelectLocationOption(false, idx, parseInt(e.target.value, 10))}
+                          className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                        >
+                          {masterOptions?.sellers.map((s) => (
+                            <option key={s.id_seller} value={s.id_seller}>
+                              {s.nama_seller} ({s.kode_seller})
+                            </option>
+                          ))}
+                        </select>
+                      ) : stop.jenis_stop === "gudang" ? (
+                        <select
+                          value={stop.id_gudang || masterOptions?.gudangs[0]?.id_gudang}
+                          onChange={(e) => handleSelectLocationOption(false, idx, parseInt(e.target.value, 10))}
+                          className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                        >
+                          {masterOptions?.gudangs.map((g) => (
+                            <option key={g.id_gudang} value={g.id_gudang}>
+                              {g.nama_gudang}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <select
+                          value={stop.id_drop_point || masterOptions?.drop_points[0]?.id_drop_point}
+                          onChange={(e) => handleSelectLocationOption(false, idx, parseInt(e.target.value, 10))}
+                          className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                        >
+                          {masterOptions?.drop_points.map((dp) => (
+                            <option key={dp.id_drop_point} value={dp.id_drop_point}>
+                              {dp.nama_drop_point} ({dp.kode_dp})
+                            </option>
+                          ))}
+                        </select>
+                      )}
 
                       <button
                         type="button"
@@ -830,9 +937,20 @@ export default function JadwalPage() {
                         </div>
                       </div>
 
+                      {/* Tipe Stop */}
                       <select
                         value={stop.jenis_stop}
-                        onChange={(e) => handleUpdateStopField(true, idx, "jenis_stop", e.target.value)}
+                        onChange={(e) => {
+                          const newType = e.target.value;
+                          handleUpdateStopField(true, idx, "jenis_stop", newType);
+                          if (newType === "seller" && masterOptions?.sellers[0]) {
+                            handleSelectLocationOption(true, idx, masterOptions.sellers[0].id_seller);
+                          } else if (newType === "gudang" && masterOptions?.gudangs[0]) {
+                            handleSelectLocationOption(true, idx, masterOptions.gudangs[0].id_gudang);
+                          } else if (newType === "drop_point" && masterOptions?.drop_points[0]) {
+                            handleSelectLocationOption(true, idx, masterOptions.drop_points[0].id_drop_point);
+                          }
+                        }}
                         className="rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                       >
                         <option value="gudang">Gudang</option>
@@ -840,13 +958,44 @@ export default function JadwalPage() {
                         <option value="drop_point">Drop Point</option>
                       </select>
 
-                      <input
-                        type="text"
-                        placeholder="Nama Lokasi / Tempat..."
-                        value={stop.nama_lokasi}
-                        onChange={(e) => handleUpdateStopField(true, idx, "nama_lokasi", e.target.value)}
-                        className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                      />
+                      {/* Select Option Terhubung Ke Database */}
+                      {stop.jenis_stop === "seller" ? (
+                        <select
+                          value={stop.id_seller || masterOptions?.sellers[0]?.id_seller}
+                          onChange={(e) => handleSelectLocationOption(true, idx, parseInt(e.target.value, 10))}
+                          className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                        >
+                          {masterOptions?.sellers.map((s) => (
+                            <option key={s.id_seller} value={s.id_seller}>
+                              {s.nama_seller} ({s.kode_seller})
+                            </option>
+                          ))}
+                        </select>
+                      ) : stop.jenis_stop === "gudang" ? (
+                        <select
+                          value={stop.id_gudang || masterOptions?.gudangs[0]?.id_gudang}
+                          onChange={(e) => handleSelectLocationOption(true, idx, parseInt(e.target.value, 10))}
+                          className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                        >
+                          {masterOptions?.gudangs.map((g) => (
+                            <option key={g.id_gudang} value={g.id_gudang}>
+                              {g.nama_gudang}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <select
+                          value={stop.id_drop_point || masterOptions?.drop_points[0]?.id_drop_point}
+                          onChange={(e) => handleSelectLocationOption(true, idx, parseInt(e.target.value, 10))}
+                          className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                        >
+                          {masterOptions?.drop_points.map((dp) => (
+                            <option key={dp.id_drop_point} value={dp.id_drop_point}>
+                              {dp.nama_drop_point} ({dp.kode_dp})
+                            </option>
+                          ))}
+                        </select>
+                      )}
 
                       <button
                         type="button"
