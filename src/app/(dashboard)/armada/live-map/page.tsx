@@ -52,8 +52,11 @@ function minutesAgo(iso?: string | null): string {
   if (Number.isNaN(t)) return "-";
   const m = Math.floor((Date.now() - t) / 60000);
   if (m < 1) return "baru saja";
-  if (m < 60) return `${m} m lalu`;
-  return `${Math.floor(m / 60)} jam ${m % 60} m lalu`;
+  if (m < 60) return `${m} menit lalu`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return h === 1 ? "1 jam lalu" : `${h} jam lalu`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "1 hari lalu" : `${d} hari lalu`;
 }
 
 function LiveMapBody() {
@@ -64,6 +67,8 @@ function LiveMapBody() {
   const { data, isLoading } = useTrackingMap();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(todayLocal());
+  // Mobile (< lg): switch antara tampilan Peta dan daftar Armada.
+  const [mobileTab, setMobileTab] = useState<"peta" | "armada">("peta");
   const { data: history, isLoading: loadingHistory } = useTrackingHistory(selectedId, selectedDate);
 
   // Fokus mobil dari tabel armada (`?kendaraan=ID`)
@@ -71,25 +76,28 @@ function LiveMapBody() {
     if (kendaraanParam) setSelectedId(Number(kendaraanParam));
   }, [kendaraanParam]);
 
+  // Pilih armada (dari marker peta): set selected + di mobile pindah ke tab armada
+  // biar detail langsung kebuka (popup peta di HP cuma ringkas).
+  const handleSelectVehicle = (id: number | null) => {
+    setSelectedId((cur) => (cur === id ? null : id));
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setMobileTab("armada");
+    }
+  };
+
   const vehicles = data?.vehicles ?? [];
   const sellers = data?.sellers ?? [];
   const selectedVehicle =
     vehicles.find((v) => v.id_kendaraan === selectedId) ?? null;
 
-  // Definisi "Aktif": sudah login (session) ATAU GPS ≤ ambang 15 menit.
+  // Definisi "Aktif/LIVE": GPS masih fresh (≤ 15 menit) — app benar-benar mengirim posisi.
+  // Status cuma 2: LIVE (app hidup) atau Offline. Sesi login (session_online) & riwayat
+  // buka app (last_open/last_login) tampil sebagai konteks di panel detail, bukan status.
   const isOnline = (v: TrackingVehicle) =>
-    !!v.session_online ||
     !(v.offline ??
       (() => {
         const t = new Date(v.last_update).getTime();
-        return Number.isNaN(t) ? true : Date.now() - t > 15 * 60 * 1000;
-      })());
-  // LIVE = GPS masih fresh (≤ 15 menit), terlepas dari session.
-  const isLive = (v: TrackingVehicle) =>
-    !(v.offline ??
-      (() => {
-        const t = new Date(v.last_update).getTime();
-        return Number.isNaN(t) ? true : Date.now() - t > 15 * 60 * 1000;
+        return Number.isNaN(t) ? true : Date.now() - t > 3 * 60 * 1000;
       })());
   const onlineVehicles = vehicles.filter(isOnline);
   const offlineVehicles = vehicles.filter((v) => !isOnline(v));
@@ -109,34 +117,64 @@ function LiveMapBody() {
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
-        {/* Peta */}
-        <Card className="min-h-[420px] overflow-hidden lg:min-h-[560px]">
-          <CardContent className="h-full p-0">
-            <div className="h-[420px] lg:h-[560px]">
-              {isLoading ? (
-                <Skeleton className="h-full w-full" />
-              ) : (
-                <LiveMap
-                  vehicles={vehicles}
-                  sellers={sellers}
-                  gudang={data?.gudang ?? []}
-                  dropPoints={data?.drop_points ?? []}
-                  initialFocus={sellerParam ? { type: "seller", id: Number(sellerParam) } : undefined}
-                  selectedVehicleId={selectedId}
-                  onSelectVehicle={setSelectedId}
-                />
-              )}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Tab switch mobile (< lg): Peta atau Armada */}
+      <div className="mb-3 grid grid-cols-2 gap-1 rounded-md border border-slate-200 bg-slate-50 p-1 lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileTab("peta")}
+          className={cn(
+            "rounded px-3 py-1.5 text-xs font-semibold transition-colors",
+            mobileTab === "peta"
+              ? "bg-white text-[#0c1e3a] shadow-sm"
+              : "text-slate-500"
+          )}
+        >
+          Peta
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab("armada")}
+          className={cn(
+            "rounded px-3 py-1.5 text-xs font-semibold transition-colors",
+            mobileTab === "armada"
+              ? "bg-white text-[#0c1e3a] shadow-sm"
+              : "text-slate-500"
+          )}
+        >
+          Armada ({onlineVehicles.length})
+        </button>
+      </div>
 
-        {/* Panel samping */}
-        <div className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+        {/* Peta — mobile: tab "peta" full tinggi; desktop: flex-1 mengikuti panel kanan */}
+        <div className={cn(mobileTab !== "peta" && "hidden lg:block")}>
+          <Card className="flex h-[calc(100vh-230px)] min-h-[420px] flex-col overflow-hidden lg:h-auto">
+            <CardContent className="flex h-full flex-1 p-0">
+              <div className="h-full min-h-[420px] w-full flex-1">
+                {isLoading ? (
+                  <Skeleton className="h-full w-full" />
+                ) : (
+                  <LiveMap
+                    vehicles={vehicles}
+                    sellers={sellers}
+                    gudang={data?.gudang ?? []}
+                    dropPoints={data?.drop_points ?? []}
+                    initialFocus={sellerParam ? { type: "seller", id: Number(sellerParam) } : undefined}
+                    selectedVehicleId={selectedId}
+                    onSelectVehicle={handleSelectVehicle}
+                  />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Panel samping — mobile: tab "armada" */}
+        <div className={cn("space-y-4", mobileTab !== "armada" && "hidden lg:block")}>
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
-                <RadioTower className="h-4 w-4 text-[#1e3a5f]" />
+                <RadioTower className="h-4 w-4 text-[#0c1e3a]" />
                 Armada Aktif <InfoTip text="Posisi realtime armada. Klik untuk parkir popup & riwayat di bawah." />
               </CardTitle>
             </CardHeader>
@@ -202,35 +240,39 @@ function LiveMapBody() {
                   onChange={(e) =>
                     setSelectedDate(e.target.value || todayLocal())
                   }
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20"
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#0c1e3a] focus:outline-none focus:ring-2 focus:ring-[#0c1e3a]/20"
                 />
               </CardHeader>
               <CardContent className="max-h-[420px] space-y-3 overflow-y-auto">
                 {(() => {
-                  const selLive = isLive(selectedVehicle);
-                  const selSession = !!selectedVehicle.session_online;
+                  const selLive = isOnline(selectedVehicle);
                   return (
                     <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 pb-2">
                       <span
                         className={cn(
-                          "rounded-full px-2 py-0.5 text-[11px] font-bold",
+                          "rounded-md px-2 py-0.5 text-[11px] font-bold",
                           selLive
                             ? "bg-emerald-100 text-emerald-700"
-                            : selSession
-                            ? "bg-amber-100 text-amber-700"
                             : "bg-rose-100 text-rose-700"
                         )}
                       >
-                        {selLive ? "LIVE" : selSession ? "Online · data lama" : "Offline"}
+                        {selLive ? "LIVE" : "Offline"}
                       </span>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                        {selLive ? `${selectedVehicle.kecepatan ?? 0} km/h` : "- km/h"}
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                      {selLive && (
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                          {`${selectedVehicle.kecepatan ?? 0} km/h`}
+                        </span>
+                      )}
+                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                         Update {minutesAgo(selectedVehicle.last_update)}
                       </span>
+                      {selectedVehicle.last_login && (
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                          Login {minutesAgo(selectedVehicle.last_login)}
+                        </span>
+                      )}
                       {selectedVehicle.last_open && (
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                           App dibuka {minutesAgo(selectedVehicle.last_open)}
                         </span>
                       )}
@@ -250,7 +292,7 @@ function LiveMapBody() {
                         <div
                           className={cn(
                             "mt-1 h-3 w-3 shrink-0 rounded-full border-2 border-white shadow",
-                            idx === 0 ? "bg-amber-500" : "bg-[#1e3a5f]"
+                            idx === 0 ? "bg-amber-500" : "bg-[#0c1e3a]"
                           )}
                         />
                         {idx < (history?.length ?? 0) - 1 && (

@@ -78,10 +78,10 @@ export function DriverSummary({
   const total = sum.total;
 
   const tiles = [
-    { label: "Loading", value: formatDur(catDur.loading), icon: PackageCheck, tone: "bg-amber-100 text-amber-700" },
-    { label: "Perjalanan", value: formatDur(catDur.perjalanan), icon: RouteIcon, tone: "bg-sky-100 text-sky-700" },
-    { label: "Tiba", value: formatDur(catDur.tiba), icon: Clock, tone: "bg-emerald-100 text-emerald-700" },
-    { label: "Selesai", value: formatDur(catDur.selesai), icon: Timer, tone: "bg-green-100 text-green-700" },
+    { label: "Loading", value: formatDur(catDur.loading), icon: PackageCheck },
+    { label: "Perjalanan", value: formatDur(catDur.perjalanan), icon: RouteIcon },
+    { label: "Tiba", value: formatDur(catDur.tiba), icon: Clock },
+    { label: "Selesai", value: formatDur(catDur.selesai), icon: Timer },
   ];
 
   return (
@@ -93,7 +93,7 @@ export function DriverSummary({
         {tiles.map((t) => (
           <div key={t.label} className="rounded-lg border border-slate-100 px-3 py-2">
             <div className="flex items-center gap-1.5">
-              <span className={cn("inline-flex h-5 w-5 items-center justify-center rounded-md", t.tone)}>
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-slate-500">
                 <t.icon className="h-3 w-3" />
               </span>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t.label}</p>
@@ -104,9 +104,9 @@ export function DriverSummary({
       </div>
 
       {/* Total — full-width */}
-      <div className="flex items-center justify-between rounded-lg border border-[#034075]/20 bg-[#034075]/5 px-3 py-2">
+      <div className="flex items-center justify-between rounded-lg border border-[#0c1e3a]/20 bg-[#0c1e3a]/5 px-3 py-2">
         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Durasi</p>
-        <p className="text-sm font-bold tabular-nums text-[#034075]">{formatDur(total)}</p>
+        <p className="text-sm font-bold tabular-nums text-[#0c1e3a]">{formatDur(total)}</p>
       </div>
 
       {/* Stacked bar proporsi + legend cuma yang non-zero */}

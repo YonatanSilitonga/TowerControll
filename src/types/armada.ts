@@ -104,11 +104,15 @@ export interface TrackingVehicle {
   kecepatan?: number | null;
   arah?: number | null;
   status?: string | null;
+  /** Ritase yang sedang berjalan (kalau ada) — buat rute live armada. */
+  id_ritase?: number | null;
   last_update: string;
   /** Backend: true kalau last_update > ambang offline (default 15 mnt). */
   offline?: boolean;
   /** Backend: true kalau driver belum logout (session aktif) — background/screen-off tetap Online. */
   session_online?: boolean;
+  /** Backend: kapan terakhir driver login ke app (telemetry). */
+  last_login?: string | null;
   /** Backend: kapan terakhir app mobile dibuka (telemetry). */
   last_open?: string | null;
 }

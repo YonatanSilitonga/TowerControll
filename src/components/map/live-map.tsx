@@ -4,7 +4,15 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { Phone, Search } from "lucide-react";
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
-import type { DropPointPoi, GudangPoint, SellerLocation, TrackingVehicle } from "@/types/armada";
+import type {
+  DropPointPoi,
+  GudangPoint,
+  RitaseEvent,
+  RitaseStop,
+  SellerLocation,
+  TrackingVehicle,
+} from "@/types/armada";
+import { useRitaseDetail } from "@/hooks/use-armada";
 import { displayTrackingStatus } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -170,6 +178,9 @@ function FitRoutes({
     if (!key) return;
     const pts = [...(routes?.out ?? []), ...(routes?.dc ?? [])];
     if (!pts.length) return;
+    // Tutup popup marker biar garis rute & chip info kelihatan bersih
+    // (popup Leaflet z-index tinggi, gampang nutup chip di layar kecil).
+    map.closePopup();
     map.fitBounds(L.latLngBounds(pts), { padding: [48, 48] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
@@ -210,6 +221,8 @@ interface LiveMapProps {
   initialFocus?: { type: string; id: number };
   selectedVehicleId: number | null;
   onSelectVehicle: (id: number | null) => void;
+  /** Mode mini map (panel kecil): search & legenda dikecilin biar proporsional. */
+  compact?: boolean;
 }
 
 /** Satu marker truk. Saat `selected` jadi true → popup langsung dibuka. */
@@ -218,11 +231,16 @@ function VehicleMarker({
   selected,
   onSelect,
   phones,
+  compact,
+  eta,
 }: {
   vehicle: TrackingVehicle;
   selected: boolean;
   onSelect: () => void;
   phones?: Record<string, string>;
+  compact?: boolean;
+  /** Info estimasi waktu rute live armada ini (kalau terpilih & punya rute aktif). */
+  eta?: { label: string; km: string; durationSeconds: number } | null;
 }) {
   const markerRef = useRef<L.Marker>(null);
   const lastT = new Date(v.last_update).getTime();
@@ -242,19 +260,40 @@ function VehicleMarker({
       eventHandlers={{ click: onSelect }}
     >
       <Popup>
-        <div className="min-w-[210px] text-sm">
+        <div className={compact ? "min-w-[110px] text-xs" : "min-w-[210px] text-sm"}>
           <p className="font-semibold text-[#1e3a5f]">{v.plat_nomor || "-"}</p>
           <p className="text-xs text-muted-foreground">Driver: {v.nama_driver || "-"}</p>
-          <p className="text-xs">Status: {displayTrackingStatus(v.status, v.kecepatan, v.last_update)}</p>
-          {!stale && <p className="text-xs">Kecepatan: {v.kecepatan ?? 0} km/h</p>}
+          {!compact && (
+            <p className="text-xs">
+              Status: {v.offline ? "Offline" : displayTrackingStatus(v.status, v.kecepatan, v.last_update)}
+            </p>
+          )}
+          {!compact && !stale && <p className="text-xs">Kecepatan: {v.kecepatan ?? 0} km/h</p>}
           <p className={stale ? "text-xs font-medium text-amber-600" : "text-xs text-muted-foreground"}>
             Update: {minutesAgo(v.last_update)}
-            {stale ? " (data lama)" : ""}
           </p>
-          {v.last_open && (
+          {!compact && v.last_open && (
             <p className="text-xs text-muted-foreground">App dibuka: {minutesAgo(v.last_open)}</p>
           )}
-          {phone && (
+          {/* Estimasi waktu rute live armada — hanya untuk truk terpilih yang punya rute aktif */}
+          {eta && (
+            compact ? (
+              <p className="mt-1 rounded-md bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-700">
+                Next: {eta.label} · {eta.km} · ETA {fmtArrival(eta.durationSeconds)}
+              </p>
+            ) : (
+              <div className="mt-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px]">
+                <p className="font-medium text-emerald-700">Next: {eta.label}</p>
+                <p className="text-emerald-700">
+                  Estimasi tiba <b>{fmtArrival(eta.durationSeconds)}</b> · {eta.km} · {fmtDuration(eta.durationSeconds)}
+                </p>
+                <p className="mt-1 border-t border-emerald-200/70 pt-1 text-[10px] italic leading-snug text-emerald-700/70">
+                  Hanya estimasi dari perhitungan rute — kondisi jalan & kecepatan aktual tidak dihitung, jadi bisa berbeda dari kenyataan.
+                </p>
+              </div>
+            )
+          )}
+          {!compact && phone && (
             <a
               href={`tel:${phone.replace(/[^+\d]/g, "")}`}
               style={{ color: "#fff" }}
@@ -332,25 +371,224 @@ function minutesAgo(iso?: string | null): string {
   if (Number.isNaN(t)) return "-";
   const m = Math.floor((Date.now() - t) / 60000);
   if (m < 1) return "baru saja";
-  if (m < 60) return `${m} m lalu`;
-  return `${Math.floor(m / 60)} jam ${m % 60} m lalu`;
+  if (m < 60) return `${m} menit lalu`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return h === 1 ? "1 jam lalu" : `${h} jam lalu`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "1 hari lalu" : `${d} hari lalu`;
 }
 
-/** Ambil geometri rute jalan dari OSRM (geojson) → [[lat,lng],...]. undefined kalau gagal. */
+/** Durasi ringkas dari detik → "45 mnt" / "1 jam 20 mnt". */
+function fmtDuration(sec: number): string {
+  if (!sec || sec <= 0) return "-";
+  const m = Math.round(sec / 60);
+  if (m < 60) return `${m} mnt`;
+  const h = Math.floor(m / 60);
+  const rm = m % 60;
+  return rm === 0 ? `${h} jam` : `${h} jam ${rm} mnt`;
+}
+
+/** Jam tiba (WIB, HH:MM) = sekarang + durasi (detik). */
+function fmtArrival(sec: number): string {
+  if (!sec || sec <= 0) return "-";
+  const t = new Date(Date.now() + sec * 1000);
+  return new Intl.DateTimeFormat("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Jakarta",
+  }).format(t);
+}
+
+/** Hasil OSRM: titik-titik rute ([[lat,lng],...]) + jarak total meter + durasi detik. */
+type RouteResult = {
+  points: [number, number][];
+  distanceMeters: number;
+  durationSeconds: number;
+};
+
+/** Ambil geometri rute jalan dari OSRM (geojson) → [[lat,lng],...] + jarak + durasi. undefined kalau gagal. */
 async function fetchRoute(
   lat1: number, lon1: number, lat2: number, lon2: number
-): Promise<[number, number][] | undefined> {
+): Promise<RouteResult | undefined> {
   try {
     const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=full&geometries=geojson`;
     const res = await fetch(url);
     if (!res.ok) return undefined;
     const j = await res.json();
-    const coords = j?.routes?.[0]?.geometry?.coordinates as [number, number][] | undefined;
+    const route = j?.routes?.[0];
+    const coords = route?.geometry?.coordinates as [number, number][] | undefined;
     if (!Array.isArray(coords)) return undefined;
-    return coords.map(([lng, lat]) => [lat, lng]);
+    return {
+      points: coords.map(([lng, lat]) => [lat, lng] as [number, number]),
+      distanceMeters: Math.round(route.distance ?? 0),
+      durationSeconds: Math.round(route.duration ?? 0),
+    };
   } catch {
     return undefined;
   }
+}
+
+/** Jarak haversine (meter) — buat throttle re-route saat truk pindah. */
+function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+/** Titik stop yang sudah di-resolve ke koordinat peta (dari data sellers/drop/gudang). */
+type StopPoint = { lat: number; lng: number; label: string; icon: L.DivIcon; kind: string };
+
+function resolveStopPoint(
+  stop: RitaseStop,
+  sellers: SellerLocation[],
+  dropList: DropPointPoi[],
+  gudangList: GudangPoint[]
+): StopPoint | null {
+  if (stop.jenis_stop === "seller" && stop.id_seller != null) {
+    const s = sellers.find((x) => x.id_seller === stop.id_seller);
+    if (s)
+      return {
+        lat: s.latitude, lng: s.longitude,
+        label: s.nama_seller || `Seller ${s.id_seller}`,
+        icon: SELLER_ICON, kind: "seller",
+      };
+  }
+  if (stop.jenis_stop === "drop_point" && stop.id_drop_point != null) {
+    const p = dropList.find((x) => x.id_drop_point === stop.id_drop_point);
+    if (p)
+      return {
+        lat: p.latitude, lng: p.longitude,
+        label: p.nama_drop_point || `Drop Point ${p.id_drop_point}`,
+        icon: DROP_ICON, kind: "drop",
+      };
+  }
+  if (stop.jenis_stop === "gudang" && stop.id_gudang != null) {
+    const g = gudangList.find((x) => x.id_gudang === stop.id_gudang);
+    if (g)
+      return {
+        lat: g.latitude, lng: g.longitude,
+        label: g.nama_gudang || `Gudang ${g.id_gudang}`,
+        icon: g.tipe === "outgoing" ? OUTGOING_ICON : DC_ICON,
+        kind: "gudang",
+      };
+  }
+  return null;
+}
+
+/** Tentukan stop berikutnya: stop urutan terkecil yang BELUM dikunjungi.
+ *  "Dikunjungi" = ada event kedatangan (sampai_gudang/sampai_seller) yang lokasinya
+ *  dekat (< 500m) dengan stop itu. Tanpa event → stop pertama. */
+function findNextStop(
+  stops: RitaseStop[],
+  points: (StopPoint | null)[],
+  events: RitaseEvent[]
+): { stop: RitaseStop; point: StopPoint } | null {
+  const resolved = stops
+    .map((s, i) => ({ stop: s, point: points[i], idx: i }))
+    .filter((x): x is { stop: RitaseStop; point: StopPoint; idx: number } => !!x.point);
+  if (resolved.length === 0) return null;
+
+  const arrivals = [...events]
+    .filter(
+      (e) =>
+        e.latitude != null &&
+        e.longitude != null &&
+        (e.status === "sampai_gudang" || e.status === "sampai_seller")
+    )
+    .sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+  if (arrivals.length === 0) {
+    return { stop: resolved[0].stop, point: resolved[0].point };
+  }
+
+  // Cocokkan event kedatangan TERAKHIR ke stop terdekat → next = stop setelahnya.
+  const last = arrivals[0];
+  let lastIdx = -1;
+  let best = Infinity;
+  resolved.forEach((r) => {
+    const d = haversineM(r.point.lat, r.point.lng, last.latitude!, last.longitude!);
+    if (d < best) {
+      best = d;
+      lastIdx = r.idx;
+    }
+  });
+  if (lastIdx < 0) return { stop: resolved[0].stop, point: resolved[0].point };
+
+  const next = resolved.find((r) => r.idx === lastIdx + 1);
+  return next ? { stop: next.stop, point: next.point } : null;
+}
+
+/**
+ * Rute live armada terpilih: dari POSISI TRUCK saat ini ke stop berikutnya (ritase aktif).
+ * Re-fetch OSRM cuma kalau truk pindah > 150 m atau stop berubah (hemat request).
+ */
+function useActiveRoute(
+  vehicle: TrackingVehicle | null,
+  sellers: SellerLocation[],
+  dropList: DropPointPoi[],
+  gudangList: GudangPoint[]
+): {
+  next: { stop: RitaseStop; point: StopPoint } | null;
+  route: RouteResult | null;
+  kode: string | null;
+} {
+  const idRitase = vehicle?.id_ritase ?? undefined;
+  const { data: rit } = useRitaseDetail(idRitase);
+  const stops = rit?.stops ?? [];
+  const events = rit?.events ?? [];
+
+  const next = useMemo(() => {
+    if (!vehicle || !rit || rit.status === "selesai") return null;
+    const points = stops.map((s) => resolveStopPoint(s, sellers, dropList, gudangList));
+    return findNextStop(stops, points, events);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicle?.id_kendaraan, rit, stops, events, sellers, dropList, gudangList]);
+
+  const [route, setRoute] = useState<RouteResult | null>(null);
+  const lastKeyRef = useRef("");
+  const lastPosRef = useRef<[number, number] | null>(null);
+
+  useEffect(() => {
+    if (!vehicle || !next) {
+      setRoute(null);
+      lastKeyRef.current = "";
+      lastPosRef.current = null;
+      return;
+    }
+    const key = `${vehicle.id_kendaraan}:${next.stop.id_stop}`;
+    const moved =
+      !lastPosRef.current ||
+      haversineM(
+        vehicle.latitude, vehicle.longitude,
+        lastPosRef.current[0], lastPosRef.current[1]
+      ) > 150;
+    if (lastKeyRef.current === key && !moved) return;
+
+    let cancelled = false;
+    (async () => {
+      const r = await fetchRoute(
+        vehicle.latitude, vehicle.longitude,
+        next.point.lat, next.point.lng
+      );
+      if (cancelled || !r) return;
+      setRoute({ points: r.points, distanceMeters: r.distanceMeters, durationSeconds: r.durationSeconds });
+      lastKeyRef.current = key;
+      lastPosRef.current = [vehicle.latitude, vehicle.longitude];
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [vehicle, next]);
+
+  return { next, route, kode: rit?.kode_ritase ?? null };
 }
 
 const typeLabel = (t: string) =>
@@ -374,7 +612,20 @@ function LiveMapView({
   initialFocus,
   selectedVehicleId,
   onSelectVehicle,
+  compact: compactProp,
 }: LiveMapProps) {
+  // Compact OTOMATIS di layar kecil (HP): popup marker, search, dan legenda
+  // jadi ramping biar gampang dipakai & gak nutup peta.
+  const [isSmall, setIsSmall] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const fn = () => setIsSmall(mq.matches);
+    fn();
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, []);
+  const compact = isSmall || compactProp;
+
   // Gudang DINAMIS dari backend (tabel gudang). Fallback konstanta kalau kosong
   // (mis. mock) biar marker tetap tampil.
   const gudangList = useMemo<GudangPoint[]>(() => {
@@ -409,7 +660,7 @@ function LiveMapView({
       fetchRoute(OUTGOING_LAT, OUTGOING_LON, lat, lng),
       fetchRoute(DC_LAT, DC_LON, lat, lng),
     ]);
-    setRoutes({ targetKey, out, dc });
+    setRoutes({ targetKey, out: out?.points, dc: dc?.points });
     setRouteLoading(false);
   };
 
@@ -417,6 +668,11 @@ function LiveMapView({
     drawRoute(`seller:${s.id_seller}`, s.latitude, s.longitude);
   const onSelectDrop = (p: DropPointPoi) =>
     drawRoute(`drop:${p.id_drop_point}`, p.latitude, p.longitude);
+
+  // Rute LIVE armada terpilih: dari posisi truk → stop berikutnya (ritase aktif).
+  const selectedVehicle =
+    vehicles.find((v) => v.id_kendaraan === selectedVehicleId) ?? null;
+  const activeRoute = useActiveRoute(selectedVehicle, sellers, dropList, gudangList);
 
   // Pencarian semua kategori (truk/seller/gudang/drop) + popup saat klik hasil.
   const [q, setQ] = useState("");
@@ -503,9 +759,19 @@ function LiveMapView({
   return (
     <div className="relative h-full w-full">
       {/* Pencarian semua kategori → klik hasil buka popup */}
-      <div className="absolute left-1/2 top-3 z-20 w-72 max-w-[85%] -translate-x-1/2">
+      <div
+        className={cn(
+          "absolute left-1/2 top-3 z-20 -translate-x-1/2",
+          compact ? "w-48 max-w-[80%]" : "w-72 max-w-[85%]"
+        )}
+      >
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search
+            className={cn(
+              "absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400",
+              compact ? "h-3.5 w-3.5" : "h-4 w-4"
+            )}
+          />
           <input
             value={q}
             onChange={(e) => {
@@ -513,8 +779,13 @@ function LiveMapView({
               setOpen(true);
             }}
             onFocus={() => setOpen(true)}
-            placeholder="Cari truk, seller, gudang, drop..."
-            className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-8 text-sm shadow-sm outline-none focus:border-[#034075] focus:ring-2 focus:ring-[#034075]/20"
+            placeholder={compact ? "Cari di peta..." : "Cari truk, seller, gudang, drop..."}
+            className={cn(
+              "w-full border border-slate-200 bg-white shadow-sm outline-none focus:border-[#0c1e3a] focus:ring-2 focus:ring-[#0c1e3a]/20",
+              compact
+                ? "h-8 rounded-md pl-7 pr-7 text-xs"
+                : "h-9 rounded-lg pl-8 pr-8 text-sm"
+            )}
           />
           {q && (
             <button
@@ -523,7 +794,10 @@ function LiveMapView({
                 setQ("");
                 setOpen(false);
               }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className={cn(
+                "absolute top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600",
+                compact ? "right-2 text-xs" : "right-2 text-sm"
+              )}
               aria-label="Bersihkan pencarian"
             >
               ✕
@@ -559,6 +833,7 @@ function LiveMapView({
       <MapContainer
         center={JAKARTA}
         zoom={11}
+        minZoom={8}
         className="h-full w-full"
         style={{ zIndex: 0 }}
       >
@@ -581,15 +856,17 @@ function LiveMapView({
               focusKey={focusKey}
             >
               <Popup>
-                <div className="min-w-[180px] text-sm">
+                <div className={compact ? "min-w-[110px] text-xs" : "min-w-[180px] text-sm"}>
                   <p className={isOutgoing ? "font-semibold text-sky-600" : "font-semibold text-[#7c3aed]"}>
                     {isOutgoing ? "Gudang Outgoing" : "Distribution Center (DC)"}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {isOutgoing
-                      ? "Titik muat keberangkatan — acuan jarak \"Outgoing\" tiap seller."
-                      : "Gudang DC (Buaran Indah) — acuan jarak \"DC\" tiap seller."}
-                  </p>
+                  {!compact && (
+                    <p className="text-xs text-muted-foreground">
+                      {isOutgoing
+                        ? "Titik muat keberangkatan — acuan jarak \"Outgoing\" tiap seller."
+                        : "Gudang DC (Buaran Indah) — acuan jarak \"DC\" tiap seller."}
+                    </p>
+                  )}
                 </div>
               </Popup>
             </PoiMarker>
@@ -608,27 +885,31 @@ function LiveMapView({
             onClick={() => onSelectDrop(p)}
           >
             <Popup>
-              <div className="min-w-[180px] text-sm">
+              <div className={compact ? "min-w-[120px] text-xs" : "min-w-[180px] text-sm"}>
                 <p className="font-semibold text-orange-600">
                   {p.nama_drop_point || `Drop Point ${p.id_drop_point}`}
                 </p>
                 {p.kode_dp && (
                   <p className="text-xs text-muted-foreground">Kode: {p.kode_dp}</p>
                 )}
-                <p className="text-xs text-muted-foreground">Drop point / Gateway</p>
-                {(p.jarak_tempuh_km != null || p.jarak_dc_km != null) && (
-                  <div className="mt-1 space-y-0.5">
-                    {p.jarak_tempuh_km != null && (
-                      <p className="text-xs font-medium text-sky-600">
-                        Outgoing: <b>{p.jarak_tempuh_km.toFixed(1)} km</b>
-                      </p>
+                {!compact && (
+                  <>
+                    <p className="text-xs text-muted-foreground">Drop point / Gateway</p>
+                    {(p.jarak_tempuh_km != null || p.jarak_dc_km != null) && (
+                      <div className="mt-1 space-y-0.5">
+                        {p.jarak_tempuh_km != null && (
+                          <p className="text-xs font-medium text-sky-600">
+                            Outgoing: <b>{p.jarak_tempuh_km.toFixed(1)} km</b>
+                          </p>
+                        )}
+                        {p.jarak_dc_km != null && (
+                          <p className="text-xs font-medium text-violet-600">
+                            DC: <b>{p.jarak_dc_km.toFixed(1)} km</b>
+                          </p>
+                        )}
+                      </div>
                     )}
-                    {p.jarak_dc_km != null && (
-                      <p className="text-xs font-medium text-violet-600">
-                        DC: <b>{p.jarak_dc_km.toFixed(1)} km</b>
-                      </p>
-                    )}
-                  </div>
+                  </>
                 )}
               </div>
             </Popup>
@@ -647,7 +928,7 @@ function LiveMapView({
             onClick={() => onSelectSeller(s)}
           >
             <Popup>
-              <div className="min-w-[200px] text-sm">
+              <div className={compact ? "min-w-[140px] text-xs" : "min-w-[200px] text-sm"}>
                 {s.nama_seller && (
                   <p className="font-semibold text-emerald-700">
                     {s.nama_seller}
@@ -656,30 +937,38 @@ function LiveMapView({
                     )}
                   </p>
                 )}
-                <p className="text-xs text-muted-foreground">{s.alamat}</p>
-                <p className="text-xs text-muted-foreground">{s.kota}</p>
-                {(s.jarak_tempuh_km != null || s.jarak_dc_km != null) && (
-                  <div className="mt-1 space-y-0.5">
-                    {s.jarak_tempuh_km != null && (
-                      <p className="text-xs font-medium text-sky-600">
-                        Outgoing: <b>{s.jarak_tempuh_km.toFixed(1)} km</b>
-                      </p>
-                    )}
-                    {s.jarak_dc_km != null && (
-                      <p className="text-xs font-medium text-violet-600">
-                        DC: <b>{s.jarak_dc_km.toFixed(1)} km</b>
-                      </p>
-                    )}
-                  </div>
+                {s.alamat && (
+                  <p className={compact ? "max-w-[150px] truncate text-xs text-muted-foreground" : "text-xs text-muted-foreground"}>
+                    {s.alamat}
+                  </p>
                 )}
-                {s.pic && <p className="mt-1 text-xs">PIC: <b>{s.pic}</b></p>}
-                {s.no_hp && (
-                  <a
-                    href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`}
-                    className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"
-                  >
-                    <Phone className="h-3 w-3" /> Telpon: {s.no_hp}
-                  </a>
+                {!compact && (
+                  <>
+                    <p className="text-xs text-muted-foreground">{s.kota}</p>
+                    {(s.jarak_tempuh_km != null || s.jarak_dc_km != null) && (
+                      <div className="mt-1 space-y-0.5">
+                        {s.jarak_tempuh_km != null && (
+                          <p className="text-xs font-medium text-sky-600">
+                            Outgoing: <b>{s.jarak_tempuh_km.toFixed(1)} km</b>
+                          </p>
+                        )}
+                        {s.jarak_dc_km != null && (
+                          <p className="text-xs font-medium text-violet-600">
+                            DC: <b>{s.jarak_dc_km.toFixed(1)} km</b>
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {s.pic && <p className="mt-1 text-xs">PIC: <b>{s.pic}</b></p>}
+                    {s.no_hp && (
+                      <a
+                        href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`}
+                        className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"
+                      >
+                        <Phone className="h-3 w-3" /> Telpon: {s.no_hp}
+                      </a>
+                    )}
+                  </>
                 )}
               </div>
             </Popup>
@@ -695,6 +984,16 @@ function LiveMapView({
             selected={selectedVehicleId === v.id_kendaraan}
             onSelect={() => onSelectVehicle(v.id_kendaraan)}
             phones={phones}
+            compact={compact}
+            eta={
+              selectedVehicleId === v.id_kendaraan && activeRoute.next && activeRoute.route
+                ? {
+                    label: activeRoute.next.point.label,
+                    km: `${(activeRoute.route.distanceMeters / 1000).toFixed(1)} km`,
+                    durationSeconds: activeRoute.route.durationSeconds,
+                  }
+                : null
+            }
           />
         ))}
 
@@ -706,15 +1005,55 @@ function LiveMapView({
           <Polyline positions={routes.dc} pathOptions={{ color: "#7c3aed", weight: 4, opacity: 0.75 }} />
         )}
 
+        {/* Rute LIVE armada terpilih — emerald, dari posisi truk ke tujuan berikutnya */}
+        {activeRoute.route && activeRoute.route.points.length > 1 && activeRoute.next && (
+          <>
+            <Polyline
+              positions={activeRoute.route.points}
+              pathOptions={{ color: "#10b981", weight: 5, opacity: 0.85 }}
+            />
+            <Marker
+              position={[activeRoute.next.point.lat, activeRoute.next.point.lng]}
+              icon={activeRoute.next.point.icon}
+            >
+              <Popup>
+                <p className="text-xs font-semibold text-emerald-700">
+                  {activeRoute.next.point.label}
+                </p>
+                <p className="text-[11px] text-slate-500">Tujuan berikutnya</p>
+              </Popup>
+            </Marker>
+          </>
+        )}
+
         {/* Fokus hasil pencarian (bukan truk) → zoom; popup dibuka PoiMarker */}
         <FocusPoi focus={focus} />
       </MapContainer>
 
       {/* Chip info + tutup rute */}
       {(routeLoading || routes) && (
-        <div className="absolute bottom-3 left-3 z-10 rounded-lg border bg-white/95 px-3 py-2 text-[11px] shadow-sm">
+        <div
+          className={cn(
+            "absolute bottom-3 left-3 z-10 rounded-md border bg-white/95 shadow-sm",
+            compact ? "px-2.5 py-1.5 text-[10px]" : "px-3 py-2 text-[11px]"
+          )}
+        >
           {routeLoading ? (
             <p className="text-slate-500">Menggambar rute...</p>
+          ) : compact ? (
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-slate-700">Rute dari gudang</span>
+              <i className="inline-block h-2 w-2 rounded-full bg-sky-500" />
+              <i className="inline-block h-2 w-2 rounded-full bg-violet-500" />
+              <button
+                type="button"
+                onClick={() => setRoutes(null)}
+                className="font-semibold text-slate-500 hover:text-rose-600"
+                aria-label="Tutup rute"
+              >
+                ✕
+              </button>
+            </div>
           ) : (
             <>
               <p className="mb-1 font-semibold text-slate-700">Rute dari gudang:</p>
@@ -736,50 +1075,105 @@ function LiveMapView({
         </div>
       )}
 
+      {/* Chip rute LIVE armada terpilih — posisi truk → tujuan berikutnya */}
+      {activeRoute.next && activeRoute.route && (
+        <div
+          className={cn(
+            "absolute z-10 rounded-md border bg-white/95 shadow-sm",
+            compact
+              ? "left-3 top-3 max-w-[65%] px-2.5 py-1.5 text-[10px]"
+              : "bottom-3 left-1/2 flex -translate-x-1/2 flex-col items-center gap-0.5 whitespace-nowrap px-3 py-1.5 text-[11px]"
+          )}
+        >
+          <span className={cn("flex items-center gap-1.5", compact && "w-full")}>
+            <span className="min-w-0 truncate font-semibold text-slate-700">
+              {activeRoute.kode ?? "RIT"} → {activeRoute.next.point.label}
+            </span>
+            <span className="shrink-0 text-slate-400">·</span>
+            <span className="shrink-0 font-semibold tabular-nums text-emerald-700">
+              {(activeRoute.route.distanceMeters / 1000).toFixed(1)} km
+            </span>
+            {!compact && (
+              <>
+                <span className="text-slate-400">·</span>
+                <span className="tabular-nums text-slate-600">
+                  Estimasi {fmtArrival(activeRoute.route.durationSeconds)}
+                  <span className="ml-1 text-[10px] text-slate-400">
+                    ({fmtDuration(activeRoute.route.durationSeconds)})
+                  </span>
+                </span>
+              </>
+            )}
+          </span>
+          {!compact && (
+            <span className="text-[10px] text-slate-400">
+              Estimasi rute — kondisi jalan & kecepatan aktual tidak dihitung
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Legend filter — z-10: di atas peta tapi di bawah header sticky (z-30) */}
-      <div className="absolute right-3 top-3 z-10 rounded-lg border bg-white/95 px-2.5 py-2 text-[11px] shadow-sm">
-        <p className="mb-1.5 flex items-center justify-between font-semibold text-slate-700">
-          Legenda <span className="font-normal text-[10px] text-slate-400">klik = filter</span>
-        </p>
-        <div className="space-y-0.5">
-          <LegendToggle label="Truk" color="#1e3a5f" active={show.trucks} onClick={() => toggleLayer("trucks")} />
-          <LegendToggle label="Seller" color="#10b981" active={show.sellers} onClick={() => toggleLayer("sellers")} />
-          <LegendToggle label="Gudang Outgoing" color="#0ea5e9" active={show.gudang} onClick={() => toggleLayer("gudang")} />
-          <LegendToggle label="Gudang DC" color="#7c3aed" active={show.gudang} onClick={() => toggleLayer("gudang")} />
-          <LegendToggle label="Drop Point" color="#f97316" active={show.drop} onClick={() => toggleLayer("drop")} />
+      <div
+        className={cn(
+          "absolute z-10 rounded-md border bg-white/95 shadow-sm",
+          compact
+            ? "right-2.5 top-3 flex flex-col gap-1 p-1"
+            : "right-3 top-3 rounded-lg px-2.5 py-2 text-[11px]"
+        )}
+      >
+        {!compact && (
+          <p className="mb-1.5 flex items-center justify-between font-semibold text-slate-700">
+            Legenda <span className="font-normal text-[10px] text-slate-400">klik = filter</span>
+          </p>
+        )}
+        <div className={compact ? "flex flex-col items-center gap-1" : "space-y-0.5"}>
+          <LegendToggle compact={compact} label="Truk" color="#1e3a5f" active={show.trucks} onClick={() => toggleLayer("trucks")} />
+          <LegendToggle compact={compact} label="Seller" color="#10b981" active={show.sellers} onClick={() => toggleLayer("sellers")} />
+          <LegendToggle compact={compact} label="Gudang Outgoing" color="#0ea5e9" active={show.gudang} onClick={() => toggleLayer("gudang")} />
+          <LegendToggle compact={compact} label="Gudang DC" color="#7c3aed" active={show.gudang} onClick={() => toggleLayer("gudang")} />
+          <LegendToggle compact={compact} label="Drop Point" color="#f97316" active={show.drop} onClick={() => toggleLayer("drop")} />
         </div>
       </div>
     </div>
   );
 }
 
-/** Baris legenda yang bisa diklik (filter layer). */
+/** Baris legenda yang bisa diklik (filter layer). Mode compact = dot-only + tooltip. */
 function LegendToggle({
   label,
   color,
   active,
   onClick,
+  compact,
 }: {
   label: string;
   color: string;
   active: boolean;
   onClick: () => void;
+  compact?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2 rounded px-1.5 py-1 text-left transition-colors hover:bg-slate-100",
+        "flex w-full items-center rounded transition-colors hover:bg-slate-100",
+        compact ? "justify-center p-0.5" : "gap-2 px-1.5 py-1 text-left",
         !active && "opacity-40"
       )}
       title={active ? `Sembunyikan ${label}` : `Tampilkan ${label}`}
     >
       <span
-        className="inline-block h-3 w-3 shrink-0 rounded-full border-2 border-white shadow"
+        className={cn(
+          "inline-block shrink-0 rounded-full border-2 border-white shadow",
+          compact ? "h-2.5 w-2.5" : "h-3 w-3"
+        )}
         style={{ backgroundColor: active ? color : "#e2e8f0" }}
       />
-      <span className={cn("text-slate-600", !active && "line-through")}>{label}</span>
+      {!compact && (
+        <span className={cn("text-slate-600", !active && "line-through")}>{label}</span>
+      )}
     </button>
   );
 }
@@ -793,7 +1187,7 @@ function liveMapPropsEqual(prev: LiveMapProps, next: LiveMapProps): boolean {
   const vSig = (arr?: TrackingVehicle[]) =>
     (arr ?? [])
       .map((v) =>
-        [v.id_kendaraan, v.latitude?.toFixed(5), v.longitude?.toFixed(5), v.offline, v.session_online, v.last_update].join(":")
+        [v.id_kendaraan, v.latitude?.toFixed(5), v.longitude?.toFixed(5), v.offline, v.session_online, v.id_ritase, v.last_update].join(":")
       )
       .join("|");
   const sSig = (arr?: SellerLocation[]) =>

@@ -11,6 +11,7 @@ import {
   PackageSearch,
   Timer,
   Truck,
+  User,
 } from "lucide-react";
 import {
   Card,
@@ -59,10 +60,10 @@ export default function RitaseDetailPage({ params }: { params: { id: string } })
   const totalTitik = stops.length;
 
   const durasiParts = [
-    { label: "Loading", v: sum.loading, color: "bg-amber-400" },
-    { label: "Perjalanan", v: sum.perjalanan, color: "bg-sky-500" },
-    { label: "Tiba", v: sum.tiba, color: "bg-emerald-400" },
-    { label: "Selesai", v: sum.selesai, color: "bg-green-600" },
+    { label: "Loading", v: sum.loading, color: "bg-[#0c1e3a]" },
+    { label: "Perjalanan", v: sum.perjalanan, color: "bg-[#1c3d63]" },
+    { label: "Tiba", v: sum.tiba, color: "bg-[#3a628f]" },
+    { label: "Selesai", v: sum.selesai, color: "bg-[#5b82ab]" },
   ].filter((p) => p.v > 0);
 
   const toMin = (t: string) => {
@@ -83,7 +84,7 @@ export default function RitaseDetailPage({ params }: { params: { id: string } })
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PageHeader
         title={data.kode_ritase}
         description={`RIT ${data.ritase_ke ?? "-"} · ${formatDateDMY(data.tanggal)}`}
@@ -98,14 +99,14 @@ export default function RitaseDetailPage({ params }: { params: { id: string } })
 
       {/* Info ritase */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold">
-                  Informasi Ritase
-                  <InfoTip text="Ringkasan penugasan: driver, kendaraan, jadwal RIT, dan status." />
-                </CardTitle>
+            Informasi Ritase
+            <InfoTip text="Ringkasan penugasan: driver, kendaraan, jadwal RIT, dan status." />
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Info icon={<Truck className="h-4 w-4" />} label="Driver" value={data.nama_driver} />
+          <Info icon={<User className="h-4 w-4" />} label="Driver" value={data.nama_driver} />
           <Info icon={<Truck className="h-4 w-4" />} label="Kendaraan" value={data.plat_nomor} />
           <Info
             icon={<Clock className="h-4 w-4" />}
@@ -130,21 +131,21 @@ export default function RitaseDetailPage({ params }: { params: { id: string } })
       </Card>
 
       {/* Statistik Ritase */}
-      <Card className="overflow-hidden rounded-2xl shadow-sm">
-        <CardHeader className="border-b pb-3">
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-            <BarChart3 className="h-4 w-4 text-[#034075]" /> Statistik Ritase
+            <BarChart3 className="h-4 w-4 text-[#0c1e3a]" /> Statistik Ritase
             <InfoTip text="Ringkasan durasi, komposisi rute, dan perbandingan realisasi vs jadwal." />
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
           {/* Ringkasan angka */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
-            <StatTile icon={<Timer className="h-4 w-4" />} tone="bg-blue-100 text-blue-700" label="Total Durasi" value={formatDur(sum.total)} tip="Total waktu dari seluruh event status." />
-            <StatTile icon={<ListChecks className="h-4 w-4" />} tone="bg-slate-100 text-slate-600" label="Titik Rute" value={formatNumber(totalTitik)} tip="Total titik dalam rute: gudang + seller + drop point." />
-            <StatTile icon={<PackageCheck className="h-4 w-4" />} tone="bg-emerald-100 text-emerald-700" label="Seller" value={formatNumber(nSeller)} tip="Jumlah seller yang dikunjungi." />
-            <StatTile icon={<Flag className="h-4 w-4" />} tone="bg-orange-100 text-orange-700" label="Drop Point" value={formatNumber(nDrop)} tip="Jumlah drop point / gateway tujuan." />
-            <StatTile icon={<Clock className="h-4 w-4" />} tone="bg-amber-100 text-amber-700" label="Event Status" value={formatNumber((data.events ?? []).length)} tip="Jumlah update status yang tercatat." />
+            <StatTile icon={<Timer className="h-4 w-4" />} label="Total Durasi" value={formatDur(sum.total)} tip="Total waktu dari seluruh event status." />
+            <StatTile icon={<ListChecks className="h-4 w-4" />} label="Titik Rute" value={formatNumber(totalTitik)} tip="Total titik dalam rute: gudang + seller + drop point." />
+            <StatTile icon={<PackageCheck className="h-4 w-4" />} label="Seller" value={formatNumber(nSeller)} tip="Jumlah seller yang dikunjungi." />
+            <StatTile icon={<Flag className="h-4 w-4" />} label="Drop Point" value={formatNumber(nDrop)} tip="Jumlah drop point / gateway tujuan." />
+            <StatTile icon={<Clock className="h-4 w-4" />} label="Event Status" value={formatNumber((data.events ?? []).length)} tip="Jumlah update status yang tercatat." />
           </div>
 
           {/* Komposisi durasi */}
@@ -172,13 +173,13 @@ export default function RitaseDetailPage({ params }: { params: { id: string } })
           {/* Komposisi rute */}
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Rute:</p>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-700">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
               <i className="h-2 w-2 rounded-full bg-sky-500" /> Gudang {formatNumber(nGudang)}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
               <i className="h-2 w-2 rounded-full bg-emerald-500" /> Seller {formatNumber(nSeller)}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
               <i className="h-2 w-2 rounded-full bg-orange-500" /> Drop {formatNumber(nDrop)}
             </span>
           </div>
@@ -188,7 +189,7 @@ export default function RitaseDetailPage({ params }: { params: { id: string } })
             {realisasiRows.map((r) => {
               const d = deltaMin(r.jadwal, r.realisasi);
               return (
-                <div key={r.label} className="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
+                <div key={r.label} className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{r.label}</p>
                   <p className="mt-0.5 text-sm">
                     <span className="text-slate-500">Jadwal {r.jadwal ?? "-"}</span>
@@ -198,12 +199,12 @@ export default function RitaseDetailPage({ params }: { params: { id: string } })
                   {d !== null && (
                     <span
                       className={cn(
-                        "mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold",
+                        "mt-1 inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold",
                         d === 0
-                          ? "bg-emerald-100 text-emerald-700"
+                          ? "bg-emerald-50 text-emerald-700"
                           : d > 0
-                          ? "bg-rose-100 text-rose-700"
-                          : "bg-sky-100 text-sky-700"
+                          ? "bg-rose-50 text-rose-700"
+                          : "bg-sky-50 text-sky-700"
                       )}
                     >
                       {fmtDelta(d)}
@@ -278,21 +279,21 @@ function Info({ icon, label, value }: { icon: React.ReactNode; label: string; va
 /** Tile angka kecil untuk Statistik Ritase. */
 function StatTile({
   icon,
-  tone,
   label,
   value,
   tip,
 }: {
   icon: React.ReactNode;
-  tone: string;
   label: string;
   value: string;
   tip: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-100 px-3 py-2.5">
+    <div className="rounded-lg border border-slate-100 px-3 py-2.5">
       <div className="flex items-center gap-2">
-        <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", tone)}>{icon}</span>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500">
+          {icon}
+        </span>
         <span className="min-w-0">
           <span className="block truncate text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</span>
           <span className="block text-base font-bold tabular-nums text-slate-800">{value}</span>

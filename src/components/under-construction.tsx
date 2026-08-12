@@ -1,39 +1,23 @@
 "use client";
 
 import { Construction } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 /**
- * Placeholder halaman modul yang belum dikembangkan.
- * Menampilkan status jelas: masih dalam pengembangan.
+ * Placeholder konten halaman modul yang belum dikembangkan.
+ * (Judul & deskripsi di-handle oleh PageHeader di masing-masing halaman.)
  */
-export function UnderConstruction({
-  title,
-  description,
-}: {
-  title: string;
-  description?: string;
-}) {
+export function UnderConstruction() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-        {description ? <CardDescription>{description}</CardDescription> : null}
-      </CardHeader>
+    <Card className="rounded-lg border-slate-200">
       <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-300">
-          <Construction className="h-7 w-7" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+          <Construction className="h-6 w-6" />
         </div>
         <p className="text-sm font-semibold">Modul Sedang Dikembangkan</p>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Halaman ini belum tersedia. Menunggu endpoint backend &
-          spesifikasi dari tim development.
+          Halaman ini belum tersedia. Menunggu endpoint backend &amp; spesifikasi dari tim
+          development.
         </p>
       </CardContent>
     </Card>

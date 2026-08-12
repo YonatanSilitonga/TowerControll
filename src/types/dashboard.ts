@@ -45,6 +45,8 @@ export interface Bottleneck {
   label: string;
   indikator: string;
   nilai: number;
+  deskripsi?: string;
+  rekomendasi?: string;
 }
 
 export interface AlertAnomali {
@@ -52,6 +54,8 @@ export interface AlertAnomali {
   pesan: string;
   kategori: string;
   waktu: string;
+  deskripsi?: string;
+  rekomendasi?: string;
 }
 
 export interface DashboardAnalisis {

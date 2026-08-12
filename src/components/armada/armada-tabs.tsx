@@ -16,7 +16,7 @@ const TABS = [
 export function ArmadaTabs() {
   const pathname = usePathname();
   return (
-    <div className="mb-5 flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1.5">
+    <div className="mb-4 flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
       {TABS.map((t) => {
         const active =
           t.href === "/armada" ? pathname === "/armada" : pathname.startsWith(t.href);
@@ -27,8 +27,8 @@ export function ArmadaTabs() {
             className={cn(
               "rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors",
               active
-                ? "bg-[#034075] text-white shadow-sm"
-                : "text-slate-600 hover:bg-white hover:text-[#034075]"
+                ? "bg-[#0c1e3a] text-white shadow-sm"
+                : "text-slate-600 hover:bg-white hover:text-[#0c1e3a]"
             )}
           >
             {t.label}

@@ -13,14 +13,30 @@ import { NavCard, armadaNavIcons } from "@/components/armada/nav-card";
 import { InfoTip } from "@/components/ui/info-tip";
 import { useDriver, useKendaraan, useRitase } from "@/hooks/use-armada";
 import { useSeller } from "@/hooks/use-seller";
+import { useTrackingMap } from "@/hooks/use-tracking";
 import { statusLabel } from "@/lib/constants";
-import { Store } from "lucide-react";
+import { formatNumber } from "@/lib/utils";
+import { Lightbulb, Store } from "lucide-react";
 
 export default function ArmadaOverviewPage() {
   const { data: kendaraan, isLoading: lK } = useKendaraan();
   const { data: driver, isLoading: lD } = useDriver();
   const { data: ritase, isLoading: lR } = useRitase();
   const { data: seller, isLoading: lS } = useSeller();
+  const { data: mapData } = useTrackingMap();
+
+  // Kendaraan yang lagi kirim posisi (tidak offline per backend).
+  const onlineIds = new Set(
+    (mapData?.vehicles ?? []).filter((v) => !v.offline).map((v) => v.id_kendaraan)
+  );
+  const onlineCount = (kendaraan ?? []).filter((k) =>
+    onlineIds.has(k.id_kendaraan)
+  ).length;
+  const totalKapasitas = (kendaraan ?? []).reduce(
+    (acc, k) => acc + (k.kapasitas_kg ?? 0),
+    0
+  );
+  const driverAktif = (driver ?? []).filter((d) => d.tracking_fresh).length;
 
   return (
     <div>
@@ -66,9 +82,12 @@ export default function ArmadaOverviewPage() {
       {/* Breakdown status */}
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
               Status Kendaraan <InfoTip text="Ringkasan jumlah kendaraan per status (aktif, tersedia, maintenance, dst)." />
+              <span className="ml-auto text-xs font-normal text-slate-400">
+                {kendaraan?.length ?? 0} total
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -77,15 +96,36 @@ export default function ArmadaOverviewPage() {
             ) : (kendaraan ?? []).length === 0 ? (
               <p className="py-3 text-center text-sm text-slate-400">Belum ada kendaraan</p>
             ) : (
-              <Breakdown items={kendaraan ?? []} field="status_kendaraan" />
+              <>
+                <Breakdown items={kendaraan ?? []} field="status_kendaraan" />
+
+                <div className="mt-3.5 space-y-1.5 border-t border-slate-100 pt-2.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Kapasitas total</span>
+                    <span className="font-bold tabular-nums text-slate-800">
+                      {formatNumber(totalKapasitas)} kg
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Sedang online</span>
+                    <span className="inline-flex items-center gap-1.5 font-bold tabular-nums text-emerald-700">
+                      <i className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      {onlineCount} armada
+                    </span>
+                  </div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
               Status Driver <InfoTip text="Ringkasan jumlah driver per status (bertugas, libur, dst)." />
+              <span className="ml-auto text-xs font-normal text-slate-400">
+                {driver?.length ?? 0} total
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -94,15 +134,30 @@ export default function ArmadaOverviewPage() {
             ) : (driver ?? []).length === 0 ? (
               <p className="py-3 text-center text-sm text-slate-400">Belum ada driver</p>
             ) : (
-              <Breakdown items={driver ?? []} field="status_driver" />
+              <>
+                <Breakdown items={driver ?? []} field="status_driver" />
+
+                <div className="mt-3.5 space-y-1.5 border-t border-slate-100 pt-2.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Sedang aktif</span>
+                    <span className="inline-flex items-center gap-1.5 font-bold tabular-nums text-emerald-700">
+                      <i className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                      {driverAktif} driver
+                    </span>
+                  </div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
               Status Ritase <InfoTip text="Ringkasan jumlah ritase per status (direncanakan, berjalan, selesai)." />
+              <span className="ml-auto text-xs font-normal text-slate-400">
+                {ritase?.length ?? 0} total
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -117,18 +172,24 @@ export default function ArmadaOverviewPage() {
         </Card>
       </div>
 
-      <div className="mt-6 rounded-xl border bg-card p-5 text-sm text-muted-foreground">
-        <p className="font-medium text-slate-800">💡 Tips</p>
-        <p className="text-xs">
-          Peta live & status armada ada di <b>Dashboard</b>. Detail kendaraan, driver, dan rute ritase
-          ada di menu Armada.
-        </p>
+      <div className="mt-6 flex items-start gap-3 rounded-lg border bg-card p-4 text-sm text-muted-foreground">
+        <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+        <div>
+          <p className="font-medium text-slate-800">Tips</p>
+          <p className="text-xs">
+            Peta live & status armada ada di <b>Dashboard</b>. Detail kendaraan, driver, dan rute ritase
+            ada di menu Armada.
+          </p>
+        </div>
       </div>
     </div>
   );
 }
 
-function Breakdown<T extends { [K in F]: string }, F extends keyof T>({
+function Breakdown<
+  T extends Partial<Record<F, string | null | undefined>>,
+  F extends keyof T,
+>({
   items,
   field,
 }: {
@@ -141,14 +202,33 @@ function Breakdown<T extends { [K in F]: string }, F extends keyof T>({
     map.set(key, (map.get(key) ?? 0) + 1);
   }
   const sorted = [...map.entries()].sort((a, b) => b[1] - a[1]);
+  const total = items.length;
   return (
-    <div className="space-y-2">
-      {sorted.map(([key, total]) => (
-        <div key={key} className="flex items-center justify-between border-b border-slate-100 py-1.5 last:border-0">
-          <span className="text-sm text-slate-600">{statusLabel(key)}</span>
-          <span className="text-sm font-bold tabular-nums">{total}</span>
-        </div>
-      ))}
+    <div className="space-y-3">
+      {sorted.map(([key, count]) => {
+        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+        return (
+          <div key={key}>
+            <div className="mb-1 flex items-center justify-between text-sm">
+              <span className="text-slate-600">{statusLabel(key)}</span>
+              <span className="font-bold tabular-nums text-slate-800">
+                {count}
+                <span className="ml-1.5 text-[11px] font-semibold text-slate-400">({pct}%)</span>
+              </span>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-[#0c1e3a]"
+                style={{ width: `${Math.max(pct, 3)}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+      <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-xs">
+        <span className="text-slate-500">Total</span>
+        <span className="font-bold tabular-nums text-slate-800">{total}</span>
+      </div>
     </div>
   );
 }

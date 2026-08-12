@@ -82,7 +82,7 @@ export default function RitasePage() {
             render: (r) => (
               <Link
                 href={`/armada/trips/${r.id_ritase}`}
-                className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:border-[#034075]/40 hover:text-[#034075]"
+                className="inline-flex min-h-[44px] items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:border-[#0c1e3a]/40 hover:text-[#0c1e3a] sm:min-h-[32px]"
               >
                 <Eye className="h-3 w-3" /> Buka
               </Link>

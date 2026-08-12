@@ -13,6 +13,8 @@ import {
   mockTrackingMap,
   mockTrips,
   mockVehicles,
+  mockMasterOptions,
+  mockAdminRitases,
 } from "./data";
 
 /** Simulasi latency jaringan. */
@@ -113,6 +115,42 @@ export async function mockRequest<T>(
       return mockTrackingHistory.filter((h) => h.created_at.slice(0, 10) === tanggal) as T;
     }
     return mockTrackingHistory as T;
+  }
+
+  /* ---------- Admin Jadwal Ritase (CRUD) ---------- */
+  if (method === "GET" && path === "/admin/master-options") {
+    return mockMasterOptions as T;
+  }
+
+  if (method === "GET" && path === "/admin/ritases") {
+    const tanggal = (query?.tanggal as string) || new Date().toISOString().slice(0, 10);
+    return mockAdminRitases.filter((r) => r.tanggal === tanggal) as T;
+  }
+
+  if (method === "POST" && path === "/admin/ritase/generate") {
+    const total = mockAdminRitases.length;
+    return {
+      total_generated: total,
+      message: `Berhasil menimpa & meng-generate ${total} ritase harian!`,
+    } as T;
+  }
+
+  if (method === "POST" && path === "/admin/ritase") {
+    const b = (body ?? {}) as { id_driver?: number; id_kendaraan?: number; id_drop_point?: number };
+    if (!b.id_driver || !b.id_kendaraan || !b.id_drop_point) {
+      throw new ApiError(422, "Driver, Kendaraan, dan Drop Point wajib dipilih");
+    }
+    return { id_ritase: 999, message: "Jadwal ritase baru berhasil dibuat!" } as T;
+  }
+
+  const ritaseParam = path.match(/^\/admin\/ritase\/(\d+)$/);
+  if (ritaseParam) {
+    if (method === "PUT") {
+      return { message: "Jadwal ritase berhasil diperbarui" } as T;
+    }
+    if (method === "DELETE") {
+      return { message: "Ritase berhasil dihapus" } as T;
+    }
   }
 
   /* ---------- Fallback ---------- */

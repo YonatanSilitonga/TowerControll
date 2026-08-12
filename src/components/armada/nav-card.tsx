@@ -26,7 +26,7 @@ export function NavCard({
 }) {
   return (
     <Link href={href} className="block">
-      <Card className="h-full transition-colors hover:border-[#034075]/40 hover:shadow-sm">
+      <Card className="h-full transition-colors hover:border-[#0c1e3a]/40 hover:shadow-sm">
         <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-semibold">{title}</CardTitle>
           <Icon className="h-4 w-4 text-slate-400" />

@@ -41,7 +41,7 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
   const fresh = !!driver.tracking_fresh;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PageHeader
         title={driver.nama_driver}
         description={`Driver ID ${driver.id_driver} · ${driver.jenis_driver ?? "tetap"}`}
@@ -55,12 +55,12 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
       <ArmadaTabs />
 
       <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
-        <div className="space-y-5">
+        <div className="space-y-4">
           {/* Riwayat tracking kendaraan terakhir */}
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                <Truck className="h-4 w-4 text-[#034075]" /> Riwayat Tracking
+                <Truck className="h-4 w-4 text-[#0c1e3a]" /> Riwayat Tracking
                 <InfoTip text="Timeline status kendaraan yang dia kendarai (dari event ritase)." />
               </CardTitle>
             </CardHeader>
@@ -86,7 +86,7 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
 
           {/* Daftar ritase driver */}
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold">
                 Daftar Ritase
                 <InfoTip text="Semua penugasan driver ini — klik baris untuk lihat detail rute & timeline." />
@@ -127,9 +127,9 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
         {/* Info driver */}
         <div className="space-y-4">
           <Card className="h-fit">
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                <User className="h-4 w-4 text-[#034075]" /> Informasi Driver
+                <User className="h-4 w-4 text-[#0c1e3a]" /> Informasi Driver
                 <InfoTip text="Data kontak & kendaraan yang sedang/terakhir dikendarai." />
               </CardTitle>
             </CardHeader>
@@ -148,7 +148,7 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
                 }
               />
               <InfoRow label="Jenis" value={driver.jenis_driver ?? "-"} />
-              <InfoRow label="Status" value={driver.status_driver} />
+              <InfoRow label="Status" value={<StatusBadge status={driver.status_driver} />} />
               <InfoRow
                 label="Kendaraan"
                 value={
@@ -157,11 +157,12 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
                       <span className="font-mono text-xs font-semibold">{plat}</span>
                       <span
                         className={cn(
-                          "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-                          fresh ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                          "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold",
+                          fresh ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
                         )}
                       >
-                        {fresh ? "Aktif" : "Lama"}
+                        <i className={`h-1 w-1 rounded-full ${fresh ? "bg-emerald-500" : "bg-rose-500"}`} />
+                        {fresh ? "Live" : "Offline"}
                       </span>
                     </div>
                   ) : (
@@ -176,7 +177,7 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
             <button
               type="button"
               onClick={() => router.push(`/armada/live-map?kendaraan=${driver.id_kendaraan}`)}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-[#034075] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0a5aa8]"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-[#0c1e3a] px-3 py-2 text-sm font-semibold text-white hover:bg-[#16335a]"
             >
               <MapPin className="h-4 w-4" /> Lihat di peta
             </button>

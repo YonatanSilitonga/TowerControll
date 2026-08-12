@@ -4,7 +4,7 @@
  */
 
 import type { Driver, Fleet, Trip, Vehicle } from "@/types/armada";
-import type { TrackingCheckpoint, TrackingMap } from "@/types/armada";
+import type { AdminRitaseItem, TrackingCheckpoint, TrackingMap } from "@/types/armada";
 import type { DashboardSummary } from "@/types/dashboard";
 
 const NOW = Date.now();
@@ -202,3 +202,94 @@ export const mockDashboard: DashboardSummary = {
   total_implant: 40,
   total_tracking: 11,
 };
+
+/* ------------------------------------------------------------------ */
+/* Admin Jadwal Ritase (mock)                                          */
+/* ------------------------------------------------------------------ */
+
+export const mockMasterOptions = {
+  drivers: [
+    { id_driver: 1, nama_driver: "Budi Santoso", jabatan: "TRANSPORTER" },
+    { id_driver: 2, nama_driver: "Agus Wijaya", jabatan: "TRANSPORTER" },
+    { id_driver: 3, nama_driver: "AWALUDIN", jabatan: "TRANSPORTER" },
+    { id_driver: 4, nama_driver: "Rudi Hartono", jabatan: "TRANSPORTER" },
+  ],
+  kendaraan: [
+    { id_kendaraan: 2, plat_nomor: "B 9806 UXV", jenis_kendaraan: "Truk Box 6m" },
+    { id_kendaraan: 5, plat_nomor: "B 1234 SLB", jenis_kendaraan: "Truk Box 6m" },
+    { id_kendaraan: 8, plat_nomor: "B 9012 SLB", jenis_kendaraan: "Pickup Double" },
+  ],
+  drop_points: [
+    { id_drop_point: 2, nama_drop_point: "Gudang J&T Express JKT999", kode_dp: "DP-GTW" },
+    { id_drop_point: 3, nama_drop_point: "J&T Express Gateway SEG777", kode_dp: "DP-SEG" },
+  ],
+  sellers: [
+    { id_seller: 1, nama_seller: "SKI", kode_seller: "SLR-001" },
+    { id_seller: 2, nama_seller: "TITIP AJA", kode_seller: "SLR-002" },
+    { id_seller: 3, nama_seller: "Gateway Tangerang", kode_seller: "SLR-003" },
+  ],
+  gudangs: [
+    { id_gudang: 1, nama_gudang: "Gudang Outgoing" },
+    { id_gudang: 2, nama_gudang: "Gudang DC" },
+  ],
+};
+
+export const mockAdminRitases: AdminRitaseItem[] = [
+  {
+    id_ritase: 1,
+    kode_ritase: "TR-20260811-D1-R1",
+    tanggal: "2026-08-11",
+    id_driver: 1,
+    nama_driver: "Budi Santoso",
+    jabatan_driver: "TRANSPORTER",
+    id_kendaraan: 5,
+    nopol: "B 1234 SLB",
+    id_drop_point: 2,
+    nama_drop_point: "Gudang J&T Express JKT999",
+    ritase_ke: 1,
+    status: "direncanakan",
+    stops: [
+      { id_stop: 1, urutan: 1, jenis_stop: "gudang", id_gudang: 1, nama_lokasi: "Gudang Outgoing", keterangan: "Mulai dari gudang origin" },
+      { id_stop: 2, urutan: 2, jenis_stop: "seller", id_seller: 1, nama_lokasi: "SKI", keterangan: "Ambil paket di SKI" },
+      { id_stop: 3, urutan: 3, jenis_stop: "drop_point", id_drop_point: 2, nama_lokasi: "Gudang J&T Express JKT999", keterangan: "Tujuan akhir Drop Point" },
+    ],
+  },
+  {
+    id_ritase: 2,
+    kode_ritase: "TR-20260811-D2-R1",
+    tanggal: "2026-08-11",
+    id_driver: 2,
+    nama_driver: "Agus Wijaya",
+    jabatan_driver: "TRANSPORTER",
+    id_kendaraan: 8,
+    nopol: "B 9012 SLB",
+    id_drop_point: 2,
+    nama_drop_point: "Gudang J&T Express JKT999",
+    ritase_ke: 1,
+    status: "berjalan",
+    stops: [
+      { id_stop: 4, urutan: 1, jenis_stop: "gudang", id_gudang: 1, nama_lokasi: "Gudang Outgoing", keterangan: "Mulai dari gudang origin" },
+      { id_stop: 5, urutan: 2, jenis_stop: "seller", id_seller: 2, nama_lokasi: "TITIP AJA", keterangan: "Ambil paket di TITIP AJA" },
+      { id_stop: 6, urutan: 3, jenis_stop: "drop_point", id_drop_point: 2, nama_lokasi: "Gudang J&T Express JKT999", keterangan: "Tujuan akhir Drop Point" },
+    ],
+  },
+  {
+    id_ritase: 3,
+    kode_ritase: "TR-20260811-D3-R1",
+    tanggal: "2026-08-11",
+    id_driver: 3,
+    nama_driver: "AWALUDIN",
+    jabatan_driver: "TRANSPORTER",
+    id_kendaraan: 2,
+    nopol: "B 9806 UXV",
+    id_drop_point: 2,
+    nama_drop_point: "Gudang J&T Express JKT999",
+    ritase_ke: 1,
+    status: "selesai",
+    stops: [
+      { id_stop: 7, urutan: 1, jenis_stop: "gudang", id_gudang: 1, nama_lokasi: "Gudang Outgoing", keterangan: "Mulai dari gudang origin" },
+      { id_stop: 8, urutan: 2, jenis_stop: "seller", id_seller: 3, nama_lokasi: "Gateway Tangerang", keterangan: "Ambil paket di Gateway Tangerang" },
+      { id_stop: 9, urutan: 3, jenis_stop: "drop_point", id_drop_point: 2, nama_lokasi: "Gudang J&T Express JKT999", keterangan: "Tujuan akhir Drop Point" },
+    ],
+  },
+];

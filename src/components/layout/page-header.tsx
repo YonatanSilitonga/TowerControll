@@ -18,18 +18,18 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, actions, crumbs, className }: PageHeaderProps) {
   return (
-    <div className={cn("mb-6 flex flex-wrap items-start justify-between gap-4", className)}>
+    <div className={cn("mb-4 flex flex-wrap items-start justify-between gap-4", className)}>
       <div>
         {crumbs && crumbs.length > 0 && (
           <nav className="mb-1.5 flex flex-wrap items-center gap-1 text-xs text-slate-400" aria-label="Breadcrumb">
-            <Link href="/" className="inline-flex items-center gap-1 rounded hover:text-[#034075]">
+            <Link href="/" className="inline-flex items-center gap-1 rounded hover:text-[#0c1e3a]">
               <Home className="h-3 w-3" /> Dashboard
             </Link>
             {crumbs.map((c, i) => (
               <span key={i} className="inline-flex items-center gap-1">
                 <ChevronRight className="h-3 w-3" />
                 {c.href ? (
-                  <Link href={c.href} className="rounded transition-colors hover:text-[#034075]">
+                  <Link href={c.href} className="rounded transition-colors hover:text-[#0c1e3a]">
                     {c.label}
                   </Link>
                 ) : (

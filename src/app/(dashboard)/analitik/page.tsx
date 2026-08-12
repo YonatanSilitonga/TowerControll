@@ -1,0 +1,572 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { format } from "date-fns";
+import {
+  AlertTriangle,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Boxes,
+  CalendarDays,
+  CheckCircle2,
+  Package,
+  Percent,
+  Route as RouteIcon,
+  Truck,
+} from "lucide-react";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { PageHeader } from "@/components/layout/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DataTable } from "@/components/ui/data-table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { InfoTip } from "@/components/ui/info-tip";
+import {
+  useAnalyticsDrivers,
+  useAnalyticsSellers,
+  useAnalyticsTrend,
+} from "@/hooks/use-analytics";
+import { useDashboardAnalisis } from "@/hooks/use-dashboard";
+import { AlertCard, BottleneckCard } from "@/components/dashboard/analisis-cards";
+import { cn, formatNumber } from "@/lib/utils";
+import type {
+  DriverPerformance,
+  SellerAnalytics,
+  TrendPoint,
+} from "@/types/analytics";
+
+/* ---------- helper tanggal & format ---------- */
+
+function todayLocal(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
+
+function daysAgo(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
+
+function fmtShortDate(t: string): string {
+  const d = new Date(`${t}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? t : format(d, "d MMM");
+}
+
+/** Durasi ringkas dari detik → "45m" / "1j 5m". */
+function fmtDur(sec?: number | null): string {
+  if (sec == null || sec <= 0) return "-";
+  const s = Math.round(sec);
+  if (s < 60) return `${s}d`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  return `${Math.floor(m / 60)}j ${m % 60}m`;
+}
+
+const PRESETS = [
+  { label: "7 hari", days: 7 },
+  { label: "30 hari", days: 30 },
+  { label: "90 hari", days: 90 },
+];
+
+/* ---------- komponen kecil ---------- */
+
+function KpiCard({
+  label,
+  value,
+  icon: Icon,
+  tone,
+  loading,
+  info,
+  sub,
+  progress,
+}: {
+  label: string;
+  value: number;
+  icon: React.ComponentType<{ className?: string }>;
+  tone?: string;
+  loading?: boolean;
+  info?: string;
+  sub?: string;
+  progress?: number;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="flex items-center justify-between">
+        <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          {label}
+          {info && <InfoTip text={info} />}
+        </p>
+        <Icon className={cn("h-4 w-4", tone ?? "text-slate-300")} />
+      </div>
+      {loading ? (
+        <Skeleton className="mt-2 h-7 w-16" />
+      ) : (
+        <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-slate-900">
+          {formatNumber(value)}
+        </p>
+      )}
+      {!loading && sub && <p className="mt-1 text-[11px] text-slate-400">{sub}</p>}
+      {!loading && progress != null && (
+        <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-[#0c1e3a]"
+            style={{ width: `${Math.min(100, Math.max(progress, 0))}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CardSkeleton({ h = "h-[300px]" }: { h?: string }) {
+  return <Skeleton className={cn("w-full rounded-lg", h)} />;
+}
+
+function EmptyNote() {
+  return (
+    <p className="py-8 text-center text-sm text-slate-400">
+      Belum ada data pada periode ini
+    </p>
+  );
+}
+
+function ErrorBanner({ msg }: { msg: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-700">
+      <AlertTriangle className="h-4 w-4 shrink-0" />
+      <span>
+        Gagal mengambil data: <b>{msg}</b>
+      </span>
+    </div>
+  );
+}
+
+function ArahBadge({ n, arah }: { n: number; arah: "out" | "inc" }) {
+  return (
+    <span
+      className={cn(
+        "rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
+        arah === "out" ? "bg-[#0c1e3a]/5 text-[#0c1e3a]" : "bg-slate-100 text-slate-600"
+      )}
+    >
+      {n}
+    </span>
+  );
+}
+
+/* ---------- halaman ---------- */
+
+export default function AnalitikPage() {
+  const [from, setFrom] = useState(daysAgo(29));
+  const [to, setTo] = useState(todayLocal());
+
+  const trend = useAnalyticsTrend(from, to);
+  const drivers = useAnalyticsDrivers(from, to);
+  const sellers = useAnalyticsSellers(from, to);
+  const analisis = useDashboardAnalisis();
+
+  const trendData = trend.data ?? [];
+  const driverData = drivers.data ?? [];
+  const sellerData = sellers.data ?? [];
+  const bottlenecks = analisis.data?.bottleneck ?? [];
+  const alerts = analisis.data?.alerts ?? [];
+
+  const loading = trend.isLoading || drivers.isLoading || sellers.isLoading;
+  const errorMsg =
+    trend.error?.message ?? drivers.error?.message ?? sellers.error?.message ?? null;
+
+  const kpi = useMemo(() => {
+    let ritase = 0,
+      selesai = 0,
+      awb = 0,
+      koli = 0,
+      out = 0,
+      inc = 0;
+    for (const t of trendData) {
+      ritase += t.ritase_total;
+      selesai += t.ritase_selesai;
+      awb += t.total_awb;
+      koli += t.total_koli;
+      out += t.outgoing;
+      inc += t.incoming;
+    }
+    return { ritase, selesai, awb, koli, out, inc };
+  }, [trendData]);
+
+  const insight = useMemo(() => {
+    const total = kpi.ritase;
+    const pctSelesai = total > 0 ? Math.round((kpi.selesai / total) * 100) : 0;
+    const days = trendData.length;
+    const rataHari = days > 0 ? total / days : 0;
+    const arahTotal = kpi.out + kpi.inc;
+    const outPct = arahTotal > 0 ? Math.round((kpi.out / arahTotal) * 100) : 0;
+    return { pctSelesai, days, rataHari, outPct };
+  }, [kpi, trendData]);
+
+  const topDrivers = useMemo(
+    () => [...driverData].sort((a, b) => b.ritase_total - a.ritase_total).slice(0, 10),
+    [driverData]
+  );
+  const topSellers = useMemo(
+    () => [...sellerData].sort((a, b) => b.kunjungan - a.kunjungan).slice(0, 10),
+    [sellerData]
+  );
+
+  const setPreset = (days: number) => {
+    setFrom(daysAgo(days - 1));
+    setTo(todayLocal());
+  };
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title="Analitik"
+        description="Analisis data operasional — periode berdasarkan tanggal jadwal ritase. Outgoing = Gateway JKT, Incoming = Gateway SEG."
+        crumbs={[{ label: "Analitik" }]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 rounded-md bg-slate-100 p-0.5">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.days}
+                  type="button"
+                  onClick={() => setPreset(p.days)}
+                  className={cn(
+                    "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                    to === todayLocal() && from === daysAgo(p.days - 1)
+                      ? "bg-white text-[#0c1e3a] shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1.5 text-xs">
+              <input
+                type="date"
+                value={from}
+                max={to}
+                onChange={(e) => setFrom(e.target.value)}
+                className="rounded-md border border-slate-200 bg-white px-2 py-1.5 focus:border-[#0c1e3a] focus:outline-none focus:ring-2 focus:ring-[#0c1e3a]/20"
+              />
+              <span className="text-slate-400">s/d</span>
+              <input
+                type="date"
+                value={to}
+                min={from}
+                max={todayLocal()}
+                onChange={(e) => setTo(e.target.value)}
+                className="rounded-md border border-slate-200 bg-white px-2 py-1.5 focus:border-[#0c1e3a] focus:outline-none focus:ring-2 focus:ring-[#0c1e3a]/20"
+              />
+            </div>
+          </div>
+        }
+      />
+
+      {errorMsg && <ErrorBanner msg={errorMsg} />}
+
+      <Tabs defaultValue="ringkasan">
+        <TabsList>
+          <TabsTrigger value="ringkasan">Ringkasan</TabsTrigger>
+          <TabsTrigger value="driver">Driver</TabsTrigger>
+          <TabsTrigger value="seller">Seller</TabsTrigger>
+        </TabsList>
+
+        {/* ===== RINGKASAN ===== */}
+        <TabsContent value="ringkasan" className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+            <KpiCard label="Total Ritase" value={kpi.ritase} icon={Truck} loading={loading} info="Jumlah ritase pada periode (tanggal jadwal)." sub={insight.days > 0 ? `${insight.rataHari.toFixed(1)}/hari` : undefined} />
+            <KpiCard label="Selesai" value={kpi.selesai} icon={CheckCircle2} tone="text-[#0c1e3a]" loading={loading} info="Ritase berstatus selesai." sub={`${insight.pctSelesai}% dari total`} progress={insight.pctSelesai} />
+            <KpiCard label="Total AWB" value={kpi.awb} icon={Boxes} tone="text-slate-400" loading={loading} sub={kpi.ritase > 0 ? `${Math.round(kpi.awb / kpi.ritase)} AWB/ritase` : undefined} />
+            <KpiCard label="Total Koli" value={kpi.koli} icon={Package} tone="text-slate-400" loading={loading} sub={kpi.awb > 0 ? `${(kpi.koli / kpi.awb).toFixed(2)} koli/AWB` : undefined} />
+            <KpiCard label="Outgoing" value={kpi.out} icon={ArrowUpFromLine} tone="text-slate-400" loading={loading} info="Ritase ke Gateway JKT (barang keluar)." sub={`${insight.outPct}% arah`} />
+            <KpiCard label="Incoming" value={kpi.inc} icon={ArrowDownToLine} tone="text-slate-400" loading={loading} info="Ritase ke Gateway SEG (barang masuk)." sub={`${100 - insight.outPct}% arah`} />
+          </div>
+
+          {/* Strip insight — ringkasan operasional periode */}
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#0c1e3a]/5 text-[#0c1e3a]">
+                <Percent className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Persen Selesai</p>
+                <p className="text-lg font-bold tabular-nums text-slate-900">{insight.pctSelesai}%</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#0c1e3a]/5 text-[#0c1e3a]">
+                <RouteIcon className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Rata² Ritase/Hari</p>
+                <p className="text-lg font-bold tabular-nums text-slate-900">{insight.rataHari.toFixed(1)}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500">
+                <CalendarDays className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Hari Berdata</p>
+                <p className="text-lg font-bold tabular-nums text-slate-900">{insight.days}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500">
+                <ArrowUpFromLine className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Arah Dominan</p>
+                <p className="text-lg font-bold tabular-nums text-slate-900">
+                  {insight.outPct >= 50 ? "Outgoing" : "Incoming"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card className="rounded-lg border-slate-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                  <Truck className="h-4 w-4 text-[#0c1e3a]" /> Ritase per Hari
+                  <InfoTip text="Garis navy = total ritase; emerald = ritase selesai. Per hari berdasarkan tanggal jadwal ritase." />
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <CardSkeleton />
+                ) : trendData.length === 0 ? (
+                  <EmptyNote />
+                ) : (
+                  <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={trendData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="gTotal" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#0c1e3a" stopOpacity={0.25} />
+                            <stop offset="100%" stopColor="#0c1e3a" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="gSelesai" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#64748b" stopOpacity={0.28} />
+                            <stop offset="100%" stopColor="#64748b" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                        <XAxis dataKey="tanggal" tickFormatter={fmtShortDate} tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
+                        <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} allowDecimals={false} />
+                        <Tooltip labelFormatter={(l) => fmtShortDate(String(l))} />
+                        <Legend />
+                        <Area type="monotone" dataKey="ritase_total" name="Total" stroke="#0c1e3a" strokeWidth={2} fill="url(#gTotal)" />
+                        <Area type="monotone" dataKey="ritase_selesai" name="Selesai" stroke="#64748b" strokeWidth={2} fill="url(#gSelesai)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-lg border-slate-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                  <ArrowUpFromLine className="h-4 w-4 text-[#0c1e3a]" /> Arah Operasional
+                  <InfoTip text="Outgoing = Gateway JKT (barang keluar), Incoming = Gateway SEG (barang masuk)." />
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <CardSkeleton />
+                ) : trendData.length === 0 ? (
+                  <EmptyNote />
+                ) : (
+                  <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={trendData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                        <XAxis dataKey="tanggal" tickFormatter={fmtShortDate} tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
+                        <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} allowDecimals={false} />
+                        <Tooltip labelFormatter={(l) => fmtShortDate(String(l))} />
+                        <Legend />
+                        <Bar dataKey="outgoing" name="Outgoing (JKT)" stackId="a" fill="#0c1e3a" />
+                        <Bar dataKey="incoming" name="Incoming (SEG)" stackId="a" fill="#cbd5e1" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Bottleneck & Alert — klik item untuk detail + rekomendasi */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <BottleneckCard bottlenecks={bottlenecks} />
+            <AlertCard alerts={alerts} />
+          </div>
+        </TabsContent>
+
+        {/* ===== DRIVER ===== */}
+        <TabsContent value="driver" className="space-y-4">
+          <Card className="rounded-lg border-slate-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                <Truck className="h-4 w-4 text-[#0c1e3a]" /> Ritase per Driver (Top 10)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <CardSkeleton h="h-[260px]" />
+              ) : topDrivers.length === 0 ? (
+                <EmptyNote />
+              ) : (
+                <div className="h-[260px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topDrivers} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} allowDecimals={false} />
+                      <YAxis type="category" dataKey="nama_driver" width={120} tick={{ fontSize: 11, fill: "#334155" }} tickLine={false} axisLine={false} />
+                      <Tooltip />
+                      <Bar dataKey="ritase_total" name="Ritase" fill="#0c1e3a" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-lg border-slate-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                <Truck className="h-4 w-4 text-[#0c1e3a]" /> Detail Performa Driver
+                <span className="ml-auto text-xs font-normal text-slate-400">
+                  {driverData.length} driver
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DataTable<DriverPerformance>
+                loading={loading}
+                rows={driverData}
+                rowKey={(d) => String(d.id_driver)}
+                searchPlaceholder="Cari nama driver..."
+                searchFilter={(d, q) =>
+                  d.nama_driver.toLowerCase().includes(q.toLowerCase())
+                }
+                emptyText="Belum ada data driver pada periode ini"
+                columns={[
+                  { header: "Driver", render: (d) => <span className="font-medium text-slate-800">{d.nama_driver}</span> },
+                  { header: "Ritase", render: (d) => <span className="tabular-nums font-semibold">{formatNumber(d.ritase_total)}</span> },
+                  { header: "Selesai", render: (d) => <span className="tabular-nums text-[#0c1e3a]">{formatNumber(d.ritase_selesai)}</span> },
+                  { header: "AWB", render: (d) => <span className="tabular-nums">{formatNumber(d.total_awb)}</span> },
+                  { header: "Koli", render: (d) => <span className="tabular-nums">{formatNumber(d.total_koli)}</span> },
+                  { header: "Tertinggal", render: (d) => <span className="tabular-nums text-rose-600">{formatNumber(d.paket_tertinggal)}</span> },
+                  { header: "Out", render: (d) => <ArahBadge n={d.outgoing} arah="out" /> },
+                  { header: "In", render: (d) => <ArahBadge n={d.incoming} arah="inc" /> },
+                  { header: "Loading", render: (d) => <span className="tabular-nums text-slate-500">{fmtDur(d.rata_loading)}</span> },
+                  { header: "Jalan", render: (d) => <span className="tabular-nums text-slate-500">{fmtDur(d.rata_perjalanan)}</span> },
+                  { header: "Bongkar", render: (d) => <span className="tabular-nums text-slate-500">{fmtDur(d.rata_unloading)}</span> },
+                ]}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ===== SELLER ===== */}
+        <TabsContent value="seller" className="space-y-4">
+          <Card className="rounded-lg border-slate-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                <Truck className="h-4 w-4 text-[#0c1e3a]" /> Kunjungan per Seller (Top 10)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <CardSkeleton h="h-[260px]" />
+              ) : topSellers.length === 0 ? (
+                <EmptyNote />
+              ) : (
+                <div className="h-[260px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topSellers} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} allowDecimals={false} />
+                      <YAxis type="category" dataKey="nama_seller" width={130} tick={{ fontSize: 11, fill: "#334155" }} tickLine={false} axisLine={false} />
+                      <Tooltip />
+                      <Bar dataKey="kunjungan" name="Kunjungan" fill="#0c1e3a" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-lg border-slate-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                <Truck className="h-4 w-4 text-[#0c1e3a]" /> Detail Kunjungan Seller
+                <span className="ml-auto text-xs font-normal text-slate-400">
+                  {sellerData.length} seller
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DataTable<SellerAnalytics>
+                loading={loading}
+                rows={sellerData}
+                rowKey={(s) => String(s.id_seller)}
+                searchPlaceholder="Cari nama / kode seller..."
+                searchFilter={(s, q) =>
+                  `${s.nama_seller} ${s.kode_seller ?? ""} ${s.kota ?? ""}`
+                    .toLowerCase()
+                    .includes(q.toLowerCase())
+                }
+                emptyText="Belum ada data seller pada periode ini"
+                columns={[
+                  { header: "Kode", render: (s) => <span className="font-mono text-xs text-slate-500">{s.kode_seller || "-"}</span> },
+                  {
+                    header: "Seller",
+                    render: (s) => (
+                      <span className="block max-w-[220px] truncate font-medium text-slate-800" title={s.nama_seller}>
+                        {s.nama_seller || "-"}
+                      </span>
+                    ),
+                  },
+                  { header: "Kota", render: (s) => <span className="text-slate-500">{s.kota || "-"}</span> },
+                  { header: "Kunjungan", render: (s) => <span className="tabular-nums font-semibold">{formatNumber(s.kunjungan)}</span> },
+                  { header: "Selesai", render: (s) => <span className="tabular-nums text-[#0c1e3a]">{formatNumber(s.ritase_selesai)}</span> },
+                  { header: "AWB", render: (s) => <span className="tabular-nums">{formatNumber(s.total_awb)}</span> },
+                  { header: "Koli", render: (s) => <span className="tabular-nums">{formatNumber(s.total_koli)}</span> },
+                  { header: "Bongkar", render: (s) => <span className="tabular-nums text-slate-500">{fmtDur(s.rata_bongkar)}</span> },
+                  {
+                    header: "Jarak OG",
+                    render: (s) => (
+                      <span className="tabular-nums text-slate-500">
+                        {s.jarak_tempuh_km != null ? `${s.jarak_tempuh_km.toFixed(1)} km` : "-"}
+                      </span>
+                    ),
+                  },
+                ]}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

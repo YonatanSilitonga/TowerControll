@@ -26,6 +26,8 @@ interface DataTableProps<T> {
   emptyText?: string;
   pageSizes?: number[];
   defaultPageSize?: number;
+  /** "fixed" = table-layout fixed (lebar kolom dihormati — cegah overflow), default "auto". */
+  tableLayout?: "auto" | "fixed";
 }
 
 /** Tabel reusable: search + pagination + skeleton + empty state. Tahan banyak data. */
@@ -42,6 +44,7 @@ export function DataTable<T>({
   emptyText = "Belum ada data",
   pageSizes = [10, 20, 50],
   defaultPageSize = 10,
+  tableLayout = "auto",
 }: DataTableProps<T>) {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -103,10 +106,15 @@ export function DataTable<T>({
       )}
 
       {/* Tabel normal (layar >= md) */}
-      <div className="hidden overflow-x-auto rounded-xl border bg-card md:block">
-        <table className="w-full text-sm">
+      <div className="hidden overflow-x-auto border bg-card md:block">
+        <table
+          className={cn(
+            "w-full text-sm",
+            tableLayout === "fixed" ? "table-fixed" : "table-auto"
+          )}
+        >
           <thead>
-            <tr className="border-b bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
+            <tr className="border-b-2 border-slate-200 text-left text-[11px] uppercase tracking-wide text-slate-500">
               {columns.map((c, idx) => (
                 <th
                   key={c.header}
@@ -116,7 +124,7 @@ export function DataTable<T>({
                   {c.header}
                   <span
                     onMouseDown={(e) => startResize(e, idx)}
-                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize bg-transparent transition-colors hover:bg-[#034075]/30"
+                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize bg-transparent transition-colors hover:bg-[#0c1e3a]/30"
                   />
                 </th>
               ))}
@@ -165,14 +173,14 @@ export function DataTable<T>({
       <div className="space-y-2 md:hidden">
         {loading ? (
           Array.from({ length: Math.min(3, skeletonRows) }).map((_, i) => (
-            <div key={i} className="rounded-xl border bg-card p-3">
+            <div key={i} className="rounded-lg border bg-card p-3">
               <Skeleton className="h-3 w-1/3" />
               <Skeleton className="mt-2 h-4 w-full" />
               <Skeleton className="mt-2 h-3 w-2/3" />
             </div>
           ))
         ) : shown.length === 0 ? (
-          <p className="rounded-xl border border-dashed bg-card py-8 text-center text-sm text-slate-400">
+          <p className="rounded-lg border border-dashed bg-card py-8 text-center text-sm text-slate-400">
             {q ? "Tidak ada data yang cocok" : emptyText}
           </p>
         ) : (
@@ -181,7 +189,7 @@ export function DataTable<T>({
               key={rowKey(row)}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
               className={cn(
-                "rounded-xl border bg-card p-3",
+                "rounded-lg border bg-card p-3",
                 onRowClick && "cursor-pointer transition-colors hover:bg-slate-50"
               )}
             >

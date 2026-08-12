@@ -10,8 +10,11 @@ function minutesAgo(iso?: string | null): string {
   if (Number.isNaN(t)) return "-";
   const m = Math.floor((Date.now() - t) / 60000);
   if (m < 1) return "baru saja";
-  if (m < 60) return `${m} m lalu`;
-  return `${Math.floor(m / 60)} jam ${m % 60} m lalu`;
+  if (m < 60) return `${m} menit lalu`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return h === 1 ? "1 jam lalu" : `${h} jam lalu`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "1 hari lalu" : `${d} hari lalu`;
 }
 
 interface VehicleItemProps {
@@ -22,68 +25,64 @@ interface VehicleItemProps {
   durasi?: string;
 }
 
-/** Item armada klik-klik — dipakai di dashboard (panel kanan) & halaman Live Map.
- *  Model status: LIVE (GPS ≤ ambang) / Online (session aktif, GPS stale) / Offline. */
+/**
+ * Item armada — gaya list flat (garis pemisah tipis), bukan kartu ber-border.
+ * Dipakai di dashboard (panel kanan) & halaman Live Map.
+ * Model status 2-state: LIVE (GPS ≤ ambang, app mengirim posisi) / Offline.
+ * Info sesi login & buka app (last_login/last_open) tampil di panel detail, bukan di sini.
+ */
 export function VehicleItem({ vehicle, selected, onSelect, durasi }: VehicleItemProps) {
   const live =
     !(vehicle.offline ??
       (() => {
         const t = new Date(vehicle.last_update).getTime();
-        return Number.isNaN(t) ? true : Date.now() - t > 15 * 60 * 1000;
+        return Number.isNaN(t) ? true : Date.now() - t > 3 * 60 * 1000;
       })());
-  const session = !!vehicle.session_online;
 
-  let statusNode: React.ReactNode;
-  if (live) {
-    const label = displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update);
-    statusNode = (
-      <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-        {label}
-      </span>
-    );
-  } else if (session) {
-    statusNode = (
-      <span
-        title={`Session aktif (belum logout) • posisi terakhir ${minutesAgo(vehicle.last_update)} • app terakhir dibuka ${vehicle.last_open ? minutesAgo(vehicle.last_open) : "-"}`}
-        className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700"
-      >
-        Online · data lama
-      </span>
-    );
-  } else {
-    // Logout / belum login → LANGSUNG Offline (gak nunggu GPS stale).
-    statusNode = (
-      <span
-        title={`Sesi selesai (logout) atau belum login • posisi terakhir ${minutesAgo(vehicle.last_update)} • app terakhir dibuka ${vehicle.last_open ? minutesAgo(vehicle.last_open) : "-"}`}
-        className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700"
-      >
-        Offline
-      </span>
-    );
-  }
+  const dot = live ? "bg-emerald-500 animate-pulse" : "bg-rose-400";
+  const statusText = live
+    ? displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update)
+    : "Offline";
+  const statusTone = live ? "text-emerald-700" : "text-rose-600";
 
   return (
     <button
       type="button"
       onClick={onSelect}
       className={cn(
-        "w-full rounded-lg border p-3 text-left transition-colors",
-        selected
-          ? "border-amber-400 bg-amber-50"
-          : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+        "w-full border-b border-slate-100 py-2.5 text-left transition-colors last:border-0",
+        selected ? "bg-slate-50" : "hover:bg-slate-50"
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-slate-800">{vehicle.plat_nomor || "-"}</p>
-        <span className="text-[11px] text-slate-400">{minutesAgo(vehicle.last_update)}</span>
+      <div className="flex items-center justify-between gap-2 px-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className={cn("h-2 w-2 shrink-0 rounded-full", dot)} />
+          <p className="truncate font-mono text-[13px] font-semibold text-slate-800">
+            {vehicle.plat_nomor || "-"}
+          </p>
+        </div>
+        <span className="shrink-0 text-xs tabular-nums text-slate-500">
+          {live ? `${vehicle.kecepatan ?? 0} km/h` : "-"}
+        </span>
       </div>
-      <p className="mt-0.5 text-xs text-slate-500">{vehicle.nama_driver || "-"}</p>
-      <div className="mt-1 flex items-center justify-between">
-        {statusNode}
-        <span className="text-xs text-slate-400">{live ? `${vehicle.kecepatan ?? 0} km/h` : "-"}</span>
+      <div className="mt-0.5 flex items-center justify-between gap-2 pl-[22px] pr-3">
+        <p className="min-w-0 truncate text-xs text-slate-500">
+          {vehicle.nama_driver || "-"}
+        </p>
+        <span className={cn("shrink-0 text-[11px] font-medium", statusTone)}>
+          {statusText}
+        </span>
       </div>
-      {durasi && <p className="mt-1 text-[11px] tabular-nums text-slate-400">{durasi}</p>}
+      <div className="mt-0.5 flex items-center justify-between gap-2 pl-[22px] pr-3">
+        {durasi ? (
+          <span className="text-[11px] tabular-nums text-slate-400">{durasi}</span>
+        ) : (
+          <span className="text-[11px] text-slate-400" />
+        )}
+        <span className="shrink-0 text-[11px] tabular-nums text-slate-400">
+          {minutesAgo(vehicle.last_update)}
+        </span>
+      </div>
     </button>
   );
 }

@@ -1,20 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
   Calendar as CalendarIcon,
   CheckCircle2,
-  ChevronRight,
+  ChevronDown,
   Edit2,
-  Filter,
   Layers,
-  MapPin,
   Plus,
   RefreshCw,
   Search,
-  Sparkles,
   Trash2,
   Truck,
   UserCheck,
@@ -30,6 +27,9 @@ import {
   useUpdateRitase,
 } from "@/hooks/use-admin-ritase";
 import { cn } from "@/lib/utils";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { PageHeader } from "@/components/layout/page-header";
+import { ApiError } from "@/types/api";
 import type { AdminRitaseItem, AdminRitaseStop } from "@/types/armada";
 
 export default function JadwalPage() {
@@ -97,13 +97,24 @@ export default function JadwalPage() {
     const reindexedStops = (editingRitase.stops ?? []).map((s, idx) => ({
       ...s,
       urutan: idx + 1,
+      // Wajib: backend baca id_lokasi per stop (gudang→id_gudang, seller→id_seller, else→id_drop_point).
+      id_lokasi:
+        s.jenis_stop === "gudang"
+          ? s.id_gudang
+          : s.jenis_stop === "seller"
+            ? s.id_seller
+            : s.id_drop_point,
     }));
 
     updateMutation.mutate(
       {
         idRitase: editingRitase.id_ritase,
         data: {
-          ...editingRitase,
+          id_driver: editingRitase.id_driver,
+          id_kendaraan: editingRitase.id_kendaraan,
+          id_drop_point: editingRitase.id_drop_point,
+          ritase_ke: editingRitase.ritase_ke,
+          status: editingRitase.status,
           stops: reindexedStops,
         },
       },
@@ -120,12 +131,21 @@ export default function JadwalPage() {
     const reindexedStops = newRitase.stops.map((s, idx) => ({
       ...s,
       urutan: idx + 1,
-      id_lokasi: s.id_seller || s.id_gudang || s.id_drop_point || 1,
+      id_lokasi:
+        s.jenis_stop === "gudang"
+          ? s.id_gudang
+          : s.jenis_stop === "seller"
+            ? s.id_seller
+            : s.id_drop_point,
     }));
 
     createMutation.mutate(
       {
-        ...newRitase,
+        tanggal: newRitase.tanggal,
+        id_driver: newRitase.id_driver,
+        id_kendaraan: newRitase.id_kendaraan,
+        id_drop_point: newRitase.id_drop_point,
+        ritase_ke: newRitase.ritase_ke,
         stops: reindexedStops,
       },
       {
@@ -141,94 +161,107 @@ export default function JadwalPage() {
     const defaultSeller = masterOptions?.sellers[0];
     const newStop: AdminRitaseStop = {
       id_stop: Date.now(),
-      urutan: isEdit ? (editingRitase?.stops ?? []).length + 1 : newRitase.stops.length + 1,
+      urutan: 0, // dihitung ulang saat submit
       jenis_stop: "seller",
       id_seller: defaultSeller?.id_seller ?? 1,
       nama_lokasi: defaultSeller?.nama_seller ?? "Seller 1",
       keterangan: "Singgah / Ambil paket",
     };
 
-    if (isEdit && editingRitase) {
-      setEditingRitase({ ...editingRitase, stops: [...(editingRitase.stops ?? []), newStop] });
+    if (isEdit) {
+      setEditingRitase((cur) =>
+        cur ? { ...cur, stops: [...(cur.stops ?? []), newStop] } : cur
+      );
     } else {
-      setNewRitase({ ...newRitase, stops: [...newRitase.stops, newStop] });
+      setNewRitase((cur) => ({ ...cur, stops: [...cur.stops, newStop] }));
     }
   };
 
   const handleRemoveStop = (isEdit: boolean, index: number) => {
-    if (isEdit && editingRitase) {
-      setEditingRitase({ ...editingRitase, stops: (editingRitase.stops ?? []).filter((_, i) => i !== index) });
+    if (isEdit) {
+      setEditingRitase((cur) =>
+        cur
+          ? { ...cur, stops: (cur.stops ?? []).filter((_, i) => i !== index) }
+          : cur
+      );
     } else {
-      setNewRitase({ ...newRitase, stops: newRitase.stops.filter((_, i) => i !== index) });
+      setNewRitase((cur) => ({
+        ...cur,
+        stops: cur.stops.filter((_, i) => i !== index),
+      }));
     }
   };
 
   const handleMoveStop = (isEdit: boolean, index: number, direction: "up" | "down") => {
-    const stops = isEdit ? [...(editingRitase?.stops ?? [])] : [...newRitase.stops];
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= stops.length) return;
-
-    const temp = stops[index];
-    stops[index] = stops[targetIndex];
-    stops[targetIndex] = temp;
-
-    if (isEdit && editingRitase) {
-      setEditingRitase({ ...editingRitase, stops });
+    const move = (stops: AdminRitaseStop[]) => {
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= stops.length) return stops;
+      const arr = [...stops];
+      [arr[index], arr[targetIndex]] = [arr[targetIndex], arr[index]];
+      return arr;
+    };
+    if (isEdit) {
+      setEditingRitase((cur) =>
+        cur ? { ...cur, stops: move(cur.stops ?? []) } : cur
+      );
     } else {
-      setNewRitase({ ...newRitase, stops });
+      setNewRitase((cur) => ({ ...cur, stops: move(cur.stops) }));
     }
   };
 
   const handleUpdateStopField = (isEdit: boolean, index: number, field: keyof AdminRitaseStop, value: any) => {
-    if (isEdit && editingRitase) {
-      const stops = [...(editingRitase.stops ?? [])];
-      stops[index] = { ...stops[index], [field]: value };
-      setEditingRitase({ ...editingRitase, stops });
+    const upd = (stops: AdminRitaseStop[]) =>
+      stops.map((s, i) => (i === index ? { ...s, [field]: value } : s));
+    if (isEdit) {
+      setEditingRitase((cur) =>
+        cur ? { ...cur, stops: upd(cur.stops ?? []) } : cur
+      );
     } else {
-      const stops = [...newRitase.stops];
-      stops[index] = { ...stops[index], [field]: value };
-      setNewRitase({ ...newRitase, stops });
+      setNewRitase((cur) => ({ ...cur, stops: upd(cur.stops) }));
     }
   };
 
-  // Select location from database dropdown
+  // Select location from database dropdown — pakai functional updater biar
+  // perubahan jenis_stop & lokasi gak saling menimpa (stale closure).
   const handleSelectLocationOption = (isEdit: boolean, index: number, selectedId: number) => {
-    const stops = isEdit ? [...(editingRitase?.stops ?? [])] : [...newRitase.stops];
-    const currentStop = stops[index];
+    const resolve = (currentStop: AdminRitaseStop): AdminRitaseStop => {
+      let updatedName = "";
+      let idSeller: number | undefined;
+      let idGudang: number | undefined;
+      let idDropPoint: number | undefined;
 
-    let updatedName = "";
-    let idSeller: number | undefined;
-    let idGudang: number | undefined;
-    let idDropPoint: number | undefined;
+      if (currentStop.jenis_stop === "seller") {
+        idSeller = selectedId;
+        const found = masterOptions?.sellers.find((s) => s.id_seller === selectedId);
+        updatedName = found?.nama_seller ?? `Seller #${selectedId}`;
+      } else if (currentStop.jenis_stop === "gudang") {
+        idGudang = selectedId;
+        const found = masterOptions?.gudangs.find((g) => g.id_gudang === selectedId);
+        updatedName = found?.nama_gudang ?? `Gudang #${selectedId}`;
+      } else {
+        idDropPoint = selectedId;
+        const found = masterOptions?.drop_points.find((dp) => dp.id_drop_point === selectedId);
+        updatedName = found?.nama_drop_point ?? `Drop Point #${selectedId}`;
+      }
 
-    if (currentStop.jenis_stop === "seller") {
-      idSeller = selectedId;
-      const found = masterOptions?.sellers.find((s) => s.id_seller === selectedId);
-      updatedName = found?.nama_seller ?? `Seller #${selectedId}`;
-    } else if (currentStop.jenis_stop === "gudang") {
-      idGudang = selectedId;
-      const found = masterOptions?.gudangs.find((g) => g.id_gudang === selectedId);
-      updatedName = found?.nama_gudang ?? `Gudang #${selectedId}`;
-    } else {
-      idDropPoint = selectedId;
-      const found = masterOptions?.drop_points.find((dp) => dp.id_drop_point === selectedId);
-      updatedName = found?.nama_drop_point ?? `Drop Point #${selectedId}`;
-    }
-
-    const updatedStop: AdminRitaseStop = {
-      ...currentStop,
-      id_seller: idSeller,
-      id_gudang: idGudang,
-      id_drop_point: idDropPoint,
-      nama_lokasi: updatedName,
+      return {
+        ...currentStop,
+        id_seller: idSeller,
+        id_gudang: idGudang,
+        id_drop_point: idDropPoint,
+        nama_lokasi: updatedName,
+      };
     };
 
-    stops[index] = updatedStop;
+    const upd = (stops: AdminRitaseStop[]) =>
+      stops.map((s, i) => (i === index ? resolve(s) : s));
 
-    if (isEdit && editingRitase) {
-      setEditingRitase({ ...editingRitase, stops });
+    if (isEdit) {
+      setEditingRitase((cur) =>
+        cur ? { ...cur, stops: upd(cur.stops ?? []) } : cur
+      );
     } else {
-      setNewRitase({ ...newRitase, stops });
+      setNewRitase((cur) => ({ ...cur, stops: upd(cur.stops) }));
     }
   };
 
@@ -251,63 +284,54 @@ export default function JadwalPage() {
   const completed = ritases?.filter((r) => r.status === "selesai").length ?? 0;
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* ── HEADER TITLE & ACTIONS ── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Manajemen Jadwal Ritase
-            </h1>
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-              <Sparkles className="h-3 w-3" /> Tower Control Admin
-            </span>
+    <div className="space-y-4 pb-8">
+      {/* ── HEADER (PageHeader + breadcrumb + actions) ── */}
+      <PageHeader
+        title="Manajemen Jadwal Ritase"
+        description="Kelola penugasan rute armada, pilih driver & lokasi terdaftar database, dan generate rute harian 1-klik."
+        crumbs={[{ label: "Jadwal Ritase" }]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Tombol Buat Jadwal Manual */}
+            <button
+              type="button"
+              onClick={() => {
+                setNewRitase({
+                  ...newRitase,
+                  tanggal: selectedDate,
+                  id_driver: masterOptions?.drivers[0]?.id_driver ?? 1,
+                  id_kendaraan: masterOptions?.kendaraan[0]?.id_kendaraan ?? 1,
+                  id_drop_point: masterOptions?.drop_points[0]?.id_drop_point ?? 1,
+                });
+                setShowCreateModal(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              <Plus className="h-4 w-4 text-slate-400" />
+              <span>+ Buat Jadwal Manual</span>
+            </button>
+
+            {/* Tombol Utama: 1-Klik Generate Otomatis */}
+            <button
+              type="button"
+              onClick={() => setShowGenerateModal(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-[#0c1e3a] px-5 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#16335a]"
+            >
+              <Zap className="h-4 w-4" />
+              <span>Generate Otomatis (1-Klik)</span>
+            </button>
           </div>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Kelola penugasan rute armada, pilih driver & lokasi terdaftar database, dan generate rute harian 1-klik.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Tombol Buat Jadwal Manual */}
-          <button
-            type="button"
-            onClick={() => {
-              setNewRitase({
-                ...newRitase,
-                tanggal: selectedDate,
-                id_driver: masterOptions?.drivers[0]?.id_driver ?? 1,
-                id_kendaraan: masterOptions?.kendaraan[0]?.id_kendaraan ?? 1,
-                id_drop_point: masterOptions?.drop_points[0]?.id_drop_point ?? 1,
-              });
-              setShowCreateModal(true);
-            }}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-          >
-            <Plus className="h-4 w-4 text-amber-500" />
-            <span>+ Buat Jadwal Manual</span>
-          </button>
-
-          {/* Tombol Utama: 1-Klik Generate Otomatis */}
-          <button
-            type="button"
-            onClick={() => setShowGenerateModal(true)}
-            className="group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-orange-500/25 transition-all hover:scale-[1.02] hover:shadow-orange-500/40 active:scale-[0.98]"
-          >
-            <Zap className="h-4 w-4 transition-transform group-hover:rotate-12" />
-            <span>Generate Otomatis (1-Klik)</span>
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* ── METRICS SUMMARY CARDS ── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+        <div className="rounded-lg border border-slate-200 bg-white p-5 transition-colors dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Total Ritase ({selectedDate === todayStr ? "Hari Ini" : selectedDate})
             </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-slate-500">
               <Layers className="h-5 w-5" />
             </div>
           </div>
@@ -315,12 +339,12 @@ export default function JadwalPage() {
           <p className="mt-1 text-xs text-slate-500">Tugas ritase terdaftar</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+        <div className="rounded-lg border border-slate-200 bg-white p-5 transition-colors dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Driver Ditugaskan
             </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-slate-500">
               <UserCheck className="h-5 w-5" />
             </div>
           </div>
@@ -328,12 +352,12 @@ export default function JadwalPage() {
           <p className="mt-1 text-xs text-slate-500">Driver bertugas aktif</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+        <div className="rounded-lg border border-slate-200 bg-white p-5 transition-colors dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Dalam Perjalanan
             </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-slate-500">
               <Truck className="h-5 w-5" />
             </div>
           </div>
@@ -341,12 +365,12 @@ export default function JadwalPage() {
           <p className="mt-1 text-xs text-slate-500">Armada sedang jalan</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+        <div className="rounded-lg border border-slate-200 bg-white p-5 transition-colors dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Ritase Selesai
             </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-slate-500">
               <CheckCircle2 className="h-5 w-5" />
             </div>
           </div>
@@ -356,17 +380,17 @@ export default function JadwalPage() {
       </div>
 
       {/* ── FILTER, QUICK DATE SELECTOR, & SEARCH BAR ── */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-center gap-2">
           {/* Quick Date Selector Buttons */}
-          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
             <button
               type="button"
               onClick={() => setSelectedDate(todayStr)}
               className={cn(
                 "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
                 selectedDate === todayStr
-                  ? "bg-amber-500 text-white shadow-sm"
+                  ? "bg-[#0c1e3a] text-white"
                   : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
               )}
             >
@@ -378,7 +402,7 @@ export default function JadwalPage() {
               className={cn(
                 "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
                 selectedDate === getNDaysAgo(1)
-                  ? "bg-amber-500 text-white shadow-sm"
+                  ? "bg-[#0c1e3a] text-white"
                   : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
               )}
             >
@@ -390,7 +414,7 @@ export default function JadwalPage() {
               className={cn(
                 "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
                 selectedDate === getNDaysAgo(2)
-                  ? "bg-amber-500 text-white shadow-sm"
+                  ? "bg-[#0c1e3a] text-white"
                   : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
               )}
             >
@@ -399,7 +423,7 @@ export default function JadwalPage() {
           </div>
 
           {/* Tanggal Picker Custom */}
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-800">
             <CalendarIcon className="h-4 w-4 text-slate-400" />
             <input
               type="date"
@@ -417,14 +441,14 @@ export default function JadwalPage() {
               placeholder="Cari driver, nopol, kode..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-slate-50 py-1.5 pl-9 pr-3 text-xs text-slate-700 placeholder-slate-400 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              className="rounded-md border border-slate-200 bg-slate-50 py-1.5 pl-9 pr-3 text-xs text-slate-700 placeholder-slate-400 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
             />
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Status Filter */}
-          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
             {["all", "direncanakan", "berjalan", "selesai"].map((status) => (
               <button
                 key={status}
@@ -433,7 +457,7 @@ export default function JadwalPage() {
                 className={cn(
                   "rounded-lg px-2.5 py-1 text-xs font-semibold capitalize transition-all",
                   statusFilter === status
-                    ? "bg-amber-500 text-white shadow-sm"
+                    ? "bg-[#0c1e3a] text-white"
                     : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                 )}
               >
@@ -445,7 +469,7 @@ export default function JadwalPage() {
           <button
             type="button"
             onClick={() => refetch()}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition-all hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition-all hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
             title="Refresh Data"
           >
             <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
@@ -453,21 +477,24 @@ export default function JadwalPage() {
         </div>
       </div>
 
+      {/* ── ERROR DELETE (page-level) ── */}
+      {deleteMutation.error && <MutationError error={deleteMutation.error} />}
+
       {/* ── SCHEDULE CARDS LIST ── */}
       {isLoading ? (
-        <div className="flex h-48 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex h-48 items-center justify-center rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center gap-2 text-slate-500">
-            <RefreshCw className="h-5 w-5 animate-spin text-amber-500" />
+            <RefreshCw className="h-5 w-5 animate-spin text-slate-400" />
             <span className="text-sm font-medium">Memuat jadwal ritase...</span>
           </div>
         </div>
       ) : isError ? (
-        <div className="flex h-48 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-900/30 dark:bg-rose-950/20 dark:text-rose-400">
+        <div className="flex h-48 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-900/30 dark:bg-rose-950/20 dark:text-rose-400">
           <p className="text-sm font-medium">Gagal memuat jadwal ritase. Silakan coba refresh.</p>
         </div>
       ) : filteredRitases.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white py-12 text-center dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-500 dark:bg-amber-900/20">
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white py-12 text-center dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-800">
             <Zap className="h-6 w-6" />
           </div>
           <h3 className="mt-3 text-base font-semibold text-slate-900 dark:text-white">
@@ -482,7 +509,7 @@ export default function JadwalPage() {
             <button
               type="button"
               onClick={() => setShowGenerateModal(true)}
-              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-amber-500/20 transition-all hover:bg-amber-600"
+              className="mt-4 inline-flex items-center gap-2 rounded-md bg-[#0c1e3a] px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#16335a]"
             >
               <Zap className="h-3.5 w-3.5" /> Generate Sekarang (1-Klik)
             </button>
@@ -493,14 +520,14 @@ export default function JadwalPage() {
           {filteredRitases.map((r) => (
             <div
               key={r.id_ritase}
-              className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:border-amber-500/50 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+              className="group relative flex flex-col justify-between rounded-lg border border-slate-200 bg-white p-5 transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900"
             >
               <div>
                 {/* Card Header */}
                 <div className="flex items-start justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400">
+                      <span className="font-mono text-xs font-bold text-[#0c1e3a] dark:text-slate-400">
                         {r.kode_ritase}
                       </span>
                       <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
@@ -517,24 +544,13 @@ export default function JadwalPage() {
 
                   <div className="flex items-center gap-2">
                     {/* Status Badge */}
-                    <span
-                      className={cn(
-                        "rounded-full px-2.5 py-1 text-xs font-bold capitalize",
-                        r.status === "selesai"
-                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                          : r.status === "berjalan" || r.status === "proses"
-                          ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 animate-pulse"
-                          : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                      )}
-                    >
-                      {r.status}
-                    </span>
+                    <StatusBadge status={r.status} />
 
                     {/* Action Edit */}
                     <button
                       type="button"
                       onClick={() => setEditingRitase(r)}
-                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-slate-800 dark:hover:text-amber-400"
+                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                       title="Edit Rute & Status"
                     >
                       <Edit2 className="h-4 w-4" />
@@ -563,16 +579,7 @@ export default function JadwalPage() {
                     {(r.stops ?? []).map((stop) => (
                       <div key={stop.id_stop} className="relative flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
-                          <span
-                            className={cn(
-                              "relative z-10 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white shadow-sm",
-                              stop.jenis_stop === "gudang"
-                                ? "bg-blue-500"
-                                : stop.jenis_stop === "seller"
-                                ? "bg-orange-500"
-                                : "bg-emerald-500"
-                            )}
-                          >
+                          <span className="relative z-10 flex h-5 w-5 items-center justify-center rounded-full bg-[#0c1e3a] text-[10px] font-bold text-white">
                             {stop.urutan}
                           </span>
                           <span className="font-semibold text-slate-800 dark:text-slate-200">
@@ -605,7 +612,7 @@ export default function JadwalPage() {
       {/* ── MODAL BUAT JADWAL MANUAL ── */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+          <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-lg bg-white p-5 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -634,7 +641,7 @@ export default function JadwalPage() {
                     type="date"
                     value={newRitase.tanggal}
                     onChange={(e) => setNewRitase({ ...newRitase, tanggal: e.target.value })}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                   />
                 </div>
 
@@ -645,7 +652,7 @@ export default function JadwalPage() {
                   <select
                     value={newRitase.id_driver}
                     onChange={(e) => setNewRitase({ ...newRitase, id_driver: parseInt(e.target.value, 10) })}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                   >
                     {masterOptions?.drivers.map((d) => (
                       <option key={d.id_driver} value={d.id_driver}>
@@ -662,7 +669,7 @@ export default function JadwalPage() {
                   <select
                     value={newRitase.id_kendaraan}
                     onChange={(e) => setNewRitase({ ...newRitase, id_kendaraan: parseInt(e.target.value, 10) })}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                   >
                     {masterOptions?.kendaraan.map((k) => (
                       <option key={k.id_kendaraan} value={k.id_kendaraan}>
@@ -679,7 +686,7 @@ export default function JadwalPage() {
                   <select
                     value={newRitase.id_drop_point}
                     onChange={(e) => setNewRitase({ ...newRitase, id_drop_point: parseInt(e.target.value, 10) })}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                   >
                     {masterOptions?.drop_points.map((dp) => (
                       <option key={dp.id_drop_point} value={dp.id_drop_point}>
@@ -699,7 +706,7 @@ export default function JadwalPage() {
                   <button
                     type="button"
                     onClick={() => handleAddStop(false)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-600 hover:bg-amber-500/20 dark:text-amber-400"
+                    className="inline-flex items-center gap-1 rounded-lg bg-[#0c1e3a]/10 px-2.5 py-1 text-xs font-bold text-[#0c1e3a] hover:bg-[#0c1e3a]/20 dark:text-slate-400"
                   >
                     <Plus className="h-3.5 w-3.5" /> Tambah Stop
                   </button>
@@ -709,10 +716,10 @@ export default function JadwalPage() {
                   {newRitase.stops.map((stop, idx) => (
                     <div
                       key={stop.id_stop || idx}
-                      className="flex items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-800/50"
+                      className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/50"
                     >
                       <div className="flex items-center gap-1">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-xs font-bold text-white shadow-sm">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#0c1e3a] text-xs font-bold text-white">
                           {idx + 1}
                         </span>
                         <div className="flex flex-col">
@@ -759,41 +766,37 @@ export default function JadwalPage() {
 
                       {/* Select Option Terhubung Ke Database */}
                       {stop.jenis_stop === "seller" ? (
-                        <select
-                          value={stop.id_seller || masterOptions?.sellers[0]?.id_seller}
-                          onChange={(e) => handleSelectLocationOption(false, idx, parseInt(e.target.value, 10))}
-                          className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                        >
-                          {masterOptions?.sellers.map((s) => (
-                            <option key={s.id_seller} value={s.id_seller}>
-                              {s.nama_seller} ({s.kode_seller})
-                            </option>
-                          ))}
-                        </select>
+                        <SearchSelect
+                          value={stop.id_seller}
+                          onChange={(id) => handleSelectLocationOption(false, idx, id)}
+                          placeholder="Pilih seller..."
+                          options={(masterOptions?.sellers ?? []).map((s) => ({
+                            id: s.id_seller,
+                            label: s.nama_seller,
+                            sub: s.kode_seller,
+                          }))}
+                        />
                       ) : stop.jenis_stop === "gudang" ? (
-                        <select
-                          value={stop.id_gudang || masterOptions?.gudangs[0]?.id_gudang}
-                          onChange={(e) => handleSelectLocationOption(false, idx, parseInt(e.target.value, 10))}
-                          className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                        >
-                          {masterOptions?.gudangs.map((g) => (
-                            <option key={g.id_gudang} value={g.id_gudang}>
-                              {g.nama_gudang}
-                            </option>
-                          ))}
-                        </select>
+                        <SearchSelect
+                          value={stop.id_gudang}
+                          onChange={(id) => handleSelectLocationOption(false, idx, id)}
+                          placeholder="Pilih gudang..."
+                          options={(masterOptions?.gudangs ?? []).map((g) => ({
+                            id: g.id_gudang,
+                            label: g.nama_gudang,
+                          }))}
+                        />
                       ) : (
-                        <select
-                          value={stop.id_drop_point || masterOptions?.drop_points[0]?.id_drop_point}
-                          onChange={(e) => handleSelectLocationOption(false, idx, parseInt(e.target.value, 10))}
-                          className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                        >
-                          {masterOptions?.drop_points.map((dp) => (
-                            <option key={dp.id_drop_point} value={dp.id_drop_point}>
-                              {dp.nama_drop_point} ({dp.kode_dp})
-                            </option>
-                          ))}
-                        </select>
+                        <SearchSelect
+                          value={stop.id_drop_point}
+                          onChange={(id) => handleSelectLocationOption(false, idx, id)}
+                          placeholder="Pilih drop point..."
+                          options={(masterOptions?.drop_points ?? []).map((dp) => ({
+                            id: dp.id_drop_point,
+                            label: dp.nama_drop_point,
+                            sub: dp.kode_dp,
+                          }))}
+                        />
                       )}
 
                       <button
@@ -808,18 +811,22 @@ export default function JadwalPage() {
                 </div>
               </div>
 
+              {createMutation.error && (
+                <MutationError error={createMutation.error} />
+              )}
+
               <div className="mt-6 flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  className="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-amber-500/20 hover:bg-amber-600 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-md bg-[#0c1e3a] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#16335a] disabled:opacity-50"
                 >
                   {createMutation.isPending ? (
                     <>
@@ -839,7 +846,7 @@ export default function JadwalPage() {
       {/* ── MODAL EDIT RITASE & RUTE STOPS ── */}
       {editingRitase && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+          <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-lg bg-white p-5 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -869,7 +876,7 @@ export default function JadwalPage() {
                     onChange={(e) =>
                       setEditingRitase({ ...editingRitase, status: e.target.value })
                     }
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                   >
                     <option value="direncanakan">direncanakan</option>
                     <option value="berjalan">berjalan</option>
@@ -887,7 +894,7 @@ export default function JadwalPage() {
                     onChange={(e) =>
                       setEditingRitase({ ...editingRitase, ritase_ke: parseInt(e.target.value, 10) || 1 })
                     }
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                   />
                 </div>
               </div>
@@ -901,7 +908,7 @@ export default function JadwalPage() {
                   <button
                     type="button"
                     onClick={() => handleAddStop(true)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-600 hover:bg-amber-500/20 dark:text-amber-400"
+                    className="inline-flex items-center gap-1 rounded-lg bg-[#0c1e3a]/10 px-2.5 py-1 text-xs font-bold text-[#0c1e3a] hover:bg-[#0c1e3a]/20 dark:text-slate-400"
                   >
                     <Plus className="h-3.5 w-3.5" /> Tambah Stop
                   </button>
@@ -911,10 +918,10 @@ export default function JadwalPage() {
                   {(editingRitase.stops ?? []).map((stop, idx) => (
                     <div
                       key={stop.id_stop || idx}
-                      className="flex items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-800/50"
+                      className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/50"
                     >
                       <div className="flex items-center gap-1">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-xs font-bold text-white shadow-sm">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#0c1e3a] text-xs font-bold text-white">
                           {idx + 1}
                         </span>
                         <div className="flex flex-col">
@@ -960,41 +967,37 @@ export default function JadwalPage() {
 
                       {/* Select Option Terhubung Ke Database */}
                       {stop.jenis_stop === "seller" ? (
-                        <select
-                          value={stop.id_seller || masterOptions?.sellers[0]?.id_seller}
-                          onChange={(e) => handleSelectLocationOption(true, idx, parseInt(e.target.value, 10))}
-                          className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                        >
-                          {masterOptions?.sellers.map((s) => (
-                            <option key={s.id_seller} value={s.id_seller}>
-                              {s.nama_seller} ({s.kode_seller})
-                            </option>
-                          ))}
-                        </select>
+                        <SearchSelect
+                          value={stop.id_seller}
+                          onChange={(id) => handleSelectLocationOption(true, idx, id)}
+                          placeholder="Pilih seller..."
+                          options={(masterOptions?.sellers ?? []).map((s) => ({
+                            id: s.id_seller,
+                            label: s.nama_seller,
+                            sub: s.kode_seller,
+                          }))}
+                        />
                       ) : stop.jenis_stop === "gudang" ? (
-                        <select
-                          value={stop.id_gudang || masterOptions?.gudangs[0]?.id_gudang}
-                          onChange={(e) => handleSelectLocationOption(true, idx, parseInt(e.target.value, 10))}
-                          className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                        >
-                          {masterOptions?.gudangs.map((g) => (
-                            <option key={g.id_gudang} value={g.id_gudang}>
-                              {g.nama_gudang}
-                            </option>
-                          ))}
-                        </select>
+                        <SearchSelect
+                          value={stop.id_gudang}
+                          onChange={(id) => handleSelectLocationOption(true, idx, id)}
+                          placeholder="Pilih gudang..."
+                          options={(masterOptions?.gudangs ?? []).map((g) => ({
+                            id: g.id_gudang,
+                            label: g.nama_gudang,
+                          }))}
+                        />
                       ) : (
-                        <select
-                          value={stop.id_drop_point || masterOptions?.drop_points[0]?.id_drop_point}
-                          onChange={(e) => handleSelectLocationOption(true, idx, parseInt(e.target.value, 10))}
-                          className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                        >
-                          {masterOptions?.drop_points.map((dp) => (
-                            <option key={dp.id_drop_point} value={dp.id_drop_point}>
-                              {dp.nama_drop_point} ({dp.kode_dp})
-                            </option>
-                          ))}
-                        </select>
+                        <SearchSelect
+                          value={stop.id_drop_point}
+                          onChange={(id) => handleSelectLocationOption(true, idx, id)}
+                          placeholder="Pilih drop point..."
+                          options={(masterOptions?.drop_points ?? []).map((dp) => ({
+                            id: dp.id_drop_point,
+                            label: dp.nama_drop_point,
+                            sub: dp.kode_dp,
+                          }))}
+                        />
                       )}
 
                       <button
@@ -1009,18 +1012,22 @@ export default function JadwalPage() {
                 </div>
               </div>
 
+              {updateMutation.error && (
+                <MutationError error={updateMutation.error} />
+              )}
+
               <div className="mt-6 flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setEditingRitase(null)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  className="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={updateMutation.isPending}
-                  className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-amber-500/20 hover:bg-amber-600 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-md bg-[#0c1e3a] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#16335a] disabled:opacity-50"
                 >
                   {updateMutation.isPending ? (
                     <>
@@ -1040,8 +1047,8 @@ export default function JadwalPage() {
       {/* ── MODAL 1-KLIK GENERATE CONFIRMATION ── */}
       {showGenerateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400">
+          <div className="w-full max-w-md rounded-lg bg-white p-5 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-800">
               <Zap className="h-6 w-6" />
             </div>
 
@@ -1049,19 +1056,25 @@ export default function JadwalPage() {
               Generate Rute Harian Otomatis?
             </h3>
             <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-              Sistem akan membaca **Template Rute Tetap** dan langsung membuatkan 12 jadwal ritase untuk seluruh driver hari ini (<span className="font-semibold text-slate-700 dark:text-slate-200">{todayStr}</span>).
+              Sistem akan membaca <b className="text-slate-700 dark:text-slate-200">Template Rute Tetap</b> dan langsung membuatkan 12 jadwal ritase untuk seluruh driver hari ini (<span className="font-semibold text-slate-700 dark:text-slate-200">{todayStr}</span>).
               <br />
               <br />
-              <span className="font-medium text-amber-600 dark:text-amber-400">
-                ⚡ Seketika tombol ini diklik, rute akan langsung muncul di HP seluruh driver aktif!
+              <span className="font-medium text-slate-700 dark:text-slate-300">
+                Seketika tombol ini diklik, rute akan langsung muncul di HP seluruh driver aktif!
               </span>
             </p>
+
+            {generateMutation.error && (
+              <div className="mt-4">
+                <MutationError error={generateMutation.error} />
+              </div>
+            )}
 
             <div className="mt-6 flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setShowGenerateModal(false)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
               >
                 Batal
               </button>
@@ -1069,7 +1082,7 @@ export default function JadwalPage() {
                 type="button"
                 disabled={generateMutation.isPending}
                 onClick={handleGenerate}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-orange-500/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-md bg-[#0c1e3a] px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-50"
               >
                 {generateMutation.isPending ? (
                   <>
@@ -1085,6 +1098,109 @@ export default function JadwalPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Banner error mutation — tampil kalau request backend gagal. */
+function MutationError({ error }: { error: unknown }) {
+  if (!error) return null;
+  const msg =
+    error instanceof ApiError ? error.message : "Terjadi kesalahan. Coba lagi.";
+  return (
+    <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-600">
+      {msg}
+    </p>
+  );
+}
+
+/** Dropdown lokasi dengan pencarian — dipakai di editor stop (create & edit ritase). */
+function SearchSelect({
+  value,
+  onChange,
+  options,
+  placeholder = "Pilih...",
+}: {
+  value: number | null | undefined;
+  onChange: (id: number) => void;
+  options: { id: number; label: string; sub?: string }[];
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Tutup dropdown kalau klik di luar.
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  const selected = options.find((o) => o.id === value);
+  const ql = q.trim().toLowerCase();
+  const filtered = ql
+    ? options.filter((o) =>
+        `${o.label} ${o.sub ?? ""}`.toLowerCase().includes(ql)
+      )
+    : options;
+
+  return (
+    <div ref={ref} className="relative min-w-0 flex-1">
+      <button
+        type="button"
+        onClick={() => {
+          setOpen((v) => !v);
+          setQ("");
+        }}
+        className="flex w-full items-center justify-between gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+      >
+        <span className="min-w-0 truncate">{selected ? selected.label : placeholder}</span>
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+          <div className="relative border-b border-slate-100 dark:border-slate-800">
+            <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <input
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Cari..."
+              className="w-full bg-transparent py-1.5 pl-7 pr-2 text-xs text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
+            />
+          </div>
+          <ul className="max-h-44 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <li className="px-3 py-2 text-xs text-slate-400">Tidak ditemukan</li>
+            ) : (
+              filtered.map((o) => (
+                <li key={o.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange(o.id);
+                      setOpen(false);
+                    }}
+                    className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
+                  >
+                    <span className="min-w-0 truncate font-medium text-slate-700 dark:text-slate-200">
+                      {o.label}
+                    </span>
+                    {o.sub && (
+                      <span className="shrink-0 text-[10px] text-slate-400">{o.sub}</span>
+                    )}
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
         </div>
       )}
     </div>

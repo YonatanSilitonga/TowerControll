@@ -20,3 +20,16 @@ export async function meRequest(token: string): Promise<User> {
 export async function logoutRequest(token: string): Promise<void> {
   await post<void>("/auth/logout", undefined, { token });
 }
+
+/** Ganti password (user yang login) — verifikasi password lama di backend. */
+export async function changePasswordRequest(
+  token: string,
+  oldPassword: string,
+  newPassword: string
+): Promise<void> {
+  await post<void>(
+    "/auth/change-password",
+    { old_password: oldPassword, new_password: newPassword },
+    { token }
+  );
+}

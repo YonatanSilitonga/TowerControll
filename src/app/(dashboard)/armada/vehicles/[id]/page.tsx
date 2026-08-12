@@ -12,9 +12,22 @@ import { StatusTimeline } from "@/components/armada/status-timeline";
 import { InfoTip } from "@/components/ui/info-tip";
 import { DataTable } from "@/components/ui/data-table";
 import { useKendaraan, useRitase } from "@/hooks/use-armada";
-import { useTrackingHistory } from "@/hooks/use-tracking";
+import { useTrackingHistory, useTrackingMap } from "@/hooks/use-tracking";
 import { formatDateDMY, formatNumber } from "@/lib/utils";
 import type { Ritase } from "@/types/armada";
+
+function minutesAgo(iso?: string | null): string {
+  if (!iso) return "-";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "-";
+  const m = Math.floor((Date.now() - t) / 60000);
+  if (m < 1) return "baru saja";
+  if (m < 60) return `${m} menit lalu`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return h === 1 ? "1 jam lalu" : `${h} jam lalu`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "1 hari lalu" : `${d} hari lalu`;
+}
 
 export default function VehicleDetailPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
@@ -22,8 +35,12 @@ export default function VehicleDetailPage({ params }: { params: { id: string } }
 
   const { data: kendaraan, isLoading: lK } = useKendaraan();
   const { data: ritase, isLoading: lRitase } = useRitase();
+  const { data: mapData } = useTrackingMap();
   const vehicle = (kendaraan ?? []).find((k) => k.id_kendaraan === id);
   const { data: history, isLoading: lHist } = useTrackingHistory(Number.isFinite(id) ? id : null);
+  // Info live dari tracking map (kalau kendaraan ini lagi kirim posisi).
+  const liveV =
+    (mapData?.vehicles ?? []).find((v) => v.id_kendaraan === id) ?? null;
 
   if (lK) {
     return (
@@ -39,7 +56,7 @@ export default function VehicleDetailPage({ params }: { params: { id: string } }
   const vehicleRitase = (ritase ?? []).filter((r) => r.id_kendaraan === id);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PageHeader
         title={vehicle.plat_nomor}
         description={vehicle.jenis_kendaraan ?? "Kendaraan armada"}
@@ -53,12 +70,12 @@ export default function VehicleDetailPage({ params }: { params: { id: string } }
       <ArmadaTabs />
 
       <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
-        <div className="space-y-5">
+        <div className="space-y-4">
           {/* Riwayat tracking */}
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                <Truck className="h-4 w-4 text-[#034075]" /> Riwayat Tracking
+                <Truck className="h-4 w-4 text-[#0c1e3a]" /> Riwayat Tracking
                 <InfoTip text="Timeline status kendaraan ini (dari event ritase)." />
               </CardTitle>
             </CardHeader>
@@ -80,7 +97,7 @@ export default function VehicleDetailPage({ params }: { params: { id: string } }
 
           {/* Daftar ritase kendaraan */}
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold">
                 Daftar Ritase
                 <InfoTip text="Semua penugasan dengan kendaraan ini — klik baris untuk detail." />
@@ -120,24 +137,52 @@ export default function VehicleDetailPage({ params }: { params: { id: string } }
 
         {/* Info kendaraan */}
         <Card className="h-fit">
-          <CardHeader>
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">
               Informasi Kendaraan
-              <InfoTip text="Detail master kendaraan." />
+              <InfoTip text="Detail master kendaraan + status live terakhir." />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1.5 text-sm">
             <InfoRow label="Plat" value={vehicle.plat_nomor} />
             <InfoRow label="Jenis" value={vehicle.jenis_kendaraan ?? "-"} />
             <InfoRow label="Kapasitas" value={vehicle.kapasitas_kg ? `${formatNumber(vehicle.kapasitas_kg)} kg` : "-"} />
-            <InfoRow label="Status" value={vehicle.status_kendaraan} />
+            <InfoRow label="Status" value={<StatusBadge status={vehicle.status_kendaraan} />} />
+            <InfoRow
+              label="Online"
+              value={
+                liveV ? (
+                  <span
+                    className={
+                      liveV.offline
+                        ? "inline-flex items-center gap-1.5 font-semibold text-rose-600"
+                        : "inline-flex items-center gap-1.5 font-semibold text-emerald-700"
+                    }
+                  >
+                    <i className={`h-1.5 w-1.5 rounded-full ${liveV.offline ? "bg-rose-500" : "bg-emerald-500 animate-pulse"}`} />
+                    {liveV.offline ? "Offline" : "Online"}
+                  </span>
+                ) : (
+                  "-"
+                )
+              }
+            />
+            {liveV && !liveV.offline && (
+              <>
+                <InfoRow label="Driver" value={liveV.nama_driver ?? "-"} />
+                <InfoRow label="Kecepatan" value={`${liveV.kecepatan ?? 0} km/h`} />
+              </>
+            )}
+            {liveV && (
+              <InfoRow label="Update" value={minutesAgo(liveV.last_update)} />
+            )}
           </CardContent>
         </Card>
 
         <button
           type="button"
           onClick={() => router.push(`/armada/live-map?kendaraan=${vehicle.id_kendaraan}`)}
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-[#034075] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0a5aa8]"
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-[#0c1e3a] px-3 py-2 text-sm font-semibold text-white hover:bg-[#16335a]"
         >
           <MapPin className="h-4 w-4" /> Lihat di peta
         </button>

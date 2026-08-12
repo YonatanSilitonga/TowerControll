@@ -97,7 +97,7 @@ export function PerjalananTable({ stops, events }: { stops?: RitaseStop[]; event
             <td className="px-3 py-2" colSpan={2}>
               <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Total Perjalanan</span>
             </td>
-            <td className="px-3 py-2 text-right font-bold tabular-nums text-[#034075]">{formatDur(total)}</td>
+            <td className="px-3 py-2 text-right font-bold tabular-nums text-[#0c1e3a]">{formatDur(total)}</td>
           </tr>
         </tbody>
       </table>

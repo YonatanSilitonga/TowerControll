@@ -23,9 +23,9 @@ export const ROLE_LABEL: Record<UserRole, string> = {
 
 /** Mapping role -> modul yang boleh diakses (untuk menu & guard). */
 export const ROLE_MENU: Record<UserRole, string[]> = {
-  admin: ["dashboard", "armada", "jadwal", "gudang", "absensi", "laporan"],
-  kapten: ["dashboard", "armada", "jadwal"],
-  direktur: ["dashboard", "armada", "jadwal", "laporan"],
+  admin: ["dashboard", "armada", "jadwal", "analitik", "gudang", "absensi", "laporan"],
+  kapten: ["dashboard", "armada", "jadwal", "analitik"],
+  direktur: ["dashboard", "armada", "jadwal", "analitik", "laporan"],
   driver: ["dashboard", "armada"],
 };
 
@@ -107,7 +107,7 @@ export function displayTrackingStatus(
   let stale = false;
   if (lastUpdate) {
     const t = new Date(lastUpdate).getTime();
-    if (!Number.isNaN(t)) stale = Date.now() - t > 15 * 60 * 1000; // > 15 menit
+    if (!Number.isNaN(t)) stale = Date.now() - t > 3 * 60 * 1000; // > 3 menit
   }
   if (stale) return "Offline";
   return (speed ?? 0) > 0 ? "Bergerak" : "Aktif";
