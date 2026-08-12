@@ -1,8 +1,7 @@
 "use client";
-
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
-import { Phone, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, Phone, Search } from "lucide-react";
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
 import type {
   DropPointPoi,
@@ -24,6 +23,10 @@ const TILE_ATTRIBUTION =
 const JAKARTA: [number, number] = [-6.2088, 106.8456];
 
 // Titik gudang fallback (dipakai kalau backend belum balikin gudang).
+const TANGERANG_BOUNDS: L.LatLngBoundsExpression = [
+  [-6.35, 106.45], // titik barat daya (kiri bawah)
+  [-6.00, 106.85], // titik timur laut (kanan atas)
+];
 const OUTGOING_LAT = -6.171496373990977;
 const OUTGOING_LON = 106.65715503860062;
 const DC_LAT = -6.1848;
@@ -604,7 +607,7 @@ const typeColor = (t: string) =>
     : "bg-orange-100 text-orange-700";
 
 function LiveMapView({
-  vehicles,
+ vehicles,
   sellers,
   gudang,
   dropPoints,
@@ -617,6 +620,13 @@ function LiveMapView({
   // Compact OTOMATIS di layar kecil (HP): popup marker, search, dan legenda
   // jadi ramping biar gampang dipakai & gak nutup peta.
   const [isSmall, setIsSmall] = useState(false);
+
+   const [show, setShow] = useState({ trucks: true, sellers: true, gudang: true, drop: true });
+  const toggleLayer = (k: keyof typeof show) =>
+    setShow((s) => ({ ...s, [k]: !s[k] }));
+
+  const [legendOpen, setLegendOpen] = useState(true);
+  
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 768px)");
     const fn = () => setIsSmall(mq.matches);
@@ -638,10 +648,6 @@ function LiveMapView({
 
   const dropList = dropPoints ?? [];
 
-  // Filter layer via legenda (klik untuk tampil/sembunyiin kategori marker).
-  const [show, setShow] = useState({ trucks: true, sellers: true, gudang: true, drop: true });
-  const toggleLayer = (k: keyof typeof show) =>
-    setShow((s) => ({ ...s, [k]: !s[k] }));
 
   // Rute yang digambar saat seller/gateway diklik (dari Outgoing & DC).
   const [routes, setRoutes] = useState<{
@@ -831,12 +837,15 @@ function LiveMapView({
       </div>
 
       <MapContainer
-        center={JAKARTA}
-        zoom={11}
-        minZoom={8}
-        className="h-full w-full"
-        style={{ zIndex: 0 }}
-      >
+  key="live-map"
+  center={JAKARTA}
+  zoom={12}
+  minZoom={11}
+  maxBounds={TANGERANG_BOUNDS}
+  maxBoundsViscosity={1.0}
+  className="h-full w-full"
+  style={{ zIndex: 0 }}
+>
         <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />
         <MapAutoResize />
         <FitBounds vehicles={vehicles} sellers={sellers} gudang={gudangList} dropPoints={dropList} />
@@ -1114,28 +1123,43 @@ function LiveMapView({
       )}
 
       {/* Legend filter — z-10: di atas peta tapi di bawah header sticky (z-30) */}
-      <div
-        className={cn(
-          "absolute z-10 rounded-md border bg-white/95 shadow-sm",
-          compact
-            ? "right-2.5 top-3 flex flex-col gap-1 p-1"
-            : "right-3 top-3 rounded-lg px-2.5 py-2 text-[11px]"
-        )}
-      >
-        {!compact && (
-          <p className="mb-1.5 flex items-center justify-between font-semibold text-slate-700">
-            Legenda <span className="font-normal text-[10px] text-slate-400">klik = filter</span>
-          </p>
-        )}
-        <div className={compact ? "flex flex-col items-center gap-1" : "space-y-0.5"}>
-          <LegendToggle compact={compact} label="Truk" color="#1e3a5f" active={show.trucks} onClick={() => toggleLayer("trucks")} />
-          <LegendToggle compact={compact} label="Seller" color="#10b981" active={show.sellers} onClick={() => toggleLayer("sellers")} />
-          <LegendToggle compact={compact} label="Gudang Outgoing" color="#0ea5e9" active={show.gudang} onClick={() => toggleLayer("gudang")} />
-          <LegendToggle compact={compact} label="Gudang DC" color="#7c3aed" active={show.gudang} onClick={() => toggleLayer("gudang")} />
-          <LegendToggle compact={compact} label="Drop Point" color="#f97316" active={show.drop} onClick={() => toggleLayer("drop")} />
-        </div>
-      </div>
+      {/* Legend filter — collapsible */}
+<div
+  className={cn(
+    "absolute z-10 rounded-md border bg-white/95 shadow-sm",
+    compact
+      ? "right-2.5 top-3 flex flex-col gap-1 p-1"
+      : "right-3 top-3 rounded-lg px-2.5 py-2 text-[11px]"
+  )}
+>
+  <button
+    type="button"
+    onClick={() => setLegendOpen((v) => !v)}
+    className={cn(
+      "flex w-full items-center justify-between font-semibold text-slate-700",
+      !compact && "mb-1.5"
+    )}
+  >
+    {!compact && <span>Filter</span>}
+    {legendOpen ? (
+      <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
+    ) : (
+      <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+    )}
+  </button>
+
+  {legendOpen && (
+    <div className={compact ? "flex flex-col items-center gap-1" : "space-y-0.5"}>
+      <LegendToggle compact={compact} label="Truk" color="#1e3a5f" active={show.trucks} onClick={() => toggleLayer("trucks")} />
+      <LegendToggle compact={compact} label="Seller" color="#10b981" active={show.sellers} onClick={() => toggleLayer("sellers")} />
+      <LegendToggle compact={compact} label="Gudang Outgoing" color="#0ea5e9" active={show.gudang} onClick={() => toggleLayer("gudang")} />
+      <LegendToggle compact={compact} label="Gudang DC" color="#7c3aed" active={show.gudang} onClick={() => toggleLayer("gudang")} />
+      <LegendToggle compact={compact} label="Drop Point" color="#f97316" active={show.drop} onClick={() => toggleLayer("drop")} />
     </div>
+  )}
+</div>
+</div>
+
   );
 }
 

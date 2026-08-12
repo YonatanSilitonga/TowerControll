@@ -8,7 +8,7 @@ import type { TrackingCheckpoint, TrackingMap } from "@/types/armada";
 const tokenSelector = (s: { token: string | null }) => s.token;
 
 /** Interval polling peta live (ms). Lebih rapat daripada dashboard karena posisi truk. */
-export const LIVE_MAP_POLL_INTERVAL = 10_000;
+export const LIVE_MAP_POLL_INTERVAL = 8_000;
 
 /** Data peta live: posisi terbaru setiap kendaraan + lokasi seller. */
 export function useTrackingMap() {
