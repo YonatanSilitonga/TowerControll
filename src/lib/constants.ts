@@ -90,6 +90,14 @@ export function statusLabel(status: string | undefined | null): string {
   return STATUS_LABELS[status] ?? status.replace(/_/g, " ");
 }
 
+/** Ambil label untuk jenis stop. */
+export function stopTypeLabel(jenis?: string): string {
+  if (jenis === "drop_point") return "Gateway";
+  if (!jenis) return "-";
+  return jenis.charAt(0).toUpperCase() + jenis.slice(1);
+}
+
+
 /** Status tracking yang rapi: kalau string mentah (bukan status dikenal) → "Idle"/"Bergerak"/"Aktif". */
 export function displayTrackingStatus(
   status?: string | null,

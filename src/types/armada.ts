@@ -237,6 +237,8 @@ export interface RitaseStop {
   nama_seller?: string | null;
   nama_drop_point?: string | null;
   keterangan?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface RitaseEvent {

@@ -3,7 +3,6 @@
 import { Clock, PackageCheck, Route as RouteIcon, Timer } from "lucide-react";
 import { cn, formatDur } from "@/lib/utils";
 import { statusLabel } from "@/lib/constants";
-import { PerjalananTable } from "@/components/armada/perjalanan-table";
 import type { RitaseStop } from "@/types/armada";
 
 interface Ev {
@@ -136,12 +135,6 @@ export function DriverSummary({
         </div>
       )}
 
-      <div className="mt-1">
-        <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-          Perjalanan per Titik
-        </p>
-        <PerjalananTable stops={stops} events={events} />
-      </div>
     </div>
   );
 }

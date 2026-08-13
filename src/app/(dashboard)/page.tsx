@@ -268,7 +268,7 @@ export default function DashboardPage() {
             )}
             <span className="inline-flex items-center gap-2 rounded-md bg-white/10 px-3 py-1.5 text-xs font-semibold text-white">
               <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-              LIVE · AUTO-REFRESH 8s
+LIVE · REALTIME PUSH 3s
             </span>
           </div>
         </div>

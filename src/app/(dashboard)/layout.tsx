@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { ALLOWED_WEB_ROLES } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth-store";
+import { RealtimeSync } from "@/hooks/use-realtime";
 
 /** Loader brand mini — dipakai saat boot validasi, biar gak ada teks polos. */
 function BootLoader() {
@@ -85,6 +86,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen">
+      <RealtimeSync />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />

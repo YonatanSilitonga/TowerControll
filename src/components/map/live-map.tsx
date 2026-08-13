@@ -403,46 +403,7 @@ function fmtArrival(sec: number): string {
   }).format(t);
 }
 
-/** Hasil OSRM: titik-titik rute ([[lat,lng],...]) + jarak total meter + durasi detik. */
-type RouteResult = {
-  points: [number, number][];
-  distanceMeters: number;
-  durationSeconds: number;
-};
-
-/** Ambil geometri rute jalan dari OSRM (geojson) → [[lat,lng],...] + jarak + durasi. undefined kalau gagal. */
-async function fetchRoute(
-  lat1: number, lon1: number, lat2: number, lon2: number
-): Promise<RouteResult | undefined> {
-  try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=full&geometries=geojson`;
-    const res = await fetch(url);
-    if (!res.ok) return undefined;
-    const j = await res.json();
-    const route = j?.routes?.[0];
-    const coords = route?.geometry?.coordinates as [number, number][] | undefined;
-    if (!Array.isArray(coords)) return undefined;
-    return {
-      points: coords.map(([lng, lat]) => [lat, lng] as [number, number]),
-      distanceMeters: Math.round(route.distance ?? 0),
-      durationSeconds: Math.round(route.duration ?? 0),
-    };
-  } catch {
-    return undefined;
-  }
-}
-
-/** Jarak haversine (meter) — buat throttle re-route saat truk pindah. */
-function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371000;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
-}
+import { fetchRoute, haversineM, RouteResult } from "@/lib/map-utils";
 
 /** Titik stop yang sudah di-resolve ke koordinat peta (dari data sellers/drop/gudang). */
 type StopPoint = { lat: number; lng: number; label: string; icon: L.DivIcon; kind: string };
@@ -462,15 +423,15 @@ function resolveStopPoint(
         icon: SELLER_ICON, kind: "seller",
       };
   }
-  if (stop.jenis_stop === "drop_point" && stop.id_drop_point != null) {
-    const p = dropList.find((x) => x.id_drop_point === stop.id_drop_point);
-    if (p)
-      return {
-        lat: p.latitude, lng: p.longitude,
-        label: p.nama_drop_point || `Drop Point ${p.id_drop_point}`,
-        icon: DROP_ICON, kind: "drop",
-      };
-  }
+if (stop.jenis_stop === "drop_point" && stop.id_drop_point != null) {
+      const p = dropList.find((x) => x.id_drop_point === stop.id_drop_point);
+      if (p)
+        return {
+          lat: p.latitude, lng: p.longitude,
+          label: p.nama_drop_point || `Gateway ${p.id_drop_point}`,
+          icon: DROP_ICON, kind: "drop",
+        };
+    }
   if (stop.jenis_stop === "gudang" && stop.id_gudang != null) {
     const g = gudangList.find((x) => x.id_gudang === stop.id_gudang);
     if (g)
@@ -595,7 +556,8 @@ function useActiveRoute(
 }
 
 const typeLabel = (t: string) =>
-  ({ truck: "Truk", seller: "Seller", gudang: "Gudang", drop: "Drop" }[t] ?? t);
+  ({ truck: "Truk", seller: "Seller", gudang: "Gudang", drop: "Gateway" }[t] ?? t);
+
 
 const typeColor = (t: string) =>
   t === "truck"
@@ -896,14 +858,14 @@ function LiveMapView({
             <Popup>
               <div className={compact ? "min-w-[120px] text-xs" : "min-w-[180px] text-sm"}>
                 <p className="font-semibold text-orange-600">
-                  {p.nama_drop_point || `Drop Point ${p.id_drop_point}`}
+                  {p.nama_drop_point || `Gateway ${p.id_drop_point}`}
                 </p>
                 {p.kode_dp && (
                   <p className="text-xs text-muted-foreground">Kode: {p.kode_dp}</p>
                 )}
                 {!compact && (
                   <>
-                    <p className="text-xs text-muted-foreground">Drop point / Gateway</p>
+                    <p className="text-xs text-muted-foreground">Gateway</p>
                     {(p.jarak_tempuh_km != null || p.jarak_dc_km != null) && (
                       <div className="mt-1 space-y-0.5">
                         {p.jarak_tempuh_km != null && (
@@ -1124,37 +1086,37 @@ function LiveMapView({
 
       {/* Legend filter — z-10: di atas peta tapi di bawah header sticky (z-30) */}
       {/* Legend filter — collapsible */}
-<div
-  className={cn(
-    "absolute z-10 rounded-md border bg-white/95 shadow-sm",
-    compact
-      ? "right-2.5 top-3 flex flex-col gap-1 p-1"
-      : "right-3 top-3 rounded-lg px-2.5 py-2 text-[11px]"
-  )}
->
-  <button
-    type="button"
-    onClick={() => setLegendOpen((v) => !v)}
-    className={cn(
-      "flex w-full items-center justify-between font-semibold text-slate-700",
-      !compact && "mb-1.5"
-    )}
-  >
-    {!compact && <span>Filter</span>}
-    {legendOpen ? (
-      <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
-    ) : (
-      <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-    )}
-  </button>
+      <div
+        className={cn(
+          "absolute z-10 rounded-md border bg-white/95 shadow-sm",
+          compact
+            ? "right-2.5 top-3 flex flex-col gap-1 p-1"
+            : "right-3 top-3 rounded-lg px-2.5 py-2 text-[11px]"
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => setLegendOpen((v) => !v)}
+          className={cn(
+            "flex w-full items-center justify-between font-semibold text-slate-700",
+            !compact && "mb-1.5"
+          )}
+        >
+          {!compact && <span>Filter</span>}
+          {legendOpen ? (
+            <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+          )}
+        </button>
 
-  {legendOpen && (
-    <div className={compact ? "flex flex-col items-center gap-1" : "space-y-0.5"}>
-      <LegendToggle compact={compact} label="Truk" color="#1e3a5f" active={show.trucks} onClick={() => toggleLayer("trucks")} />
-      <LegendToggle compact={compact} label="Seller" color="#10b981" active={show.sellers} onClick={() => toggleLayer("sellers")} />
-      <LegendToggle compact={compact} label="Gudang Outgoing" color="#0ea5e9" active={show.gudang} onClick={() => toggleLayer("gudang")} />
-      <LegendToggle compact={compact} label="Gudang DC" color="#7c3aed" active={show.gudang} onClick={() => toggleLayer("gudang")} />
-      <LegendToggle compact={compact} label="Drop Point" color="#f97316" active={show.drop} onClick={() => toggleLayer("drop")} />
+        {legendOpen && (
+          <div className={compact ? "flex flex-col items-center gap-1" : "space-y-0.5"}>
+            <LegendToggle compact={compact} label="Truk" color="#1e3a5f" active={show.trucks} onClick={() => toggleLayer("trucks")} />
+            <LegendToggle compact={compact} label="Seller" color="#10b981" active={show.sellers} onClick={() => toggleLayer("sellers")} />
+            <LegendToggle compact={compact} label="Gudang Outgoing" color="#0ea5e9" active={show.gudang} onClick={() => toggleLayer("gudang")} />
+            <LegendToggle compact={compact} label="Gudang DC" color="#7c3aed" active={show.gudang} onClick={() => toggleLayer("gudang")} />
+            <LegendToggle compact={compact} label="Gateway" color="#f97316" active={show.drop} onClick={() => toggleLayer("drop")} />
     </div>
   )}
 </div>
