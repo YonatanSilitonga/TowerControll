@@ -34,6 +34,37 @@ export function useAdminMasterOptions() {
   });
 }
 
+export interface PreviewRoute {
+  id_driver: number;
+  nama_driver: string;
+  id_kendaraan: number;
+  plat_nomor: string;
+  ritase_ke: number;
+  stops: PreviewStop[];
+}
+
+export interface PreviewStop {
+  urutan: number;
+  jenis_stop: string;
+  nama_lokasi: string;
+  keterangan: string;
+}
+
+export interface PreviewGenerateResponse {
+  total_preview: number;
+  routes: PreviewRoute[];
+}
+
+/** Fetch preview for 1-Click Auto-Generate Daily Ritases */
+export function usePreviewDailyRitase() {
+  const token = useAuthStore(tokenSelector);
+  return useQuery({
+    queryKey: ["admin-ritase-preview"],
+    queryFn: () => get<PreviewGenerateResponse>("/admin/ritase/generate/preview", { token }),
+    enabled: false, // fetch on demand when modal opens
+  });
+}
+
 /** 1-Click Auto-Generate Daily Ritases Mutation */
 export function useGenerateDailyRitase() {
   const token = useAuthStore(tokenSelector);

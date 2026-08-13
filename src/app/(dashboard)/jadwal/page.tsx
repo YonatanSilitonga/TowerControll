@@ -24,6 +24,7 @@ import {
   useCreateRitase,
   useDeleteRitase,
   useGenerateDailyRitase,
+  usePreviewDailyRitase,
   useUpdateRitase,
 } from "@/hooks/use-admin-ritase";
 import { cn } from "@/lib/utils";
@@ -71,6 +72,7 @@ export default function JadwalPage() {
   });
 
   const { data: ritases, isLoading, isError, refetch } = useAdminRitase(selectedDate);
+  const { data: previewData, isFetching: isFetchingPreview, refetch: fetchPreview } = usePreviewDailyRitase();
   const generateMutation = useGenerateDailyRitase();
   const createMutation = useCreateRitase();
   const updateMutation = useUpdateRitase();
@@ -314,7 +316,10 @@ export default function JadwalPage() {
             {/* Tombol Utama: 1-Klik Generate Otomatis */}
             <button
               type="button"
-              onClick={() => setShowGenerateModal(true)}
+              onClick={() => {
+                setShowGenerateModal(true);
+                fetchPreview();
+              }}
               className="inline-flex items-center justify-center gap-2 rounded-md bg-[#0c1e3a] px-5 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#16335a]"
             >
               <Zap className="h-4 w-4" />
@@ -508,7 +513,10 @@ export default function JadwalPage() {
           {selectedDate === todayStr && (
             <button
               type="button"
-              onClick={() => setShowGenerateModal(true)}
+              onClick={() => {
+                setShowGenerateModal(true);
+                fetchPreview();
+              }}
               className="mt-4 inline-flex items-center gap-2 rounded-md bg-[#0c1e3a] px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#16335a]"
             >
               <Zap className="h-3.5 w-3.5" /> Generate Sekarang (1-Klik)
@@ -1044,58 +1052,128 @@ export default function JadwalPage() {
         </div>
       )}
 
-      {/* ── MODAL 1-KLIK GENERATE CONFIRMATION ── */}
+      {/* ── MODAL 1-KLIK GENERATE CONFIRMATION & PREVIEW ── */}
       {showGenerateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-lg bg-white p-5 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-800">
-              <Zap className="h-6 w-6" />
-            </div>
-
-            <h3 className="mt-4 text-lg font-bold text-slate-900 dark:text-white">
-              Generate Rute Harian Otomatis?
-            </h3>
-            <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-              Sistem akan membaca <b className="text-slate-700 dark:text-slate-200">Template Rute Tetap</b> dan langsung membuatkan 12 jadwal ritase untuk seluruh driver hari ini (<span className="font-semibold text-slate-700 dark:text-slate-200">{todayStr}</span>).
-              <br />
-              <br />
-              <span className="font-medium text-slate-700 dark:text-slate-300">
-                Seketika tombol ini diklik, rute akan langsung muncul di HP seluruh driver aktif!
-              </span>
-            </p>
-
-            {generateMutation.error && (
-              <div className="mt-4">
-                <MutationError error={generateMutation.error} />
+          <div className="flex w-11/12 max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800" style={{ maxHeight: '88vh' }}>
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/80">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-500/20">
+                  <Zap className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                    Preview Generate Rute Otomatis
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Sistem akan membuat <span className="font-bold text-indigo-600 dark:text-indigo-400">{previewData?.total_preview || 0}</span> jadwal ritase harian untuk tanggal <span className="font-bold text-slate-700 dark:text-slate-200">{todayStr}</span>.
+                  </p>
+                </div>
               </div>
-            )}
-
-            <div className="mt-6 flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setShowGenerateModal(false)}
-                className="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300 transition-colors"
               >
-                Batal
+                <X className="h-5 w-5" />
               </button>
-              <button
-                type="button"
-                disabled={generateMutation.isPending}
-                onClick={handleGenerate}
-                className="inline-flex items-center gap-2 rounded-md bg-[#0c1e3a] px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-50"
-              >
-                {generateMutation.isPending ? (
-                  <>
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    <span>Generating...</span>
-                  </>
-                ) : (
-                  <>
-                    <Zap className="h-3.5 w-3.5" />
-                    <span>Ya, Generate Sekarang</span>
-                  </>
-                )}
-              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-100/60 dark:bg-slate-950/60">
+              {isFetchingPreview ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <RefreshCw className="h-10 w-10 animate-spin text-indigo-600" />
+                  <p className="mt-4 text-sm font-semibold text-slate-600 dark:text-slate-400">Memuat preview jadwal dari database...</p>
+                </div>
+              ) : previewData?.routes && previewData.routes.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {previewData.routes.map((route, idx) => (
+                    <div key={idx} className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 hover:border-indigo-200 dark:hover:border-indigo-900/50 transition-all">
+                      <div>
+                        <div className="flex items-start justify-between mb-4 border-b border-slate-100 pb-3.5 dark:border-slate-800/80">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <UserCheck className="h-4 w-4 text-indigo-500" />
+                              <span className="text-sm font-bold text-slate-800 dark:text-white">{route.nama_driver}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs">
+                              <Truck className="h-3.5 w-3.5 text-slate-400" />
+                              <span className="rounded-md bg-slate-100 px-2 py-0.5 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                {route.plat_nomor}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs font-extrabold text-indigo-600 dark:bg-indigo-950/50 dark:border-indigo-900/40 dark:text-indigo-400 shadow-2xs">
+                            Ritase {route.ritase_ke}
+                          </span>
+                        </div>
+                        
+                        <div className="space-y-3 pl-1">
+                          {route.stops.map((stop, sidx) => (
+                            <div key={sidx} className="flex items-start gap-3 group">
+                              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100/80 text-[10px] font-extrabold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400 mt-0.5">
+                                {stop.urutan}
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                  {stop.nama_lokasi} <span className="ml-1.5 text-[9px] font-extrabold tracking-wider text-slate-400 dark:text-slate-500 uppercase bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">({stop.jenis_stop})</span>
+                                </p>
+                                {stop.keterangan && (
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">{stop.keterangan}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <Layers className="h-10 w-10 text-slate-300 mb-3" />
+                  <p className="text-sm font-semibold text-slate-500">Tidak ada preview template ritase.</p>
+                </div>
+              )}
+
+              {generateMutation.error && (
+                <div className="mt-4">
+                  <MutationError error={generateMutation.error} />
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-4 dark:border-slate-800 dark:bg-slate-900">
+              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                * Rute akan langsung otomatis dikirimkan ke aplikasi seluruh driver aktif
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowGenerateModal(false)}
+                  className="rounded-lg border border-slate-200 px-5 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={generateMutation.isPending || isFetchingPreview}
+                  onClick={handleGenerate}
+                  className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-indigo-500/20 disabled:opacity-50 hover:bg-indigo-700 transition-all"
+                >
+                  {generateMutation.isPending ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      <span>Generating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="h-4 w-4" />
+                      <span>Konfirmasi & Generate Sekarang</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
