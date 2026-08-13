@@ -250,7 +250,7 @@ export default function AnalitikPage() {
                   className={cn(
                     "rounded px-2.5 py-1 text-xs font-medium transition-colors",
                     to === todayLocal() && from === daysAgo(p.days - 1)
-                      ? "bg-white text-[#0c1e3a] shadow-sm"
+                      ? "bg-[#FEA103] text-white shadow-sm"
                       : "text-slate-500 hover:text-slate-700"
                   )}
                 >
@@ -284,9 +284,9 @@ export default function AnalitikPage() {
 
       <Tabs defaultValue="ringkasan">
         <TabsList>
-          <TabsTrigger value="ringkasan">Ringkasan</TabsTrigger>
-          <TabsTrigger value="driver">Driver</TabsTrigger>
-          <TabsTrigger value="seller">Seller</TabsTrigger>
+          <TabsTrigger value="ringkasan" className="data-[state=active]:bg-[#FEA103] data-[state=active]:text-white">Ringkasan</TabsTrigger>
+          <TabsTrigger value="driver" className="data-[state=active]:bg-[#FEA103] data-[state=active]:text-white">Driver</TabsTrigger>
+          <TabsTrigger value="seller" className="data-[state=active]:bg-[#FEA103] data-[state=active]:text-white">Seller</TabsTrigger>
         </TabsList>
 
         {/* ===== RINGKASAN ===== */}

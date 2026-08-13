@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
   Calendar as CalendarIcon,
@@ -42,10 +44,28 @@ export default function JadwalPage() {
   const todayStr = getNDaysAgo(0);
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [ritaseFilter, setRitaseFilter] = useState<string>("all");
   const [showGenerateModal, setShowGenerateModal] = useState<boolean>(false);
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [editingRitase, setEditingRitase] = useState<AdminRitaseItem | null>(null);
+  const [editingOriginal, setEditingOriginal] = useState<AdminRitaseItem | null>(null);
+  const [deletingRitase, setDeletingRitase] = useState<{ id: number; kode: string } | null>(null);
+  const [confirmBox, setConfirmBox] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+  const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (type: "success" | "error", text: string) => {
+    setToast({ type, text });
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 5000);
+  };
+
+  const errMsg = (e: unknown) =>
+    e instanceof ApiError ? e.message : "Terjadi kesalahan. Coba lagi.";
 
   // Fetch Master Data Options (Drivers, Vehicles, Sellers, Drop Points, Gudangs)
   const { data: masterOptions } = useAdminMasterOptions();
@@ -66,7 +86,7 @@ export default function JadwalPage() {
     ritase_ke: 1,
     stops: [
       { id_stop: 1, urutan: 1, jenis_stop: "gudang", id_gudang: 1, nama_lokasi: "Gudang 1", keterangan: "Mulai dari Gudang 1" },
-      { id_stop: 2, urutan: 2, jenis_stop: "drop_point", id_drop_point: 1, nama_lokasi: "Drop Point 1", keterangan: "Tujuan akhir Drop Point" },
+      { id_stop: 2, urutan: 2, jenis_stop: "gateway", id_drop_point: 1, nama_lokasi: "Gateway 1", keterangan: "Tujuan akhir Gateway" },
     ],
   });
 
@@ -78,15 +98,33 @@ export default function JadwalPage() {
 
   const handleGenerate = () => {
     generateMutation.mutate(undefined, {
-      onSuccess: () => {
+      onSuccess: (res) => {
         setShowGenerateModal(false);
+        showToast("success", res?.message ?? "Rute harian berhasil di-generate!");
+      },
+      onError: (e) => {
+        setShowGenerateModal(false);
+        showToast("error", `Gagal generate: ${errMsg(e)}`);
       },
     });
   };
 
   const handleDelete = (idRitase: number, kode: string) => {
-    if (confirm(`Apakah Anda yakin ingin menghapus ritase ${kode}?`)) {
-      deleteMutation.mutate(idRitase);
+    setDeletingRitase({ id: idRitase, kode });
+  };
+
+  const confirmDelete = () => {
+    if (deletingRitase) {
+      deleteMutation.mutate(deletingRitase.id, {
+        onSuccess: () => {
+          setDeletingRitase(null);
+          showToast("success", `Ritase ${deletingRitase.kode} berhasil dihapus`);
+        },
+        onError: (e) => {
+          setDeletingRitase(null);
+          showToast("error", `Gagal menghapus ritase: ${errMsg(e)}`);
+        },
+      });
     }
   };
 
@@ -121,6 +159,11 @@ export default function JadwalPage() {
       {
         onSuccess: () => {
           setEditingRitase(null);
+          setEditingOriginal(null);
+          showToast("success", "Rute berhasil diperbarui!");
+        },
+        onError: (e) => {
+          showToast("error", `Gagal menyimpan rute: ${errMsg(e)}`);
         },
       }
     );
@@ -151,6 +194,10 @@ export default function JadwalPage() {
       {
         onSuccess: () => {
           setShowCreateModal(false);
+          showToast("success", "Jadwal ritase baru berhasil dibuat!");
+        },
+        onError: (e) => {
+          showToast("error", `Gagal membuat jadwal: ${errMsg(e)}`);
         },
       }
     );
@@ -179,11 +226,18 @@ export default function JadwalPage() {
 
   const handleRemoveStop = (isEdit: boolean, index: number) => {
     if (isEdit) {
-      setEditingRitase((cur) =>
-        cur
-          ? { ...cur, stops: (cur.stops ?? []).filter((_, i) => i !== index) }
-          : cur
-      );
+      const name = editingRitase?.stops?.[index]?.nama_lokasi ?? "titik ini";
+      setConfirmBox({
+        title: "Hapus Titik Ini?",
+        message: `Titik "${name}" akan dihapus dari rute ${editingRitase?.kode_ritase ?? ""}. Tindakan ini hanya berlaku saat disimpan.`,
+        onConfirm: () => {
+          setEditingRitase((cur) =>
+            cur
+              ? { ...cur, stops: (cur.stops ?? []).filter((_, i) => i !== index) }
+              : cur
+          );
+        },
+      });
     } else {
       setNewRitase((cur) => ({
         ...cur,
@@ -241,7 +295,7 @@ export default function JadwalPage() {
       } else {
         idDropPoint = selectedId;
         const found = masterOptions?.drop_points.find((dp) => dp.id_drop_point === selectedId);
-        updatedName = found?.nama_drop_point ?? `Drop Point #${selectedId}`;
+        updatedName = found?.nama_drop_point ?? `Gateway #${selectedId}`;
       }
 
       return {
@@ -265,18 +319,66 @@ export default function JadwalPage() {
     }
   };
 
-  // Filter ritases
-  const filteredRitases = (ritases ?? []).filter((r) => {
-    const matchSearch =
-      r.nama_driver.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.nopol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.kode_ritase.toLowerCase().includes(searchQuery.toLowerCase());
+  // Bandingkan ritase yang sedang diedit dengan snapshot awal.
+  const ritaseIsDirty = () => {
+    if (!editingRitase || !editingOriginal) return false;
+    const a = editingRitase;
+    const b = editingOriginal;
+    if (
+      a.id_driver !== b.id_driver ||
+      a.id_kendaraan !== b.id_kendaraan ||
+      a.id_drop_point !== b.id_drop_point ||
+      a.ritase_ke !== b.ritase_ke ||
+      a.status !== b.status
+    )
+      return true;
+    const sa = a.stops ?? [];
+    const sb = b.stops ?? [];
+    if (sa.length !== sb.length) return true;
+    return sa.some((s, i) => {
+      const t = sb[i];
+      return (
+        s.urutan !== t.urutan ||
+        s.jenis_stop !== t.jenis_stop ||
+        s.id_gudang !== t.id_gudang ||
+        s.id_seller !== t.id_seller ||
+        s.id_drop_point !== t.id_drop_point ||
+        s.nama_lokasi !== t.nama_lokasi
+      );
+    });
+  };
 
-    const matchStatus =
-      statusFilter === "all" || r.status.toLowerCase() === statusFilter.toLowerCase();
+  const closeEditModal = () => {
+    setEditingRitase(null);
+    setEditingOriginal(null);
+  };
 
-    return matchSearch && matchStatus;
-  });
+  const askCancelEdit = () => {
+    if (!ritaseIsDirty()) {
+      closeEditModal();
+      return;
+    }
+    setConfirmBox({
+      title: "Batalkan Perubahan?",
+      message: "Perubahan yang belum disimpan pada rute ini akan hilang.",
+      onConfirm: closeEditModal,
+    });
+  };
+
+  // Filter & sort ritases berdasarkan nama driver (A-Z)
+  const filteredRitases = (ritases ?? [])
+    .filter((r) => {
+      const matchSearch =
+        r.nama_driver.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.nopol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.kode_ritase.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchRitase =
+        ritaseFilter === "all" || r.ritase_ke.toString() === ritaseFilter;
+
+      return matchSearch && matchRitase;
+    })
+    .sort((a, b) => a.nama_driver.localeCompare(b.nama_driver));
 
   const totalRitase = ritases?.length ?? 0;
   const uniqueDrivers = new Set(ritases?.map((r) => r.id_driver)).size;
@@ -292,25 +394,6 @@ export default function JadwalPage() {
         crumbs={[{ label: "Jadwal Ritase" }]}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {/* Tombol Buat Jadwal Manual */}
-            <button
-              type="button"
-              onClick={() => {
-                setNewRitase({
-                  ...newRitase,
-                  tanggal: selectedDate,
-                  id_driver: masterOptions?.drivers[0]?.id_driver ?? 1,
-                  id_kendaraan: masterOptions?.kendaraan[0]?.id_kendaraan ?? 1,
-                  id_drop_point: masterOptions?.drop_points[0]?.id_drop_point ?? 1,
-                });
-                setShowCreateModal(true);
-              }}
-              className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            >
-              <Plus className="h-4 w-4 text-slate-400" />
-              <span>+ Buat Jadwal Manual</span>
-            </button>
-
             {/* Tombol Utama: 1-Klik Generate Otomatis */}
             <button
               type="button"
@@ -318,7 +401,7 @@ export default function JadwalPage() {
               className="inline-flex items-center justify-center gap-2 rounded-md bg-[#0c1e3a] px-5 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#16335a]"
             >
               <Zap className="h-4 w-4" />
-              <span>Generate Otomatis (1-Klik)</span>
+              <span>Generate Otomatis</span>
             </button>
           </div>
         }
@@ -379,102 +462,62 @@ export default function JadwalPage() {
         </div>
       </div>
 
-      {/* ── FILTER, QUICK DATE SELECTOR, & SEARCH BAR ── */}
+      {/* ── FILTER, TANGGAL, & RITASE FILTER BAR ── */}
       <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-center gap-2">
-          {/* Quick Date Selector Buttons */}
-          <div className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
-            <button
-              type="button"
-              onClick={() => setSelectedDate(todayStr)}
-              className={cn(
-                "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
-                selectedDate === todayStr
-                  ? "bg-[#0c1e3a] text-white"
-                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-              )}
-            >
-              Hari Ini
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedDate(getNDaysAgo(1))}
-              className={cn(
-                "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
-                selectedDate === getNDaysAgo(1)
-                  ? "bg-[#0c1e3a] text-white"
-                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-              )}
-            >
-              Kemarin
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedDate(getNDaysAgo(2))}
-              className={cn(
-                "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
-                selectedDate === getNDaysAgo(2)
-                  ? "bg-[#0c1e3a] text-white"
-                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-              )}
-            >
-              2 Hari Lalu
-            </button>
-          </div>
-
-          {/* Tanggal Picker Custom */}
+          {/* Tanggal Picker */}
           <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-800">
             <CalendarIcon className="h-4 w-4 text-slate-400" />
             <input
               type="date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              max={todayStr}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSelectedDate(v <= todayStr ? v : todayStr);
+              }}
               className="bg-transparent text-xs font-semibold text-slate-700 outline-none dark:text-slate-200"
             />
           </div>
 
-          {/* Search Box */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Cari driver, nopol, kode..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="rounded-md border border-slate-200 bg-slate-50 py-1.5 pl-9 pr-3 text-xs text-slate-700 placeholder-slate-400 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Status Filter */}
+          {/* Ritase Filter — menyusul tanggal */}
           <div className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
-            {["all", "direncanakan", "berjalan", "selesai"].map((status) => (
+            {["all", "1", "2", "3", "4"].map((rit) => (
               <button
-                key={status}
+                key={rit}
                 type="button"
-                onClick={() => setStatusFilter(status)}
+                onClick={() => setRitaseFilter(rit)}
                 className={cn(
                   "rounded-lg px-2.5 py-1 text-xs font-semibold capitalize transition-all",
-                  statusFilter === status
-                    ? "bg-[#0c1e3a] text-white"
+                  ritaseFilter === rit
+                    ? "bg-[#FEA103] text-white"
                     : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                 )}
               >
-                {status === "all" ? "Semua" : status}
+                {rit === "all" ? "Semua Ritase" : `Ritase ${rit}`}
               </button>
             ))}
           </div>
-
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition-all hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-            title="Refresh Data"
-          >
-            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-          </button>
         </div>
+
+        {/* Tombol Buat Jadwal Manual — sendiri di paling kanan */}
+        <button
+          type="button"
+          onClick={() => {
+            setNewRitase({
+              ...newRitase,
+              tanggal: selectedDate,
+              id_driver: masterOptions?.drivers[0]?.id_driver ?? 1,
+              id_kendaraan: masterOptions?.kendaraan[0]?.id_kendaraan ?? 1,
+              id_drop_point: masterOptions?.drop_points[0]?.id_drop_point ?? 1,
+            });
+            setShowCreateModal(true);
+          }}
+          className="group inline-flex items-center gap-2 rounded-md border border-[#FEA103] bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-[#FEA103] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-[#FEA103] dark:hover:text-white"
+        >
+          <Plus className="h-4 w-4 text-slate-400 transition-colors group-hover:text-white" />
+          <span>Buat Jadwal Manual</span>
+        </button>
       </div>
 
       {/* ── ERROR DELETE (page-level) ── */}
@@ -509,7 +552,7 @@ export default function JadwalPage() {
             <button
               type="button"
               onClick={() => setShowGenerateModal(true)}
-              className="mt-4 inline-flex items-center gap-2 rounded-md bg-[#0c1e3a] px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#16335a]"
+              className="mt-4 inline-flex items-center gap-2 rounded-md bg-[#FEA103] px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#E09102]"
             >
               <Zap className="h-3.5 w-3.5" /> Generate Sekarang (1-Klik)
             </button>
@@ -527,9 +570,6 @@ export default function JadwalPage() {
                 <div className="flex items-start justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-[#0c1e3a] dark:text-slate-400">
-                        {r.kode_ritase}
-                      </span>
                       <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                         Ritase ke-{r.ritase_ke}
                       </span>
@@ -538,7 +578,7 @@ export default function JadwalPage() {
                       {r.nama_driver}
                     </h4>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {r.jabatan_driver} • Nopol: <span className="font-semibold text-slate-700 dark:text-slate-300">{r.nopol}</span>
+                      Plat: <span className="font-semibold text-slate-700 dark:text-slate-300">{r.nopol}</span>
                     </p>
                   </div>
 
@@ -548,33 +588,34 @@ export default function JadwalPage() {
 
                     {/* Action Edit */}
                     <button
-                      type="button"
-                      onClick={() => setEditingRitase(r)}
-                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                      title="Edit Rute & Status"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </button>
+  type="button"
+  onClick={() => {
+    setEditingRitase(r);
+    setEditingOriginal(r);
+  }}
+  className="inline-flex items-center gap-1 rounded-lg bg-blue-500 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+>
+  <Edit2 className="h-3.5 w-3.5" />
+  <span>Edit</span>
+</button>
 
                     {/* Delete action */}
                     {r.status !== "selesai" && (
                       <button
-                        type="button"
-                        onClick={() => handleDelete(r.id_ritase, r.kode_ritase)}
-                        className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-400"
-                        title="Hapus Ritase"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+  type="button"
+  onClick={() => handleDelete(r.id_ritase, r.kode_ritase)}
+  className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 dark:border-rose-700 dark:bg-slate-800 dark:text-rose-400 dark:hover:bg-rose-950/30"
+>
+  <Trash2 className="h-3.5 w-3.5" />
+  <span>Hapus</span>
+</button>
                     )}
                   </div>
                 </div>
 
                 {/* Timeline Stops */}
                 <div className="mt-4 space-y-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                    Urutan Rute Perjalanan ({(r.stops ?? []).length} Stop):
-                  </p>
+                 
                   <div className="relative pl-4 space-y-2.5 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
                     {(r.stops ?? []).map((stop) => (
                       <div key={stop.id_stop} className="relative flex items-center justify-between text-xs">
@@ -589,21 +630,14 @@ export default function JadwalPage() {
                             {stop.jenis_stop}
                           </span>
                         </div>
-                        {stop.keterangan && (
-                          <span className="text-[11px] text-slate-400 italic">
-                            {stop.keterangan}
-                          </span>
-                        )}
+                        
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-400 dark:border-slate-800">
-                <span>Tujuan Akhir: <strong className="text-slate-600 dark:text-slate-300">{r.nama_drop_point}</strong></span>
-                <span>Tanggal: {r.tanggal}</span>
-              </div>
+             
             </div>
           ))}
         </div>
@@ -616,10 +650,10 @@ export default function JadwalPage() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  + Buat Jadwal Ritase Manual
+                  Buat Jadwal Ritase Manual
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Pilih driver & lokasi terdaftar di database untuk alokasi tugas ritase baru
+                  Pilih driver & lokasi terdaftar untuk alokasi tugas ritase baru
                 </p>
               </div>
               <button
@@ -753,7 +787,7 @@ export default function JadwalPage() {
             handleSelectLocationOption(false, idx, masterOptions.sellers[0].id_seller);
           } else if (newType === "gudang" && masterOptions?.gudangs[0]) {
             handleSelectLocationOption(false, idx, masterOptions.gudangs[0].id_gudang);
-          } else if (newType === "drop_point" && masterOptions?.drop_points[0]) {
+          } else if (newType === "gateway" && masterOptions?.drop_points[0]) {
             handleSelectLocationOption(false, idx, masterOptions.drop_points[0].id_drop_point);
           }
         }}
@@ -761,7 +795,7 @@ export default function JadwalPage() {
       >
         <option value="gudang">Gudang</option>
         <option value="seller">Seller / Toko</option>
-        <option value="drop_point">Gateway</option>
+        <option value="gateway">Gateway</option>
       </select>
 
       {/* Select Option Terhubung Ke Database */}
@@ -826,7 +860,7 @@ export default function JadwalPage() {
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="inline-flex items-center gap-2 rounded-md bg-[#0c1e3a] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#16335a] disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-md bg-[#FEA103] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#E09102] disabled:opacity-50"
                 >
                   {createMutation.isPending ? (
                     <>
@@ -853,12 +887,12 @@ export default function JadwalPage() {
                   Edit Ritase & Rute Perjalanan - {editingRitase.kode_ritase}
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Ubah status, urutan ritase, atau atur lokasi tempat yang harus dikunjungi oleh {editingRitase.nama_driver}
+                  Ubah status, urutan ritase, atau atur lokasi tempat yang harus dikunjungi oleh {editingRitase.nama_driver} hari ini
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setEditingRitase(null)}
+                onClick={askCancelEdit}
                 className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 <X className="h-5 w-5" />
@@ -954,7 +988,7 @@ export default function JadwalPage() {
                             handleSelectLocationOption(true, idx, masterOptions.sellers[0].id_seller);
                           } else if (newType === "gudang" && masterOptions?.gudangs[0]) {
                             handleSelectLocationOption(true, idx, masterOptions.gudangs[0].id_gudang);
-                          } else if (newType === "drop_point" && masterOptions?.drop_points[0]) {
+                          } else if (newType === "gateway" && masterOptions?.drop_points[0]) {
                             handleSelectLocationOption(true, idx, masterOptions.drop_points[0].id_drop_point);
                           }
                         }}
@@ -962,7 +996,7 @@ export default function JadwalPage() {
                       >
 <option value="gudang">Gudang</option>
 <option value="seller">Seller / Toko</option>
-<option value="drop_point">Gateway</option>
+<option value="gateway">Gateway</option>
                       </select>
 
                       {/* Select Option Terhubung Ke Database */}
@@ -1019,7 +1053,7 @@ export default function JadwalPage() {
               <div className="mt-6 flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setEditingRitase(null)}
+                  onClick={askCancelEdit}
                   className="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   Batal
@@ -1027,7 +1061,7 @@ export default function JadwalPage() {
                 <button
                   type="submit"
                   disabled={updateMutation.isPending}
-                  className="inline-flex items-center gap-2 rounded-md bg-[#0c1e3a] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#16335a] disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-md bg-[#FEA103] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#E09102] disabled:opacity-50"
                 >
                   {updateMutation.isPending ? (
                     <>
@@ -1082,7 +1116,7 @@ export default function JadwalPage() {
                 type="button"
                 disabled={generateMutation.isPending}
                 onClick={handleGenerate}
-                className="inline-flex items-center gap-2 rounded-md bg-[#0c1e3a] px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-md bg-[#FEA103] px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-50"
               >
                 {generateMutation.isPending ? (
                   <>
@@ -1098,6 +1132,109 @@ export default function JadwalPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── MODAL KONFIRMASI GENERIK ── */}
+      {confirmBox && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-lg bg-white p-5 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+              <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+            </div>
+
+            <h3 className="mt-4 text-base font-bold text-slate-900 dark:text-white">
+              {confirmBox.title}
+            </h3>
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              {confirmBox.message}
+            </p>
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmBox(null)}
+                className="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                Tidak
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  confirmBox.onConfirm();
+                  setConfirmBox(null);
+                }}
+                className="inline-flex items-center gap-2 rounded-md bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-amber-700"
+              >
+                Ya, Lanjutkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL KONFIRMASI HAPUS ── */}
+      {deletingRitase && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-lg bg-white p-5 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/30">
+              <Trash2 className="h-6 w-6 text-rose-600 dark:text-rose-400" />
+            </div>
+            
+            <h3 className="mt-4 text-base font-bold text-slate-900 dark:text-white">
+              Hapus Ritase?
+            </h3>
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              Ritase <span className="font-semibold text-slate-700 dark:text-slate-200">{deletingRitase.kode}</span> akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+            </p>
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeletingRitase(null)}
+                className="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={deleteMutation.isPending}
+                className="inline-flex items-center gap-2 rounded-md bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <span>Menghapus...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Ya, Hapus</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TOAST NOTIFIKASI ── */}
+      {toast && (
+        <div
+          className={cn(
+            "fixed bottom-5 right-5 z-[80] flex max-w-sm items-start gap-2.5 rounded-lg border px-5 py-4 text-sm font-semibold shadow-lg",
+            toast.type === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/40 dark:text-emerald-300"
+              : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/40 dark:text-rose-300"
+          )}
+        >
+          {toast.type === "success" ? (
+            <CheckCircle2 className="h-5 w-5 shrink-0" />
+          ) : (
+            <AlertTriangle className="h-5 w-5 shrink-0" />
+          )}
+          <span className="leading-snug">{toast.text}</span>
         </div>
       )}
     </div>
@@ -1131,15 +1268,48 @@ function SearchSelect({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  const openDropdown = () => {
+    const btn = buttonRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    setPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    setQ("");
+    setOpen(true);
+  };
 
   // Tutup dropdown kalau klik di luar.
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      const inside =
+        (ref.current && ref.current.contains(t)) ||
+        (dropdownRef.current && dropdownRef.current.contains(t));
+      if (!inside) setOpen(false);
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  // Tutup dropdown saat scroll/resize supaya posisi tidak melenceng.
+  useEffect(() => {
+    if (!open) return;
+    const onScroll = (e: Event) => {
+      const t = e.target as Node;
+      if (dropdownRef.current && dropdownRef.current.contains(t)) return;
+      setOpen(false);
+    };
+    const onResize = () => setOpen(false);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onResize);
+    };
   }, [open]);
 
   const selected = options.find((o) => o.id === value);
@@ -1153,56 +1323,61 @@ function SearchSelect({
   return (
     <div ref={ref} className="relative min-w-0 flex-1">
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => {
-          setOpen((v) => !v);
-          setQ("");
-        }}
+        onClick={openDropdown}
         className="flex w-full items-center justify-between gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
       >
         <span className="min-w-0 truncate">{selected ? selected.label : placeholder}</span>
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
       </button>
 
-      {open && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
-          <div className="relative border-b border-slate-100 dark:border-slate-800">
-            <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-            <input
-              autoFocus
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Cari..."
-              className="w-full bg-transparent py-1.5 pl-7 pr-2 text-xs text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
-            />
-          </div>
-          <ul className="max-h-44 overflow-y-auto py-1">
-            {filtered.length === 0 ? (
-              <li className="px-3 py-2 text-xs text-slate-400">Tidak ditemukan</li>
-            ) : (
-              filtered.map((o) => (
-                <li key={o.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onChange(o.id);
-                      setOpen(false);
-                    }}
-                    className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
-                  >
-                    <span className="min-w-0 truncate font-medium text-slate-700 dark:text-slate-200">
-                      {o.label}
-                    </span>
-                    {o.sub && (
-                      <span className="shrink-0 text-[10px] text-slate-400">{o.sub}</span>
-                    )}
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
-      )}
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 70 }}
+            className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900"
+          >
+            <div className="relative border-b border-slate-100 dark:border-slate-800">
+              <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                autoFocus
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Cari..."
+                className="w-full bg-transparent py-1.5 pl-7 pr-2 text-xs text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
+              />
+            </div>
+            <ul className="max-h-44 overflow-y-auto py-1">
+              {filtered.length === 0 ? (
+                <li className="px-3 py-2 text-xs text-slate-400">Tidak ditemukan</li>
+              ) : (
+                filtered.map((o) => (
+                  <li key={o.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onChange(o.id);
+                        setOpen(false);
+                      }}
+                      className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
+                    >
+                      <span className="min-w-0 truncate font-medium text-slate-700 dark:text-slate-200">
+                        {o.label}
+                      </span>
+                      {o.sub && (
+                        <span className="shrink-0 text-[10px] text-slate-400">{o.sub}</span>
+                      )}
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

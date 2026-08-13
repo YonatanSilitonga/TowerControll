@@ -11,7 +11,6 @@ import {
   MapPin,
   Truck,
   Warehouse,
-  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROLE_MENU, ROLE_LABEL } from "@/lib/constants";
@@ -25,7 +24,7 @@ const NAV: { label: string; href: string; icon: React.ComponentType<{ className?
   { label: "Analitik", href: "/analitik", icon: BarChart3, key: "analitik" },
   { label: "Gudang", href: "/gudang", icon: Warehouse, key: "gudang" },
   { label: "Absensi", href: "/absensi", icon: ClipboardCheck, key: "absensi" },
-  { label: "Laporan", href: "/laporan", icon: FileText, key: "laporan" },
+  // { label: "Laporan", href: "/laporan", icon: FileText, key: "laporan" }, // di-hide sementara (masih pengembangan), aktifkan saat modul siap
 ];
 
 /** Item menu sesuai role — dipakai sidebar desktop & drawer mobile. */

@@ -423,7 +423,7 @@ function resolveStopPoint(
         icon: SELLER_ICON, kind: "seller",
       };
   }
-if (stop.jenis_stop === "drop_point" && stop.id_drop_point != null) {
+if ((stop.jenis_stop === "drop_point" || stop.jenis_stop === "gateway") && stop.id_drop_point != null) {
       const p = dropList.find((x) => x.id_drop_point === stop.id_drop_point);
       if (p)
         return {

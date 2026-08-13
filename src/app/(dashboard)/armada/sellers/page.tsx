@@ -126,8 +126,8 @@ export default function SellersPage() {
                   className={cn(
                     "inline-flex min-h-[44px] items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold sm:min-h-[30px]",
                     selectedId === s.id
-                      ? "border-[#0c1e3a] bg-[#0c1e3a] text-white"
-                      : "border-slate-200 bg-white text-[#0c1e3a] hover:bg-slate-50"
+                      ? "border-[#FEA103] bg-[#FEA103] text-white"
+                      : "border-slate-200 bg-white text-[#FEA103] hover:bg-slate-50"
                   )}
                 >
                   <MapPin className="h-3 w-3" /> Map

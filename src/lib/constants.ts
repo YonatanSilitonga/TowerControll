@@ -23,9 +23,9 @@ export const ROLE_LABEL: Record<UserRole, string> = {
 
 /** Mapping role -> modul yang boleh diakses (untuk menu & guard). */
 export const ROLE_MENU: Record<UserRole, string[]> = {
-  admin: ["dashboard", "armada", "jadwal", "analitik", "gudang", "absensi", "laporan"],
+  admin: ["dashboard", "armada", "jadwal", "analitik", "gudang", "absensi"],
   kapten: ["dashboard", "armada", "jadwal", "analitik"],
-  direktur: ["dashboard", "armada", "jadwal", "analitik", "laporan"],
+  direktur: ["dashboard", "armada", "jadwal", "analitik"],
   driver: ["dashboard", "armada"],
 };
 
@@ -92,7 +92,7 @@ export function statusLabel(status: string | undefined | null): string {
 
 /** Ambil label untuk jenis stop. */
 export function stopTypeLabel(jenis?: string): string {
-  if (jenis === "drop_point") return "Gateway";
+  if (jenis === "drop_point" || jenis === "gateway") return "Gateway";
   if (!jenis) return "-";
   return jenis.charAt(0).toUpperCase() + jenis.slice(1);
 }
