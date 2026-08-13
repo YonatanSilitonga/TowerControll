@@ -19,6 +19,7 @@ import {
   Zap,
 } from "lucide-react";
 import {
+  type PreviewRoute,
   useAdminMasterOptions,
   useAdminRitase,
   useCreateRitase,
@@ -47,6 +48,13 @@ export default function JadwalPage() {
   const [showGenerateModal, setShowGenerateModal] = useState<boolean>(false);
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [editingRitase, setEditingRitase] = useState<AdminRitaseItem | null>(null);
+  const [successToast, setSuccessToast] = useState<{ show: boolean; message: string; count?: number }>({ show: false, message: "" });
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; idRitase: number | null; kode: string }>({ show: false, idRitase: null, kode: "" });
+
+  const showSuccessToast = (message: string, count?: number) => {
+    setSuccessToast({ show: true, message, count });
+    setTimeout(() => setSuccessToast({ show: false, message: "" }), 4500);
+  };
 
   // Fetch Master Data Options (Drivers, Vehicles, Sellers, Drop Points, Gudangs)
   const { data: masterOptions } = useAdminMasterOptions();
@@ -78,18 +86,176 @@ export default function JadwalPage() {
   const updateMutation = useUpdateRitase();
   const deleteMutation = useDeleteRitase();
 
+  const [editableRoutes, setEditableRoutes] = useState<PreviewRoute[]>([]);
+
+  useEffect(() => {
+    if (previewData?.routes) {
+      setEditableRoutes(JSON.parse(JSON.stringify(previewData.routes)));
+    }
+  }, [previewData]);
+
+  const handleDriverChange = (routeIdx: number, driverId: number) => {
+    const updated = [...editableRoutes];
+    const driver = masterOptions?.drivers.find((d) => d.id_driver === driverId);
+    updated[routeIdx].id_driver = driverId;
+    updated[routeIdx].nama_driver = driver?.nama_driver || `Driver #${driverId}`;
+    setEditableRoutes(updated);
+  };
+
+  const handleVehicleChange = (routeIdx: number, vehicleId: number) => {
+    const updated = [...editableRoutes];
+    const vehicle = masterOptions?.kendaraan.find((v) => v.id_kendaraan === vehicleId);
+    updated[routeIdx].id_kendaraan = vehicleId;
+    updated[routeIdx].plat_nomor = vehicle?.plat_nomor || `Plat #${vehicleId}`;
+    setEditableRoutes(updated);
+  };
+
+  const handleRitaseKeChange = (routeIdx: number, ritaseKe: number) => {
+    const updated = [...editableRoutes];
+    updated[routeIdx].ritase_ke = ritaseKe;
+    setEditableRoutes(updated);
+  };
+
+  const handleRemoveRoute = (routeIdx: number) => {
+    setEditableRoutes(editableRoutes.filter((_, idx) => idx !== routeIdx));
+  };
+
+  const handleAddRoute = () => {
+    const defaultDriver = masterOptions?.drivers[0];
+    const defaultVehicle = masterOptions?.kendaraan[0];
+    const defaultGudang = masterOptions?.gudangs[0];
+    const defaultDp = masterOptions?.drop_points[0];
+
+    const newRoute: PreviewRoute = {
+      id_driver: defaultDriver?.id_driver ?? 1,
+      nama_driver: defaultDriver?.nama_driver ?? "Driver #1",
+      id_kendaraan: defaultVehicle?.id_kendaraan ?? 1,
+      plat_nomor: defaultVehicle?.plat_nomor ?? "B 1234 ABC",
+      ritase_ke: 1,
+      stops: [
+        {
+          urutan: 1,
+          jenis_stop: "gudang",
+          id_lokasi: defaultGudang?.id_gudang ?? 1,
+          nama_lokasi: defaultGudang?.nama_gudang ?? "Gudang Utama",
+          keterangan: "Muat barang",
+        },
+        {
+          urutan: 2,
+          jenis_stop: "drop_point",
+          id_lokasi: defaultDp?.id_drop_point ?? 1,
+          nama_lokasi: defaultDp?.nama_drop_point ?? "Drop Point 1",
+          keterangan: "Bongkar barang",
+        },
+      ],
+    };
+    setEditableRoutes([...editableRoutes, newRoute]);
+  };
+
+  const handleStopTypeChange = (routeIdx: number, stopIdx: number, newJenis: string) => {
+    const updated = [...editableRoutes];
+    const stop = updated[routeIdx].stops[stopIdx];
+    stop.jenis_stop = newJenis;
+
+    if (newJenis === "gudang") {
+      const g = masterOptions?.gudangs[0];
+      stop.id_lokasi = g?.id_gudang ?? 1;
+      stop.nama_lokasi = g?.nama_gudang ?? "Gudang";
+    } else if (newJenis === "seller") {
+      const s = masterOptions?.sellers[0];
+      stop.id_lokasi = s?.id_seller ?? 1;
+      stop.nama_lokasi = s?.nama_seller ?? "Seller";
+    } else {
+      const dp = masterOptions?.drop_points[0];
+      stop.id_lokasi = dp?.id_drop_point ?? 1;
+      stop.nama_lokasi = dp?.nama_drop_point ?? "Drop Point";
+    }
+    setEditableRoutes(updated);
+  };
+
+  const handleStopLocationChange = (routeIdx: number, stopIdx: number, idLokasi: number) => {
+    const updated = [...editableRoutes];
+    const stop = updated[routeIdx].stops[stopIdx];
+    stop.id_lokasi = idLokasi;
+
+    if (stop.jenis_stop === "gudang") {
+      const item = masterOptions?.gudangs.find((g) => g.id_gudang === idLokasi);
+      stop.nama_lokasi = item?.nama_gudang || "Gudang";
+    } else if (stop.jenis_stop === "seller") {
+      const item = masterOptions?.sellers.find((s) => s.id_seller === idLokasi);
+      stop.nama_lokasi = item?.nama_seller || "Seller";
+    } else {
+      const item = masterOptions?.drop_points.find((dp) => dp.id_drop_point === idLokasi);
+      stop.nama_lokasi = item?.nama_drop_point || "Drop Point";
+    }
+    setEditableRoutes(updated);
+  };
+
+  const handleStopKeteranganChange = (routeIdx: number, stopIdx: number, ket: string) => {
+    const updated = [...editableRoutes];
+    updated[routeIdx].stops[stopIdx].keterangan = ket;
+    setEditableRoutes(updated);
+  };
+
+  const handlePreviewAddStop = (routeIdx: number) => {
+    const updated = [...editableRoutes];
+    const route = updated[routeIdx];
+    const defaultGudang = masterOptions?.gudangs[0];
+    route.stops.push({
+      urutan: route.stops.length + 1,
+      jenis_stop: "gudang",
+      id_lokasi: defaultGudang?.id_gudang ?? 1,
+      nama_lokasi: defaultGudang?.nama_gudang ?? "Gudang",
+      keterangan: "Stop tambahan",
+    });
+    setEditableRoutes(updated);
+  };
+
+  const handlePreviewRemoveStop = (routeIdx: number, stopIdx: number) => {
+    const updated = [...editableRoutes];
+    updated[routeIdx].stops = updated[routeIdx].stops
+      .filter((_: unknown, idx: number) => idx !== stopIdx)
+      .map((s: PreviewRoute["stops"][0], idx: number) => ({ ...s, urutan: idx + 1 }));
+    setEditableRoutes(updated);
+  };
+
   const handleGenerate = () => {
-    generateMutation.mutate(undefined, {
-      onSuccess: () => {
+    const payload = {
+      routes: editableRoutes.map((r: PreviewRoute) => ({
+        id_driver: Number(r.id_driver),
+        id_kendaraan: Number(r.id_kendaraan),
+        id_drop_point: Number(
+          r.stops.find((s) => s.jenis_stop === "drop_point" || s.jenis_stop === "gateway")?.id_lokasi ?? 1
+        ),
+        ritase_ke: Number(r.ritase_ke),
+        stops: r.stops.map((s, idx: number) => ({
+          urutan: idx + 1,
+          jenis_stop: s.jenis_stop,
+          id_lokasi: Number(s.id_lokasi ?? 1),
+          keterangan: s.keterangan || "",
+        })),
+      })),
+    };
+
+    generateMutation.mutate(payload, {
+      onSuccess: (data) => {
         setShowGenerateModal(false);
+        const count = (data as { generated?: number })?.generated ?? editableRoutes.length;
+        showSuccessToast("Jadwal berhasil dibuat!", count);
+        refetch();
       },
     });
   };
 
   const handleDelete = (idRitase: number, kode: string) => {
-    if (confirm(`Apakah Anda yakin ingin menghapus ritase ${kode}?`)) {
-      deleteMutation.mutate(idRitase);
+    setDeleteConfirm({ show: true, idRitase, kode });
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirm.idRitase !== null) {
+      deleteMutation.mutate(deleteConfirm.idRitase);
     }
+    setDeleteConfirm({ show: false, idRitase: null, kode: "" });
   };
 
   const handleSaveEdit = (e: React.FormEvent) => {
@@ -310,7 +476,7 @@ export default function JadwalPage() {
               className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               <Plus className="h-4 w-4 text-slate-400" />
-              <span>+ Buat Jadwal Manual</span>
+              <span>Buat Jadwal Manual</span>
             </button>
 
             {/* Tombol Utama: 1-Klik Generate Otomatis */}
@@ -323,7 +489,7 @@ export default function JadwalPage() {
               className="inline-flex items-center justify-center gap-2 rounded-md bg-[#0c1e3a] px-5 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#16335a]"
             >
               <Zap className="h-4 w-4" />
-              <span>Generate Otomatis (1-Klik)</span>
+              <span>Buat Otomatis Seluruh Jadwal</span>
             </button>
           </div>
         }
@@ -982,7 +1148,6 @@ export default function JadwalPage() {
                           options={(masterOptions?.sellers ?? []).map((s) => ({
                             id: s.id_seller,
                             label: s.nama_seller,
-                            sub: s.kode_seller,
                           }))}
                         />
                       ) : stop.jenis_stop === "gudang" ? (
@@ -1003,7 +1168,6 @@ export default function JadwalPage() {
                           options={(masterOptions?.drop_points ?? []).map((dp) => ({
                             id: dp.id_drop_point,
                             label: dp.nama_drop_point,
-                            sub: dp.kode_dp,
                           }))}
                         />
                       )}
@@ -1052,87 +1216,261 @@ export default function JadwalPage() {
         </div>
       )}
 
+      {/* ── SUCCESS TOAST NOTIFICATION ── */}
+      {successToast.show && (
+        <div className="fixed bottom-6 right-6 z-[9999] flex items-start gap-3 rounded-2xl bg-[#0c1e3a] px-5 py-4 shadow-2xl shadow-slate-900/30 ring-1 ring-white/10 animate-in slide-in-from-bottom-4 fade-in duration-300">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
+            <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-white">Jadwal Berhasil Dibuat! 🎉</p>
+            {successToast.count !== undefined && (
+              <p className="mt-0.5 text-xs text-slate-300">
+                <span className="font-semibold text-emerald-400">{successToast.count} ritase</span> telah digenerate &amp; dikirim ke HP driver.
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => setSuccessToast({ show: false, message: "" })}
+            className="ml-2 text-slate-400 hover:text-white transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* ── DELETE CONFIRM MODAL ── */}
+      {deleteConfirm.show && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-[#0c1e3a] border border-slate-200 dark:border-slate-700/50">
+            <div className="bg-[#0c1e3a] px-6 py-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-500/20">
+                <Trash2 className="h-5 w-5 text-rose-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Hapus Ritase</h3>
+                <p className="text-xs text-blue-200/70">Tindakan ini tidak dapat dibatalkan</p>
+              </div>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Apakah Anda yakin ingin menghapus ritase{" "}
+                <span className="font-bold text-[#0c1e3a] dark:text-white">{deleteConfirm.kode}</span>?
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-700/50 bg-slate-50 dark:bg-[#0c1e3a]/80 px-6 py-3">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm({ show: false, idRitase: null, kode: "" })}
+                className="rounded-lg border border-slate-200 dark:border-slate-600 px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition-colors shadow-md"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── MODAL 1-KLIK GENERATE CONFIRMATION & PREVIEW ── */}
       {showGenerateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="flex w-11/12 max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800" style={{ maxHeight: '88vh' }}>
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/80">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm">
+          <div className="flex w-11/12 max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-[#0c1e3a] border border-slate-200 dark:border-slate-700/50" style={{ maxHeight: '90vh' }}>
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700/50 px-6 py-4 bg-[#0c1e3a]">
               <div className="flex items-center gap-3.5">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-500/20">
-                  <Zap className="h-6 w-6" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-white shadow-md">
+                  <Zap className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
-                    Preview Generate Rute Otomatis
+                  <h3 className="text-xl font-extrabold text-white">
+                    Preview &amp; Edit Tambah Rute Otomatis
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Sistem akan membuat <span className="font-bold text-indigo-600 dark:text-indigo-400">{previewData?.total_preview || 0}</span> jadwal ritase harian untuk tanggal <span className="font-bold text-slate-700 dark:text-slate-200">{todayStr}</span>.
+                  <p className="text-xs text-blue-200/80 mt-0.5">
+                    Anda dapat mengubah rute, driver, kendaraan, menambah/menghapus ritase atau perhentian sebelum disave untuk tanggal <span className="font-bold text-white">{todayStr}</span>.
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowGenerateModal(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300 transition-colors"
+                className="rounded-lg p-1.5 text-blue-200/60 hover:bg-white/10 hover:text-white transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 bg-slate-100/60 dark:bg-slate-950/60">
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-slate-950/80">
               {isFetchingPreview ? (
                 <div className="flex flex-col items-center justify-center py-20">
-                  <RefreshCw className="h-10 w-10 animate-spin text-indigo-600" />
+                  <RefreshCw className="h-10 w-10 animate-spin text-[#0c1e3a] dark:text-blue-400" />
                   <p className="mt-4 text-sm font-semibold text-slate-600 dark:text-slate-400">Memuat preview jadwal dari database...</p>
                 </div>
-              ) : previewData?.routes && previewData.routes.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                  {previewData.routes.map((route, idx) => (
-                    <div key={idx} className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 hover:border-indigo-200 dark:hover:border-indigo-900/50 transition-all">
-                      <div>
-                        <div className="flex items-start justify-between mb-4 border-b border-slate-100 pb-3.5 dark:border-slate-800/80">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                              <UserCheck className="h-4 w-4 text-indigo-500" />
-                              <span className="text-sm font-bold text-slate-800 dark:text-white">{route.nama_driver}</span>
+              ) : editableRoutes.length > 0 ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    {editableRoutes.map((route: PreviewRoute, rIdx: number) => (
+                      <div key={rIdx} className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-[#0f2847] hover:border-[#0c1e3a] dark:hover:border-blue-500/50 hover:shadow-md transition-all">
+                        <div>
+                          {/* Route Header Edit Controls */}
+                          <div className="mb-4 border-b border-slate-100 pb-3.5 dark:border-slate-700/50">
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-1.5 font-bold text-xs text-[#0c1e3a] dark:text-blue-300">
+                                <span>Ritase Ke-</span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={10}
+                                  value={route.ritase_ke}
+                                  onChange={(e) => handleRitaseKeChange(rIdx, parseInt(e.target.value) || 1)}
+                                  className="w-12 rounded border border-[#0c1e3a]/20 bg-[#0c1e3a]/5 px-1.5 py-0.5 text-center font-extrabold dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-200"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveRoute(rIdx)}
+                                className="flex items-center gap-1 text-[11px] font-semibold text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/50 px-2 py-1 rounded transition-colors"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                <span>Hapus</span>
+                              </button>
                             </div>
-                            <div className="flex items-center gap-2 text-xs">
-                              <Truck className="h-3.5 w-3.5 text-slate-400" />
-                              <span className="rounded-md bg-slate-100 px-2 py-0.5 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                                {route.plat_nomor}
-                              </span>
+
+                            {/* Driver Select */}
+                            <div className="mb-2">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Driver</label>
+                              <select
+                                value={route.id_driver}
+                                onChange={(e) => handleDriverChange(rIdx, parseInt(e.target.value))}
+                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                              >
+                                {masterOptions?.drivers.map((d) => (
+                                  <option key={d.id_driver} value={d.id_driver}>
+                                    {d.nama_driver} ({d.jabatan})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Vehicle Select */}
+                            <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Kendaraan</label>
+                              <select
+                                value={route.id_kendaraan}
+                                onChange={(e) => handleVehicleChange(rIdx, parseInt(e.target.value))}
+                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                              >
+                                {masterOptions?.kendaraan.map((v) => (
+                                  <option key={v.id_kendaraan} value={v.id_kendaraan}>
+                                    {v.plat_nomor} ({v.jenis_kendaraan})
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                           </div>
-                          <span className="rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs font-extrabold text-indigo-600 dark:bg-indigo-950/50 dark:border-indigo-900/40 dark:text-indigo-400 shadow-2xs">
-                            Ritase {route.ritase_ke}
-                          </span>
-                        </div>
-                        
-                        <div className="space-y-3 pl-1">
-                          {route.stops.map((stop, sidx) => (
-                            <div key={sidx} className="flex items-start gap-3 group">
-                              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100/80 text-[10px] font-extrabold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400 mt-0.5">
-                                {stop.urutan}
-                              </div>
-                              <div className="flex-1">
-                                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                                  {stop.nama_lokasi} <span className="ml-1.5 text-[9px] font-extrabold tracking-wider text-slate-400 dark:text-slate-500 uppercase bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">({stop.jenis_stop})</span>
-                                </p>
-                                {stop.keterangan && (
-                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">{stop.keterangan}</p>
-                                )}
-                              </div>
+
+                          {/* Stops Section */}
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Daftar Perhentian / Stops</span>
+                              <button
+                                type="button"
+                                onClick={() => handlePreviewAddStop(rIdx)}
+                                className="text-[11px] font-bold text-[#0c1e3a] dark:text-blue-400 hover:underline flex items-center gap-1"
+                              >
+                                <Plus className="h-3 w-3" /> Tambah Stop
+                              </button>
                             </div>
-                          ))}
+
+                            {route.stops.map((stop: PreviewRoute["stops"][0], sIdx: number) => (
+                              <div key={sIdx} className="rounded-lg border border-slate-100 bg-slate-50/80 p-2.5 dark:border-slate-700/50 dark:bg-[#0c1e3a]/40 space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0c1e3a] dark:bg-blue-700 text-[10px] font-bold text-white">
+                                    {sIdx + 1}
+                                  </span>
+
+                                  {/* Stop Type Select */}
+                                  <select
+                                    value={stop.jenis_stop}
+                                    onChange={(e) => handleStopTypeChange(rIdx, sIdx, e.target.value)}
+                                    className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                  >
+                                    <option value="gudang">GUDANG</option>
+                                    <option value="seller">SELLER</option>
+                                    <option value="drop_point">DROP POINT</option>
+                                  </select>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePreviewRemoveStop(rIdx, sIdx)}
+                                    className="text-slate-400 hover:text-rose-500 p-0.5"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+
+                                {/* Location Select */}
+                                <select
+                                  value={stop.id_lokasi ?? 1}
+                                  onChange={(e) => handleStopLocationChange(rIdx, sIdx, parseInt(e.target.value))}
+                                  className="w-full rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                >
+                                  {stop.jenis_stop === "gudang" &&
+                                    masterOptions?.gudangs.map((g) => (
+                                      <option key={g.id_gudang} value={g.id_gudang}>
+                                        {g.nama_gudang}
+                                      </option>
+                                    ))}
+                                  {stop.jenis_stop === "seller" &&
+                                    masterOptions?.sellers.map((s) => (
+                                      <option key={s.id_seller} value={s.id_seller}>
+                                        {s.nama_seller}
+                                      </option>
+                                    ))}
+                                  {stop.jenis_stop !== "gudang" && stop.jenis_stop !== "seller" &&
+                                    masterOptions?.drop_points.map((dp) => (
+                                      <option key={dp.id_drop_point} value={dp.id_drop_point}>
+                                        {dp.nama_drop_point}
+                                      </option>
+                                    ))}
+                                </select>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+
+                  <div className="flex justify-center pt-2">
+                    <button
+                      type="button"
+                      onClick={handleAddRoute}
+                      className="inline-flex items-center gap-2 rounded-xl border border-dashed border-[#0c1e3a]/30 bg-[#0c1e3a]/5 px-6 py-3 text-xs font-bold text-[#0c1e3a] hover:bg-[#0c1e3a]/10 dark:border-blue-700/50 dark:bg-blue-950/40 dark:text-blue-300 transition-colors"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>Tambah Jadwal Ritase Baru</span>
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <Layers className="h-10 w-10 text-slate-300 mb-3" />
-                  <p className="text-sm font-semibold text-slate-500">Tidak ada preview template ritase.</p>
+                  <p className="text-sm font-semibold text-slate-500 mb-4">Tidak ada preview template ritase.</p>
+                  <button
+                    type="button"
+                    onClick={handleAddRoute}
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#0c1e3a] px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#16335a]"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Buat Jadwal Pertama</span>
+                  </button>
                 </div>
               )}
 
@@ -1143,28 +1481,28 @@ export default function JadwalPage() {
               )}
             </div>
 
-            <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-4 dark:border-slate-800 dark:bg-slate-900">
-              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                * Rute akan langsung otomatis dikirimkan ke aplikasi seluruh driver aktif
+            <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-700/50 bg-white dark:bg-[#0c1e3a] px-6 py-4">
+              <div className="text-xs text-slate-500 dark:text-blue-200/60 font-medium">
+                * Total <span className="font-bold text-[#0c1e3a] dark:text-blue-300">{editableRoutes.length}</span> ritase siap disave &amp; dikirim ke HP driver
               </div>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setShowGenerateModal(false)}
-                  className="rounded-lg border border-slate-200 px-5 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
+                  className="rounded-lg border border-slate-200 dark:border-slate-600 px-5 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="button"
-                  disabled={generateMutation.isPending || isFetchingPreview}
+                  disabled={generateMutation.isPending || isFetchingPreview || editableRoutes.length === 0}
                   onClick={handleGenerate}
-                  className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-indigo-500/20 disabled:opacity-50 hover:bg-indigo-700 transition-all"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#0c1e3a] dark:bg-white px-6 py-2.5 text-xs font-bold text-white dark:text-[#0c1e3a] shadow-md disabled:opacity-50 hover:bg-[#16335a] dark:hover:bg-slate-100 transition-all"
                 >
                   {generateMutation.isPending ? (
                     <>
                       <RefreshCw className="h-4 w-4 animate-spin" />
-                      <span>Generating...</span>
+                      <span>Sedang Membuat</span>
                     </>
                   ) : (
                     <>
@@ -1182,7 +1520,6 @@ export default function JadwalPage() {
   );
 }
 
-/** Banner error mutation — tampil kalau request backend gagal. */
 function MutationError({ error }: { error: unknown }) {
   if (!error) return null;
   const msg =
@@ -1224,8 +1561,8 @@ function SearchSelect({
   const ql = q.trim().toLowerCase();
   const filtered = ql
     ? options.filter((o) =>
-        `${o.label} ${o.sub ?? ""}`.toLowerCase().includes(ql)
-      )
+      `${o.label} ${o.sub ?? ""}`.toLowerCase().includes(ql)
+    )
     : options;
 
   return (

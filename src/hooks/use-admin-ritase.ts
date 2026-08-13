@@ -46,6 +46,7 @@ export interface PreviewRoute {
 export interface PreviewStop {
   urutan: number;
   jenis_stop: string;
+  id_lokasi?: number;
   nama_lokasi: string;
   keterangan: string;
 }
@@ -71,7 +72,8 @@ export function useGenerateDailyRitase() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => post<{ total_generated: number; message: string }>("/admin/ritase/generate", {}, { token }),
+    mutationFn: (payload?: { routes: unknown[] }) =>
+      post<{ total_generated: number; message: string }>("/admin/ritase/generate", payload ?? {}, { token }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-ritases"] });
     },
