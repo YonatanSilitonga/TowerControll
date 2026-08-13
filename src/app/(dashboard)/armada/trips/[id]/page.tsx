@@ -5,13 +5,14 @@ import {
   BarChart3,
   Clock,
   Flag,
-  ListChecks,
-  MapPin,
-  PackageCheck,
-  PackageSearch,
-  Timer,
-  Truck,
-  User,
+   ListChecks,
+   MapPin,
+   PackageCheck,
+   PackageSearch,
+  RadioTower,
+   Timer,
+   Truck,
+   User,
 } from "lucide-react";
 import {
   Card,
@@ -24,14 +25,29 @@ import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { RuteStepper } from "@/components/armada/rute-stepper";
 import { ArmadaTabs } from "@/components/armada/armada-tabs";
+import dynamic from "next/dynamic";
+import { TripMapSkeleton } from "@/components/armada/trip-map";
+
+const TripMap = dynamic(() => import("@/components/armada/trip-map").then(m => m.TripMap), {
+  ssr: false,
+  loading: () => <TripMapSkeleton />,
+});
+
+
 import { DriverSummary, summarizeEvents } from "@/components/armada/driver-summary";
 import { StatusTimeline } from "@/components/armada/status-timeline";
 import { InfoTip } from "@/components/ui/info-tip";
 import { useRitaseDetail } from "@/hooks/use-armada";
+import { useTrackingMap } from "@/hooks/use-tracking";
+import { displayTrackingStatus, statusLabel } from "@/lib/constants";
 import { cn, formatDateDMY, formatDur, formatNumber } from "@/lib/utils";
+
 
 export default function RitaseDetailPage({ params }: { params: { id: string } }) {
   const { data, isLoading } = useRitaseDetail(params.id);
+  const { data: mapData } = useTrackingMap();
+
+  const vehicle = mapData?.vehicles.find(v => v.id_kendaraan === data?.id_kendaraan);
 
   if (isLoading) {
     return (
@@ -107,28 +123,49 @@ export default function RitaseDetailPage({ params }: { params: { id: string } })
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Info icon={<User className="h-4 w-4" />} label="Driver" value={data.nama_driver} />
-          <Info icon={<Truck className="h-4 w-4" />} label="Kendaraan" value={data.plat_nomor} />
-          <Info
-            icon={<Clock className="h-4 w-4" />}
-            label="Jadwal RIT"
-            value={data.jam_mulai && data.jam_selesai ? `${data.jam_mulai} – ${data.jam_selesai}` : "-"}
-          />
-          <Info icon={<PackageSearch className="h-4 w-4" />} label="Status" value={data.status} />
-        </CardContent>
-      </Card>
+           <Info icon={<Truck className="h-4 w-4" />} label="Kendaraan" value={data.plat_nomor} />
+          {vehicle && (
+            <Info
+              icon={<RadioTower className="h-4 w-4" />}
+              label="Status Live"
+              value={displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update)}
+            />
+          )}
+           <Info
+             icon={<Clock className="h-4 w-4" />}
+             label="Jadwal RIT"
+             value={data.jam_mulai && data.jam_selesai ? `${data.jam_mulai} – ${data.jam_selesai}` : "-"}
+           />
+          <Info icon={<PackageSearch className="h-4 w-4" />} label="Status Ritase" value={statusLabel(data.status)} />
+         </CardContent>
+       </Card>
 
       {/* Rute */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-sm font-semibold">
             <MapPin className="h-4 w-4" /> Rute
-            <InfoTip text="Urutan perjalanan ritase: gudang → seller → drop point." />
+            <InfoTip text="Urutan perjalanan ritase: gudang → seller → gateway." />
           </CardTitle>
         </CardHeader>
         <CardContent>
           <RuteStepper stops={data.stops ?? []} />
         </CardContent>
       </Card>
+
+      {/* Peta Perjalanan */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <MapPin className="h-4 w-4" /> Peta Perjalanan
+            <InfoTip text="Visualisasi rute perjalanan antar titik." />
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TripMap stops={data.stops ?? []} events={data.events ?? []} />
+        </CardContent>
+      </Card>
+
 
       {/* Statistik Ritase */}
       <Card className="overflow-hidden">
@@ -142,9 +179,9 @@ export default function RitaseDetailPage({ params }: { params: { id: string } })
           {/* Ringkasan angka */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
             <StatTile icon={<Timer className="h-4 w-4" />} label="Total Durasi" value={formatDur(sum.total)} tip="Total waktu dari seluruh event status." />
-            <StatTile icon={<ListChecks className="h-4 w-4" />} label="Titik Rute" value={formatNumber(totalTitik)} tip="Total titik dalam rute: gudang + seller + drop point." />
+            <StatTile icon={<ListChecks className="h-4 w-4" />} label="Titik Rute" value={formatNumber(totalTitik)} tip="Total titik dalam rute: gudang + seller + gateway." />
             <StatTile icon={<PackageCheck className="h-4 w-4" />} label="Seller" value={formatNumber(nSeller)} tip="Jumlah seller yang dikunjungi." />
-            <StatTile icon={<Flag className="h-4 w-4" />} label="Drop Point" value={formatNumber(nDrop)} tip="Jumlah drop point / gateway tujuan." />
+            <StatTile icon={<Flag className="h-4 w-4" />} label="Gateway" value={formatNumber(nDrop)} tip="Jumlah gateway tujuan." />
             <StatTile icon={<Clock className="h-4 w-4" />} label="Event Status" value={formatNumber((data.events ?? []).length)} tip="Jumlah update status yang tercatat." />
           </div>
 
@@ -180,7 +217,7 @@ export default function RitaseDetailPage({ params }: { params: { id: string } })
               <i className="h-2 w-2 rounded-full bg-emerald-500" /> Seller {formatNumber(nSeller)}
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
-              <i className="h-2 w-2 rounded-full bg-orange-500" /> Drop {formatNumber(nDrop)}
+              <i className="h-2 w-2 rounded-full bg-orange-500" /> Gateway {formatNumber(nDrop)}
             </span>
           </div>
 

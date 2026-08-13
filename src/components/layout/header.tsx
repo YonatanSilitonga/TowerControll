@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, KeyRound, LogOut, X } from "lucide-react";
+import { KeyRound, LogOut, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,8 +16,29 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ROLE_LABEL, USE_MOCK } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth-store";
+import { useRealtimeStore } from "@/stores/realtime-store";
 import { changePasswordRequest } from "@/lib/auth";
 import { MobileNav } from "@/components/layout/mobile-nav";
+
+/** Badge kecil status koneksi realtime (SSE). */
+function RealtimeBadge() {
+  const status = useRealtimeStore((s) => s.status);
+  const cfg =
+    status === "connected"
+      ? { label: "LIVE", dot: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" }
+      : status === "reconnecting" || status === "connecting"
+        ? { label: "MENGHUBUNGKAN", dot: "bg-amber-500 animate-pulse", text: "text-amber-700", bg: "bg-amber-50 border-amber-200" }
+        : { label: "OFFLINE", dot: "bg-slate-400", text: "text-slate-500", bg: "bg-slate-100 border-slate-200" };
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cfg.bg} ${cfg.text}`}
+      title="Koneksi data realtime (push server)"
+    >
+      <i className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+      {cfg.label}
+    </span>
+  );
+}
 
 export function Header() {
   const router = useRouter();
@@ -84,14 +105,10 @@ export function Header() {
             Mock
           </span>
         )}
+        <RealtimeBadge />
       </div>
 
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="relative text-slate-500">
-          <Bell className="h-[18px] w-[18px]" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-emerald-500" />
-        </Button>
-
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 rounded-full outline-none">

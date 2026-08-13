@@ -7,8 +7,9 @@ import type { TrackingCheckpoint, TrackingMap } from "@/types/armada";
 
 const tokenSelector = (s: { token: string | null }) => s.token;
 
-/** Interval polling peta live (ms). Lebih rapat daripada dashboard karena posisi truk. */
-export const LIVE_MAP_POLL_INTERVAL = 10_000;
+/** Interval polling peta live (fallback). Data utama datang via SSE — polling
+ *  cuma jaring pengaman kalau koneksi realtime putus. */
+export const LIVE_MAP_POLL_INTERVAL = 60_000;
 
 /** Data peta live: posisi terbaru setiap kendaraan + lokasi seller. */
 export function useTrackingMap() {
@@ -22,7 +23,8 @@ export function useTrackingMap() {
 }
 
 /** Riwayat status (checkpoint) untuk satu kendaraan, opsional filter tanggal (YYYY-MM-DD).
- *  Auto-refresh tiap 15s biar timeline ikut update saat ada event baru. */
+ *  Auto-refresh tiap 15s biar timeline ikut update saat ada event baru.
+ *  (Belum di-push SSE — per-kendaraan & jarang berubah, polling 15s cukup.) */
 export function useTrackingHistory(idKendaraan: number | null, tanggal?: string) {
   const token = useAuthStore(tokenSelector);
   return useQuery({
@@ -33,6 +35,5 @@ export function useTrackingHistory(idKendaraan: number | null, tanggal?: string)
         query: { kendaraan_id: idKendaraan ?? undefined, tanggal },
       }),
     enabled: !!token && idKendaraan != null,
-    refetchInterval: 15_000,
   });
 }

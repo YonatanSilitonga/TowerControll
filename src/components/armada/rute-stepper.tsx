@@ -2,6 +2,7 @@
 
 import { ArrowRight, Package, Warehouse } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { stopTypeLabel } from "@/lib/constants";
 import type { RitaseStop } from "@/types/armada";
 
 function stopTitle(stop: RitaseStop): string {
@@ -17,6 +18,7 @@ function stopTone(stop: RitaseStop): string {
     case "seller":
       return "border-amber-300 bg-amber-50 text-amber-800";
     case "drop_point":
+    case "gateway":
       return "border-emerald-300 bg-emerald-50 text-emerald-800";
     default:
       return "border-slate-300 bg-slate-100 text-slate-700";
@@ -28,6 +30,7 @@ function stopIcon(stop: RitaseStop) {
     case "seller":
       return <Package className="h-3.5 w-3.5" />;
     case "drop_point":
+    case "gateway":
       return <span className="text-[9px] font-bold">GTW</span>;
     default:
       return <Warehouse className="h-3.5 w-3.5" />;
@@ -49,7 +52,7 @@ export function RuteStepper({ stops }: { stops: RitaseStop[] }) {
             </span>
             <div className="leading-tight">
               <p className="text-xs font-semibold">{stopTitle(stop)}</p>
-              <p className="text-[10px] capitalize opacity-70">{stop.jenis_stop}</p>
+              <p className="text-[10px] capitalize opacity-70">{stopTypeLabel(stop.jenis_stop)}</p>
             </div>
           </div>
           {i < stops.length - 1 && <ArrowRight className="h-4 w-4 shrink-0 text-slate-400" />}

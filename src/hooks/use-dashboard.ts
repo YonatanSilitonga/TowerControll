@@ -2,14 +2,16 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { get } from "@/lib/api-client";
-import { POLL_INTERVAL } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth-store";
 import type { DashboardAnalisis, DashboardSummary } from "@/types/dashboard";
 
 /**
- * Dashboard Keseluruhan — polling otomatis tiap POLL_INTERVAL ms.
- * Siap di-upgrade ke WebSocket nanti.
+ * Dashboard Keseluruhan — fallback polling tiap FALLBACK_POLL_MS.
+ * Data utama datang via SSE (RealtimeSync) — polling cuma jaring pengaman
+ * kalau koneksi realtime putus. Initial fetch tetap via useQuery.
  */
+export const FALLBACK_POLL_MS = 60_000;
+
 export function useDashboardSummary() {
   const token = useAuthStore((s) => s.token);
 
@@ -17,7 +19,7 @@ export function useDashboardSummary() {
     queryKey: ["dashboard-summary"],
     queryFn: () => get<DashboardSummary>("/dashboard/summary", { token }),
     enabled: !!token,
-    refetchInterval: POLL_INTERVAL,
+    refetchInterval: FALLBACK_POLL_MS,
   });
 }
 
@@ -29,6 +31,6 @@ export function useDashboardAnalisis() {
     queryKey: ["dashboard-analisis"],
     queryFn: () => get<DashboardAnalisis>("/dashboard/analisis", { token }),
     enabled: !!token,
-    refetchInterval: POLL_INTERVAL,
+    refetchInterval: FALLBACK_POLL_MS,
   });
 }

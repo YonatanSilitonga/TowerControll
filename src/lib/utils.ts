@@ -6,8 +6,11 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /** Format angka ke format ID (1.234). */
-export function formatNumber(value: number): string {
-  return new Intl.NumberFormat("id-ID").format(value);
+export function formatNumber(value: number, fractionDigits?: number): string {
+  return new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(value);
 }
 
 /** Format mata uang IDR. */

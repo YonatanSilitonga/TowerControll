@@ -182,7 +182,7 @@ export default function VehicleDetailPage({ params }: { params: { id: string } }
         <button
           type="button"
           onClick={() => router.push(`/armada/live-map?kendaraan=${vehicle.id_kendaraan}`)}
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-[#0c1e3a] px-3 py-2 text-sm font-semibold text-white hover:bg-[#16335a]"
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-[#FEA103] px-3 py-2 text-sm font-semibold text-white hover:bg-[#E09102]"
         >
           <MapPin className="h-4 w-4" /> Lihat di peta
         </button>

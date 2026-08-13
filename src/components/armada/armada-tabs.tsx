@@ -27,8 +27,8 @@ export function ArmadaTabs() {
             className={cn(
               "rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors",
               active
-                ? "bg-[#0c1e3a] text-white shadow-sm"
-                : "text-slate-600 hover:bg-white hover:text-[#0c1e3a]"
+                ? "bg-[#FEA103] text-white shadow-sm"
+                : "text-slate-600 hover:bg-white hover:text-[#FEA103]"
             )}
           >
             {t.label}
