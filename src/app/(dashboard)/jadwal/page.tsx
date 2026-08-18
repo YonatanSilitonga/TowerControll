@@ -747,34 +747,34 @@ export default function JadwalPage() {
 
                     {/* Action Edit */}
                     <button
-  type="button"
-  onClick={() => {
-    setEditingRitase(r);
-    setEditingOriginal(r);
-  }}
-  className="inline-flex items-center gap-1 rounded-lg bg-blue-500 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
->
-  <Edit2 className="h-3.5 w-3.5" />
-  <span>Edit</span>
-</button>
+                      type="button"
+                      onClick={() => {
+                        setEditingRitase(r);
+                        setEditingOriginal(r);
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg bg-blue-500 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                      <span>Edit</span>
+                    </button>
 
                     {/* Delete action */}
                     {r.status !== "selesai" && (
                       <button
-  type="button"
-  onClick={() => handleDelete(r.id_ritase, r.kode_ritase)}
-  className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 dark:border-rose-700 dark:bg-slate-800 dark:text-rose-400 dark:hover:bg-rose-950/30"
->
-  <Trash2 className="h-3.5 w-3.5" />
-  <span>Hapus</span>
-</button>
+                        type="button"
+                        onClick={() => handleDelete(r.id_ritase, r.kode_ritase)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 dark:border-rose-700 dark:bg-slate-800 dark:text-rose-400 dark:hover:bg-rose-950/30"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Hapus</span>
+                      </button>
                     )}
                   </div>
                 </div>
 
                 {/* Timeline Stops */}
                 <div className="mt-4 space-y-2">
-                 
+
                   <div className="relative pl-4 space-y-2.5 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
                     {(r.stops ?? []).map((stop) => (
                       <div key={stop.id_stop} className="relative flex items-center justify-between text-xs">
@@ -789,20 +789,20 @@ export default function JadwalPage() {
                             {stop.jenis_stop}
                           </span>
                         </div>
-                        
+
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
 
-             
+
             </div>
           ))}
         </div>
       )}
 
-      
+
       {/* ── MODAL 1-KLIK GENERATE CONFIRMATION & PREVIEW ── */}
       {showGenerateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm">
@@ -1113,124 +1113,124 @@ export default function JadwalPage() {
                 </div>
 
                 <div>
-<label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-  Gateway Tujuan Akhir
-</label>
-<select
-  value={newRitase.id_drop_point}
-  onChange={(e) => setNewRitase({ ...newRitase, id_drop_point: parseInt(e.target.value, 10) })}
-  className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
->
-  {masterOptions?.drop_points.map((dp) => (
-    <option key={dp.id_drop_point} value={dp.id_drop_point}>
-      {dp.nama_drop_point} ({dp.kode_dp})
-    </option>
-  ))}
-</select>
-</div>
-</div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Gateway Tujuan Akhir
+                  </label>
+                  <select
+                    value={newRitase.id_drop_point}
+                    onChange={(e) => setNewRitase({ ...newRitase, id_drop_point: parseInt(e.target.value, 10) })}
+                    className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  >
+                    {masterOptions?.drop_points.map((dp) => (
+                      <option key={dp.id_drop_point} value={dp.id_drop_point}>
+                        {dp.nama_drop_point} ({dp.kode_dp})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-{/* Stops Editor for Create Modal */}
-<div className="space-y-3 pt-2">
-<div className="flex items-center justify-between">
-  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-    Urutan Stop Tempat Perjalanan ({newRitase.stops.length}):
-  </label>
-  <button
-    type="button"
-    onClick={() => handleAddStop(false)}
-    className="inline-flex items-center gap-1 rounded-lg bg-[#0c1e3a]/10 px-2.5 py-1 text-xs font-bold text-[#0c1e3a] hover:bg-[#0c1e3a]/20 dark:text-slate-400"
-  >
-    <Plus className="h-3.5 w-3.5" /> Tambah Stop
-  </button>
-</div>
+              {/* Stops Editor for Create Modal */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Urutan Stop Tempat Perjalanan ({newRitase.stops.length}):
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleAddStop(false)}
+                    className="inline-flex items-center gap-1 rounded-lg bg-[#0c1e3a]/10 px-2.5 py-1 text-xs font-bold text-[#0c1e3a] hover:bg-[#0c1e3a]/20 dark:text-slate-400"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Tambah Stop
+                  </button>
+                </div>
 
-<div className="space-y-2">
-  {newRitase.stops.map((stop, idx) => (
-    <div
-      key={stop.id_stop || idx}
-      className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/50"
-    >
-      <div className="flex items-center gap-1">
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#0c1e3a] text-xs font-bold text-white">
-          {idx + 1}
-        </span>
-        <div className="flex flex-col">
-          <button
-            type="button"
-            disabled={idx === 0}
-            onClick={() => handleMoveStop(false, idx, "up")}
-            className="p-0.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 dark:hover:text-slate-200"
-          >
-            <ArrowUp className="h-3 w-3" />
-          </button>
-          <button
-            type="button"
-            disabled={idx === newRitase.stops.length - 1}
-            onClick={() => handleMoveStop(false, idx, "down")}
-            className="p-0.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 dark:hover:text-slate-200"
-          >
-            <ArrowDown className="h-3 w-3" />
-          </button>
-        </div>
-      </div>
+                <div className="space-y-2">
+                  {newRitase.stops.map((stop, idx) => (
+                    <div
+                      key={stop.id_stop || idx}
+                      className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/50"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#0c1e3a] text-xs font-bold text-white">
+                          {idx + 1}
+                        </span>
+                        <div className="flex flex-col">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => handleMoveStop(false, idx, "up")}
+                            className="p-0.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 dark:hover:text-slate-200"
+                          >
+                            <ArrowUp className="h-3 w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === newRitase.stops.length - 1}
+                            onClick={() => handleMoveStop(false, idx, "down")}
+                            className="p-0.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 dark:hover:text-slate-200"
+                          >
+                            <ArrowDown className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
 
-      {/* Tipe Stop */}
-      <select
-        value={stop.jenis_stop}
-        onChange={(e) => {
-          const newType = e.target.value;
-          handleUpdateStopField(false, idx, "jenis_stop", newType);
-          // Auto set default ID from DB
-          if (newType === "seller" && masterOptions?.sellers[0]) {
-            handleSelectLocationOption(false, idx, masterOptions.sellers[0].id_seller);
-          } else if (newType === "gudang" && masterOptions?.gudangs[0]) {
-            handleSelectLocationOption(false, idx, masterOptions.gudangs[0].id_gudang);
-          } else if (newType === "gateway" && masterOptions?.drop_points[0]) {
-            handleSelectLocationOption(false, idx, masterOptions.drop_points[0].id_drop_point);
-          }
-        }}
-        className="rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-      >
-        <option value="gudang">Gudang</option>
-        <option value="seller">Seller / Toko</option>
-        <option value="gateway">Gateway</option>
-      </select>
+                      {/* Tipe Stop */}
+                      <select
+                        value={stop.jenis_stop}
+                        onChange={(e) => {
+                          const newType = e.target.value;
+                          handleUpdateStopField(false, idx, "jenis_stop", newType);
+                          // Auto set default ID from DB
+                          if (newType === "seller" && masterOptions?.sellers[0]) {
+                            handleSelectLocationOption(false, idx, masterOptions.sellers[0].id_seller);
+                          } else if (newType === "gudang" && masterOptions?.gudangs[0]) {
+                            handleSelectLocationOption(false, idx, masterOptions.gudangs[0].id_gudang);
+                          } else if (newType === "gateway" && masterOptions?.drop_points[0]) {
+                            handleSelectLocationOption(false, idx, masterOptions.drop_points[0].id_drop_point);
+                          }
+                        }}
+                        className="rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                      >
+                        <option value="gudang">Gudang</option>
+                        <option value="seller">Seller / Toko</option>
+                        <option value="gateway">Gateway</option>
+                      </select>
 
-      {/* Select Option Terhubung Ke Database */}
-      {stop.jenis_stop === "seller" ? (
-        <SearchSelect
-          value={stop.id_seller}
-          onChange={(id) => handleSelectLocationOption(false, idx, id)}
-          placeholder="Pilih seller..."
-          options={(masterOptions?.sellers ?? []).map((s) => ({
-            id: s.id_seller,
-            label: s.nama_seller,
-            sub: s.kode_seller,
-          }))}
-        />
-      ) : stop.jenis_stop === "gudang" ? (
-        <SearchSelect
-          value={stop.id_gudang}
-          onChange={(id) => handleSelectLocationOption(false, idx, id)}
-          placeholder="Pilih gudang..."
-          options={(masterOptions?.gudangs ?? []).map((g) => ({
-            id: g.id_gudang,
-            label: g.nama_gudang,
-          }))}
-        />
-      ) : (
-        <SearchSelect
-          value={stop.id_drop_point}
-          onChange={(id) => handleSelectLocationOption(false, idx, id)}
-          placeholder="Pilih gateway..."
-          options={(masterOptions?.drop_points ?? []).map((dp) => ({
-            id: dp.id_drop_point,
-            label: dp.nama_drop_point,
-            sub: dp.kode_dp,
-          }))}
-        />
-      )}
+                      {/* Select Option Terhubung Ke Database */}
+                      {stop.jenis_stop === "seller" ? (
+                        <SearchSelect
+                          value={stop.id_seller}
+                          onChange={(id) => handleSelectLocationOption(false, idx, id)}
+                          placeholder="Pilih seller..."
+                          options={(masterOptions?.sellers ?? []).map((s) => ({
+                            id: s.id_seller,
+                            label: s.nama_seller,
+                            sub: s.kode_seller,
+                          }))}
+                        />
+                      ) : stop.jenis_stop === "gudang" ? (
+                        <SearchSelect
+                          value={stop.id_gudang}
+                          onChange={(id) => handleSelectLocationOption(false, idx, id)}
+                          placeholder="Pilih gudang..."
+                          options={(masterOptions?.gudangs ?? []).map((g) => ({
+                            id: g.id_gudang,
+                            label: g.nama_gudang,
+                          }))}
+                        />
+                      ) : (
+                        <SearchSelect
+                          value={stop.id_drop_point}
+                          onChange={(id) => handleSelectLocationOption(false, idx, id)}
+                          placeholder="Pilih gateway..."
+                          options={(masterOptions?.drop_points ?? []).map((dp) => ({
+                            id: dp.id_drop_point,
+                            label: dp.nama_drop_point,
+                            sub: dp.kode_dp,
+                          }))}
+                        />
+                      )}
 
                       <button
                         type="button"
@@ -1393,9 +1393,9 @@ export default function JadwalPage() {
                         }}
                         className="rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                       >
-<option value="gudang">Gudang</option>
-<option value="seller">Seller / Toko</option>
-<option value="gateway">Gateway</option>
+                        <option value="gudang">Gudang</option>
+                        <option value="seller">Seller / Toko</option>
+                        <option value="gateway">Gateway</option>
                       </select>
 
                       {/* Select Option Terhubung Ke Database */}
@@ -1524,7 +1524,7 @@ export default function JadwalPage() {
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/30">
               <Trash2 className="h-6 w-6 text-rose-600 dark:text-rose-400" />
             </div>
-            
+
             <h3 className="mt-4 text-base font-bold text-slate-900 dark:text-white">
               Hapus Ritase?
             </h3>
@@ -1679,8 +1679,8 @@ function SearchSelect({
   const ql = q.trim().toLowerCase();
   const filtered = ql
     ? options.filter((o) =>
-        `${o.label} ${o.sub ?? ""}`.toLowerCase().includes(ql)
-      )
+      `${o.label} ${o.sub ?? ""}`.toLowerCase().includes(ql)
+    )
     : options;
 
   return (
