@@ -267,6 +267,16 @@ export default function JadwalPage() {
     setEditableRoutes(updated);
   };
 
+  const handlePreviewMoveStop = (routeIdx: number, index: number, direction: "up" | "down") => {
+    const updated = [...editableRoutes];
+    const stops = [...updated[routeIdx].stops];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= stops.length) return;
+    [stops[index], stops[targetIndex]] = [stops[targetIndex], stops[index]];
+    updated[routeIdx].stops = stops;
+    setEditableRoutes(updated);
+  };
+
   const handleDelete = (idRitase: number, kode: string) => {
     setDeletingRitase({ id: idRitase, kode });
   };
@@ -915,9 +925,29 @@ export default function JadwalPage() {
                             {route.stops.map((stop: PreviewRoute["stops"][0], sIdx: number) => (
                               <div key={sIdx} className="rounded-lg border border-slate-100 bg-slate-50/80 p-2.5 dark:border-slate-700/50 dark:bg-[#0c1e3a]/40 space-y-2">
                                 <div className="flex items-center justify-between gap-2">
-                                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0c1e3a] dark:bg-blue-700 text-[10px] font-bold text-white">
-                                    {sIdx + 1}
-                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0c1e3a] dark:bg-blue-700 text-[10px] font-bold text-white">
+                                      {sIdx + 1}
+                                    </span>
+                                    <div className="flex flex-col">
+                                      <button
+                                        type="button"
+                                        disabled={sIdx === 0}
+                                        onClick={() => handlePreviewMoveStop(rIdx, sIdx, "up")}
+                                        className="p-0.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 dark:hover:text-slate-200"
+                                      >
+                                        <ArrowUp className="h-3 w-3" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={sIdx === route.stops.length - 1}
+                                        onClick={() => handlePreviewMoveStop(rIdx, sIdx, "down")}
+                                        className="p-0.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 dark:hover:text-slate-200"
+                                      >
+                                        <ArrowDown className="h-3 w-3" />
+                                      </button>
+                                    </div>
+                                  </div>
 
                                   {/* Stop Type Select */}
                                   <select
@@ -927,7 +957,7 @@ export default function JadwalPage() {
                                   >
                                     <option value="gudang">GUDANG</option>
                                     <option value="seller">SELLER</option>
-                                    <option value="drop_point">DROP POINT</option>
+                                    <option value="gateway">Gateway</option>
                                   </select>
 
                                   <button
