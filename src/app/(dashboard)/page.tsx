@@ -260,17 +260,11 @@ export default function DashboardPage() {
               {today} · <span className="font-semibold text-slate-200">{jamWIB} WIB</span>
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {lastUpdate && (
-              <span className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium tabular-nums text-slate-300">
-                Update {minutesAgo(lastUpdate)}
-              </span>
-            )}
-            <span className="inline-flex items-center gap-2 rounded-md bg-white/10 px-3 py-1.5 text-xs font-semibold text-white">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-LIVE · REALTIME PUSH 3s
+          {lastUpdate && (
+            <span className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium tabular-nums text-slate-300">
+              Update {minutesAgo(lastUpdate)}
             </span>
-          </div>
+          )}
         </div>
       </div>
 
@@ -308,52 +302,20 @@ LIVE · REALTIME PUSH 3s
       <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
         {/* KIRI: peta live — dengan filter tabs */}
         <Card className="flex flex-col overflow-hidden rounded-lg border-slate-200">
-          <CardHeader className="flex flex-row flex-wrap items-center gap-2 border-b pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <RadioTower className="h-4 w-4 text-[#0c1e3a]" /> Peta Live
-              <InfoTip text="Posisi realtime armada, seller, dan gudang (Outgoing/DC). Auto-refresh tiap 10 detik." />
-            </CardTitle>
-            {/* Filter tabs */}
-            <div className="flex items-center gap-1 rounded-md bg-slate-100 p-0.5">
-              {MAP_FILTERS.map((f) => (
-                <button
-                  key={f.key}
-                  type="button"
-                  onClick={() => setMapFilter(f.key)}
-                  className={cn(
-                    "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                    mapFilter === f.key
-                      ? "bg-white text-[#0c1e3a] shadow-sm"
-                      : "text-slate-500 hover:text-slate-700"
-                  )}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-            <span className="ml-auto flex flex-wrap items-center gap-3 text-xs font-normal text-slate-400">
-              <span>{mapSellers.length} seller</span>
-              <span>{mapVehicles.length} truk</span>
-              <span className="inline-flex items-center gap-1">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                live 8s
-              </span>
-            </span>
-          </CardHeader>
-          <CardContent className="flex-1 p-0">
-            <div className="h-full min-h-[300px] w-full sm:min-h-[420px]">
-              <LiveMap
-                vehicles={mapVehicles}
-                sellers={mapSellers}
-                gudang={mapGudang}
-                dropPoints={mapDrop}
-                phones={phones}
-                selectedVehicleId={selectedId}
-                onSelectVehicle={setSelectedId}
-              />
-            </div>
-          </CardContent>
-        </Card>
+  <CardContent className="flex-1 p-0">
+    <div className="h-[80vh] min-h-[700px] w-full">
+      <LiveMap
+        vehicles={vehicles}
+        sellers={sellers}
+        gudang={map.data?.gudang ?? []}
+        dropPoints={map.data?.drop_points ?? []}
+        phones={phones}
+        selectedVehicleId={selectedId}
+        onSelectVehicle={setSelectedId}
+      />
+    </div>
+  </CardContent>
+</Card>
 
         {/* KANAN: panel armada */}
         <div className="space-y-4">
@@ -446,102 +408,114 @@ LIVE · REALTIME PUSH 3s
             </CardContent>
           </Card>
 
-          {selectedVehicle && (
-            <Card className="rounded-lg border-slate-200">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                  <MapPin className="h-4 w-4 text-amber-500" />
-                  {selectedVehicle.plat_nomor || "-"}
-                  <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#0c1e3a]">
-                    Focus
+          
+           <Card className="rounded-lg border-slate-200">
+  <CardHeader className="pb-2">
+    <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+      <MapPin className={cn("h-4 w-4", selectedVehicle ? "text-amber-500" : "text-slate-300")} />
+      {selectedVehicle ? (selectedVehicle.plat_nomor || "-") : "Detail Armada"}
+      {selectedVehicle && (
+        <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#0c1e3a]">
+          Focus
+        </span>
+      )}
+      <InfoTip text="Status terkini + riwayat log kendaraan. Isi tanggal untuk filter per hari (kosong = semua)." />
+      {selectedVehicle && (
+        <span className="ml-auto text-xs font-normal text-slate-400">
+          {selectedVehicle.nama_driver || "-"}
+        </span>
+      )}
+    </CardTitle>
+  </CardHeader>
+  <CardContent className="max-h-[500px] space-y-3 overflow-y-auto pt-0">
+    {!selectedVehicle ? (
+      <p className="py-10 text-center text-sm text-slate-400">
+        Pilih driver untuk melihat riwayat
+      </p>
+    ) : (
+      <>
+        {/* Metric rows: status, kecepatan, update, login, app dibuka */}
+        {(() => {
+          const selLive = isOnline(selectedVehicle);
+          return (
+            <div className="space-y-1.5 border-b border-slate-100 pb-2">
+              <MetricRow
+                label="Status"
+                value={
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-bold",
+                      selLive
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-rose-50 text-rose-700"
+                    )}
+                  >
+                    <i
+                      className={cn(
+                        "h-1.5 w-1.5 rounded-full",
+                        selLive ? "bg-emerald-500" : "bg-rose-500"
+                      )}
+                    />
+                    {selLive ? "LIVE" : "Offline"}
                   </span>
-                  <InfoTip text="Status terkini + riwayat log kendaraan. Isi tanggal untuk filter per hari (kosong = semua)." />
-                  <span className="ml-auto text-xs font-normal text-slate-400">
-                    {selectedVehicle.nama_driver || "-"}
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="max-h-[500px] space-y-3 overflow-y-auto pt-0">
-                {/* Metric rows: status, kecepatan, update, login, app dibuka */}
-                {(() => {
-                  const selLive = isOnline(selectedVehicle);
-                  return (
-                    <div className="space-y-1.5 border-b border-slate-100 pb-2">
-                      <MetricRow
-                        label="Status"
-                        value={
-                          <span
-                            className={cn(
-                              "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-bold",
-                              selLive
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-rose-50 text-rose-700"
-                            )}
-                          >
-                            <i
-                              className={cn(
-                                "h-1.5 w-1.5 rounded-full",
-                                selLive ? "bg-emerald-500" : "bg-rose-500"
-                              )}
-                            />
-                            {selLive ? "LIVE" : "Offline"}
-                          </span>
-                        }
-                      />
-                      {selLive && (
-                        <MetricRow
-                          label="Kecepatan"
-                          value={
-                            <span className="tabular-nums">
-                              {`${selectedVehicle.kecepatan ?? 0} km/h`}
-                            </span>
-                          }
-                        />
-                      )}
-                      <MetricRow
-                        label="Update"
-                        value={minutesAgo(selectedVehicle.last_update)}
-                      />
-                      {selectedVehicle.last_login && (
-                        <MetricRow
-                          label="Login"
-                          value={minutesAgo(selectedVehicle.last_login)}
-                        />
-                      )}
-                      {selectedVehicle.last_open && (
-                        <MetricRow
-                          label="App dibuka"
-                          value={minutesAgo(selectedVehicle.last_open)}
-                        />
-                      )}
-                    </div>
-                  );
-                })()}
-
-                <input
-                  type="date"
-                  value={selectedDate}
-                  max={todayLocal()}
-                  onChange={(e) => setSelectedDate(e.target.value || "")}
-                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm focus:border-[#0c1e3a] focus:outline-none focus:ring-2 focus:ring-[#0c1e3a]/20"
+                }
+              />
+              {selLive && (
+                <MetricRow
+                  label="Kecepatan"
+                  value={
+                    <span className="tabular-nums">
+                      {`${selectedVehicle.kecepatan ?? 0} km/h`}
+                    </span>
+                  }
                 />
+              )}
+              <MetricRow
+                label="Update"
+                value={minutesAgo(selectedVehicle.last_update)}
+              />
+              {selectedVehicle.last_login && (
+                <MetricRow
+                  label="Login"
+                  value={minutesAgo(selectedVehicle.last_login)}
+                />
+              )}
+              {selectedVehicle.last_open && (
+                <MetricRow
+                  label="App dibuka"
+                  value={minutesAgo(selectedVehicle.last_open)}
+                />
+              )}
+            </div>
+          );
+        })()}
 
-                {loadingHistory ? (
-                  <Skeleton className="h-24 w-full" />
-                ) : (history ?? []).length === 0 ? (
-                  <p className="py-6 text-center text-sm text-slate-400">
-                    Belum ada riwayat status
-                  </p>
-                ) : (
-                  <StatusTimeline
-                    events={history ?? []}
-                    stops={ritaseDetail?.stops ?? []}
-                    limit={12}
-                  />
-                )}
-              </CardContent>
-            </Card>
-          )}
+        <input
+          type="date"
+          value={selectedDate}
+          max={todayLocal()}
+          onChange={(e) => setSelectedDate(e.target.value || "")}
+          className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm focus:border-[#0c1e3a] focus:outline-none focus:ring-2 focus:ring-[#0c1e3a]/20"
+        />
+
+        {loadingHistory ? (
+          <Skeleton className="h-24 w-full" />
+        ) : (history ?? []).length === 0 ? (
+          <p className="py-6 text-center text-sm text-slate-400">
+            Belum ada riwayat status
+          </p>
+        ) : (
+          <StatusTimeline
+            events={history ?? []}
+            stops={ritaseDetail?.stops ?? []}
+            limit={12}
+          />
+        )}
+      </>
+    )}
+  </CardContent>
+</Card>
+
         </div>
       </div>
 

@@ -128,13 +128,13 @@ export function BottleneckCard({
     <Card className="rounded-lg border-slate-200">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-          <AlertTriangle className="h-4 w-4 text-slate-400" /> Top Bottlenecks
+          <AlertTriangle className="h-4 w-4 text-slate-400" /> Titik-titik hambatan
           <InfoTip text="Titik potensial hambatan operasional (seller/driver). Klik item untuk detail & rekomendasi." />
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         {bottlenecks.length === 0 ? (
-          <p className="py-4 text-center text-sm text-slate-400">Belum ada bottleneck</p>
+          <p className="py-4 text-center text-sm text-slate-400">Belum ada Titik hambatan</p>
         ) : (
           <div className="px-3 pb-1 pt-1">
             {bottlenecks.slice(0, limit).map((b, i) => (
@@ -205,13 +205,13 @@ export function AlertCard({ alerts, limit = 5 }: { alerts: AlertAnomali[]; limit
     <Card className="rounded-lg border-slate-200">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-          <BellRing className="h-4 w-4 text-slate-400" /> Alert Anomali
+          <BellRing className="h-4 w-4 text-slate-400" /> Status tidak wajar
           <InfoTip text="Kondisi abnormal: armada berhenti lama, perjalanan kelamaan. Klik item untuk detail & rekomendasi." />
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         {alerts.length === 0 ? (
-          <p className="py-4 text-center text-sm text-slate-400">Tidak ada anomali</p>
+          <p className="py-4 text-center text-sm text-slate-400">Tidak ada status tidak wajar</p>
         ) : (
           <div className="space-y-1.5 px-3 pb-3 pt-1">
             {alerts.slice(0, limit).map((al, i) => {

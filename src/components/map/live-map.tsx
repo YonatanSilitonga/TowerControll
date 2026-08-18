@@ -2,7 +2,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { ChevronDown, ChevronUp, Phone, Search } from "lucide-react";
-import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
 import type {
   DropPointPoi,
   GudangPoint,
@@ -14,7 +14,6 @@ import type {
 import { useRitaseDetail } from "@/hooks/use-armada";
 import { displayTrackingStatus } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-
 
 // Tile CARTO (gratis & lebih cepat dari OSM publik) — render area baru jauh lebih responsif.
 const TILE_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
@@ -40,32 +39,31 @@ const DC_LON = 106.6511;
 const TRUCK_ICON = createTruckIcon(false);
 const TRUCK_ICON_SELECTED = createTruckIcon(true);
 const SELLER_ICON = createSellerIcon();
-const OUTGOING_ICON = createGudangIcon("#0ea5e9", "outgoing");
-const DC_ICON = createGudangIcon("#7c3aed", "dc");
-const DROP_ICON = createGudangIcon("#f97316", "outgoing");
+const OUTGOING_ICON = createGudangIcon("#0ea5e9"); // biru
+const DC_ICON = createGudangIcon("#7c3aed"); // ungu
+const DROP_ICON = createGudangIcon("#f97316"); // oranye — drop point
 
 function createTruckIcon(selected: boolean) {
-  const size = selected ? 30 : 24;
   return L.divIcon({
     className: "",
-    iconSize: [size, size + 6],
-    iconAnchor: [size / 2, size + 5],
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
     html: `
-      <div style="position:relative;width:${size}px;height:${size + 6}px;">
-        <svg width="${size}" height="${size + 6}" viewBox="0 0 24 30" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));">
-          <path d="M12 0C5.4 0 0 5.4 0 12c0 8.5 12 18 12 18s12-9.5 12-18C24 5.4 18.6 0 12 0z"
-                fill="${selected ? "#ff8f00" : "#1e3a5f"}" stroke="#fff" stroke-width="1.5"/>
-        </svg>
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"
-             stroke-linecap="round" stroke-linejoin="round"
-             style="position:absolute;top:${size * 0.24}px;left:50%;transform:translateX(-50%);">
+      <div style="
+        width:34px;height:34px;
+        background:${selected ? "#ff8f00" : "#1e3a5f"};
+        border:2px solid #fff;
+        border-radius:50%;
+        box-shadow:0 2px 6px rgba(0,0,0,.4);
+        display:flex;align-items:center;justify-content:center;
+      ">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
           <path d="M15 18H9"/>
           <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/>
           <circle cx="17" cy="18" r="2"/>
           <circle cx="7" cy="18" r="2"/>
         </svg>
-        ${selected ? `<div style="position:absolute;inset:-3px;border-radius:50%;border:2px solid #ff8f00;opacity:.5;animation:pulseRing 1.6s ease-out infinite;"></div>` : ""}
       </div>`,
   });
 }
@@ -73,17 +71,18 @@ function createTruckIcon(selected: boolean) {
 function createSellerIcon() {
   return L.divIcon({
     className: "",
-    iconSize: [22, 28],
-    iconAnchor: [11, 27],
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
     html: `
-      <div style="position:relative;width:22px;height:28px;">
-        <svg width="22" height="28" viewBox="0 0 22 28" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));">
-          <path d="M11 0C4.9 0 0 4.9 0 11c0 7.7 11 17 11 17s11-9.3 11-17C22 4.9 17.1 0 11 0z"
-                fill="#10b981" stroke="#fff" stroke-width="1.5"/>
-        </svg>
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"
-             stroke-linecap="round" stroke-linejoin="round"
-             style="position:absolute;top:6px;left:50%;transform:translateX(-50%);">
+      <div style="
+        width:30px;height:30px;
+        background:#10b981;
+        border:2px solid #fff;
+        border-radius:50%;
+        box-shadow:0 2px 6px rgba(0,0,0,.4);
+        display:flex;align-items:center;justify-content:center;
+      ">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/>
           <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
           <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/>
@@ -93,25 +92,24 @@ function createSellerIcon() {
   });
 }
 
-function createGudangIcon(color: string, variant: "outgoing" | "dc") {
-  const innerSvg =
-    variant === "outgoing"
-      ? `<path d="M3 21h18"/><path d="M5 21V7l7-5 7 5v14"/><path d="M9 21v-6h6v6"/>`
-      : `<rect x="3" y="7" width="18" height="14" rx="1.5"/><path d="M3 11h18"/><path d="M8 3v4"/><path d="M16 3v4"/>`;
+function createGudangIcon(color: string) {
   return L.divIcon({
     className: "",
-    iconSize: [24, 30],
-    iconAnchor: [12, 29],
+    iconSize: [38, 38],
+    iconAnchor: [19, 19],
     html: `
-      <div style="position:relative;width:24px;height:30px;">
-        <svg width="24" height="30" viewBox="0 0 24 30" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.4));">
-          <path d="M12 0C5.4 0 0 5.4 0 12c0 8.5 12 18 12 18s12-9.5 12-18C24 5.4 18.6 0 12 0z"
-                fill="${color}" stroke="#fff" stroke-width="1.8"/>
-        </svg>
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"
-             stroke-linecap="round" stroke-linejoin="round"
-             style="position:absolute;top:7px;left:50%;transform:translateX(-50%);">
-          ${innerSvg}
+      <div style="
+        width:38px;height:38px;
+        background:${color};
+        border:3px solid #fff;
+        border-radius:50%;
+        box-shadow:0 0 0 3px ${color}55, 0 2px 6px rgba(0,0,0,.4);
+        display:flex;align-items:center;justify-content:center;
+      ">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 21h18"/>
+          <path d="M5 21V7l7-5 7 5v14"/>
+          <path d="M9 21v-6h6v6"/>
         </svg>
       </div>`,
   });
@@ -264,8 +262,6 @@ function VehicleMarker({
       icon={selected ? TRUCK_ICON_SELECTED : TRUCK_ICON}
       eventHandlers={{ click: onSelect }}
     >
-      
-     
       <Popup>
         <div className={compact ? "min-w-[110px] text-xs" : "min-w-[210px] text-sm"}>
           <p className="font-semibold text-[#1e3a5f]">{v.plat_nomor || "-"}</p>
@@ -785,12 +781,12 @@ function LiveMapView({
   return (
     <div className="relative h-full w-full">
       {/* Pencarian semua kategori → klik hasil buka popup */}
-      <div
-        className={cn(
-          "absolute left-1/2 top-3 z-20 -translate-x-1/2",
-          compact ? "w-48 max-w-[80%]" : "w-72 max-w-[85%]"
-        )}
-      >
+    <div
+  className={cn(
+    "absolute left-3 bottom-3 z-20",
+    compact ? "w-40 max-w-[75%]" : "w-56 max-w-[75%]"
+  )}
+>
         <div className="relative">
           <Search
             className={cn(
@@ -805,13 +801,13 @@ function LiveMapView({
               setOpen(true);
             }}
             onFocus={() => setOpen(true)}
-            placeholder={compact ? "Cari di peta..." : "Cari truk, seller, gudang, drop..."}
+            placeholder={compact ? "Cari di peta..." : "Cari truk, seller, gudang, gateway..."}
             className={cn(
-              "w-full border border-slate-200 bg-white shadow-sm outline-none focus:border-[#0c1e3a] focus:ring-2 focus:ring-[#0c1e3a]/20",
-              compact
-                ? "h-8 rounded-md pl-7 pr-7 text-xs"
-                : "h-9 rounded-lg pl-8 pr-8 text-sm"
-            )}
+  "w-full border border-slate-200 bg-white shadow-sm outline-none focus:border-[#0c1e3a] focus:ring-2 focus:ring-[#0c1e3a]/20 font-semibold placeholder:font-semibold placeholder:text-slate-500",
+  compact
+    ? "h-8 rounded-md pl-7 pr-7 text-xs"
+    : "h-9 rounded-lg pl-8 pr-8 text-sm"
+)}
           />
           {q && (
             <button
