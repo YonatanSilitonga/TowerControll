@@ -97,9 +97,35 @@ export default function JadwalPage() {
 
   useEffect(() => {
     if (previewData?.routes) {
-      setEditableRoutes(JSON.parse(JSON.stringify(previewData.routes)));
+      const routesCopy: PreviewRoute[] = JSON.parse(JSON.stringify(previewData.routes));
+      if (masterOptions) {
+        routesCopy.forEach((r) => {
+          r.stops.forEach((s) => {
+            if (s.jenis_stop === "gudang") {
+              const validG = masterOptions.gudangs.find((g) => g.id_gudang === s.id_lokasi);
+              if (!validG && masterOptions.gudangs.length > 0) {
+                s.id_lokasi = masterOptions.gudangs[0].id_gudang;
+                s.nama_lokasi = masterOptions.gudangs[0].nama_gudang;
+              }
+            } else if (s.jenis_stop === "seller") {
+              const validS = masterOptions.sellers.find((sel) => sel.id_seller === s.id_lokasi);
+              if (!validS && masterOptions.sellers.length > 0) {
+                s.id_lokasi = masterOptions.sellers[0].id_seller;
+                s.nama_lokasi = masterOptions.sellers[0].nama_seller;
+              }
+            } else {
+              const validDp = masterOptions.drop_points.find((dp) => dp.id_drop_point === s.id_lokasi);
+              if (!validDp && masterOptions.drop_points.length > 0) {
+                s.id_lokasi = masterOptions.drop_points[0].id_drop_point;
+                s.nama_lokasi = masterOptions.drop_points[0].nama_drop_point;
+              }
+            }
+          });
+        });
+      }
+      setEditableRoutes(routesCopy);
     }
-  }, [previewData]);
+  }, [previewData, masterOptions]);
 
   const { data: ritases, isLoading, isError, refetch } = useAdminRitase(selectedDate);
   const generateMutation = useGenerateDailyRitase();
@@ -213,15 +239,15 @@ export default function JadwalPage() {
     if (newJenis === "gudang") {
       const g = masterOptions?.gudangs[0];
       stop.id_lokasi = g?.id_gudang ?? 1;
-      stop.nama_lokasi = g?.nama_gudang ?? "Gudang 1";
+      stop.nama_lokasi = g?.nama_gudang ?? "Gudang Outgoing";
     } else if (newJenis === "seller") {
       const s = masterOptions?.sellers[0];
       stop.id_lokasi = s?.id_seller ?? 1;
       stop.nama_lokasi = s?.nama_seller ?? "Seller 1";
     } else {
       const dp = masterOptions?.drop_points[0];
-      stop.id_lokasi = dp?.id_drop_point ?? 1;
-      stop.nama_lokasi = dp?.nama_drop_point ?? "Gateway 1";
+      stop.id_lokasi = dp?.id_drop_point ?? 2;
+      stop.nama_lokasi = dp?.nama_drop_point ?? "Gateway SEG777";
     }
 
     updated[routeIdx].stops[stopIdx] = stop;
@@ -264,16 +290,6 @@ export default function JadwalPage() {
   const handlePreviewRemoveStop = (routeIdx: number, stopIdx: number) => {
     const updated = [...editableRoutes];
     updated[routeIdx].stops = updated[routeIdx].stops.filter((_, idx) => idx !== stopIdx);
-    setEditableRoutes(updated);
-  };
-
-  const handlePreviewMoveStop = (routeIdx: number, index: number, direction: "up" | "down") => {
-    const updated = [...editableRoutes];
-    const stops = [...updated[routeIdx].stops];
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= stops.length) return;
-    [stops[index], stops[targetIndex]] = [stops[targetIndex], stops[index]];
-    updated[routeIdx].stops = stops;
     setEditableRoutes(updated);
   };
 
@@ -925,39 +941,19 @@ export default function JadwalPage() {
                             {route.stops.map((stop: PreviewRoute["stops"][0], sIdx: number) => (
                               <div key={sIdx} className="rounded-lg border border-slate-100 bg-slate-50/80 p-2.5 dark:border-slate-700/50 dark:bg-[#0c1e3a]/40 space-y-2">
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-1">
-                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0c1e3a] dark:bg-blue-700 text-[10px] font-bold text-white">
-                                      {sIdx + 1}
-                                    </span>
-                                    <div className="flex flex-col">
-                                      <button
-                                        type="button"
-                                        disabled={sIdx === 0}
-                                        onClick={() => handlePreviewMoveStop(rIdx, sIdx, "up")}
-                                        className="p-0.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 dark:hover:text-slate-200"
-                                      >
-                                        <ArrowUp className="h-3 w-3" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        disabled={sIdx === route.stops.length - 1}
-                                        onClick={() => handlePreviewMoveStop(rIdx, sIdx, "down")}
-                                        className="p-0.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 dark:hover:text-slate-200"
-                                      >
-                                        <ArrowDown className="h-3 w-3" />
-                                      </button>
-                                    </div>
-                                  </div>
+                                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0c1e3a] dark:bg-blue-700 text-[10px] font-bold text-white">
+                                    {sIdx + 1}
+                                  </span>
 
                                   {/* Stop Type Select */}
                                   <select
-                                    value={stop.jenis_stop}
+                                    value={stop.jenis_stop === "gateway" ? "drop_point" : stop.jenis_stop}
                                     onChange={(e) => handleStopTypeChange(rIdx, sIdx, e.target.value)}
                                     className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                                   >
                                     <option value="gudang">GUDANG</option>
                                     <option value="seller">SELLER</option>
-                                    <option value="gateway">Gateway</option>
+                                    <option value="drop_point">GATEWAY / DROP POINT</option>
                                   </select>
 
                                   <button
@@ -1207,7 +1203,7 @@ export default function JadwalPage() {
 
                       {/* Tipe Stop */}
                       <select
-                        value={stop.jenis_stop}
+                        value={stop.jenis_stop === "drop_point" ? "gateway" : stop.jenis_stop}
                         onChange={(e) => {
                           const newType = e.target.value;
                           handleUpdateStopField(false, idx, "jenis_stop", newType);
@@ -1409,7 +1405,7 @@ export default function JadwalPage() {
 
                       {/* Tipe Stop */}
                       <select
-                        value={stop.jenis_stop}
+                        value={stop.jenis_stop === "drop_point" ? "gateway" : stop.jenis_stop}
                         onChange={(e) => {
                           const newType = e.target.value;
                           handleUpdateStopField(true, idx, "jenis_stop", newType);
