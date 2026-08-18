@@ -97,9 +97,35 @@ export default function JadwalPage() {
 
   useEffect(() => {
     if (previewData?.routes) {
-      setEditableRoutes(JSON.parse(JSON.stringify(previewData.routes)));
+      const routesCopy: PreviewRoute[] = JSON.parse(JSON.stringify(previewData.routes));
+      if (masterOptions) {
+        routesCopy.forEach((r) => {
+          r.stops.forEach((s) => {
+            if (s.jenis_stop === "gudang") {
+              const validG = masterOptions.gudangs.find((g) => g.id_gudang === s.id_lokasi);
+              if (!validG && masterOptions.gudangs.length > 0) {
+                s.id_lokasi = masterOptions.gudangs[0].id_gudang;
+                s.nama_lokasi = masterOptions.gudangs[0].nama_gudang;
+              }
+            } else if (s.jenis_stop === "seller") {
+              const validS = masterOptions.sellers.find((sel) => sel.id_seller === s.id_lokasi);
+              if (!validS && masterOptions.sellers.length > 0) {
+                s.id_lokasi = masterOptions.sellers[0].id_seller;
+                s.nama_lokasi = masterOptions.sellers[0].nama_seller;
+              }
+            } else {
+              const validDp = masterOptions.drop_points.find((dp) => dp.id_drop_point === s.id_lokasi);
+              if (!validDp && masterOptions.drop_points.length > 0) {
+                s.id_lokasi = masterOptions.drop_points[0].id_drop_point;
+                s.nama_lokasi = masterOptions.drop_points[0].nama_drop_point;
+              }
+            }
+          });
+        });
+      }
+      setEditableRoutes(routesCopy);
     }
-  }, [previewData]);
+  }, [previewData, masterOptions]);
 
   const { data: ritases, isLoading, isError, refetch } = useAdminRitase(selectedDate);
   const generateMutation = useGenerateDailyRitase();
@@ -213,15 +239,15 @@ export default function JadwalPage() {
     if (newJenis === "gudang") {
       const g = masterOptions?.gudangs[0];
       stop.id_lokasi = g?.id_gudang ?? 1;
-      stop.nama_lokasi = g?.nama_gudang ?? "Gudang 1";
+      stop.nama_lokasi = g?.nama_gudang ?? "Gudang Outgoing";
     } else if (newJenis === "seller") {
       const s = masterOptions?.sellers[0];
       stop.id_lokasi = s?.id_seller ?? 1;
       stop.nama_lokasi = s?.nama_seller ?? "Seller 1";
     } else {
       const dp = masterOptions?.drop_points[0];
-      stop.id_lokasi = dp?.id_drop_point ?? 1;
-      stop.nama_lokasi = dp?.nama_drop_point ?? "Gateway 1";
+      stop.id_lokasi = dp?.id_drop_point ?? 2;
+      stop.nama_lokasi = dp?.nama_drop_point ?? "Gateway SEG777";
     }
 
     updated[routeIdx].stops[stopIdx] = stop;
@@ -921,13 +947,13 @@ export default function JadwalPage() {
 
                                   {/* Stop Type Select */}
                                   <select
-                                    value={stop.jenis_stop}
+                                    value={stop.jenis_stop === "gateway" ? "drop_point" : stop.jenis_stop}
                                     onChange={(e) => handleStopTypeChange(rIdx, sIdx, e.target.value)}
                                     className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                                   >
                                     <option value="gudang">GUDANG</option>
                                     <option value="seller">SELLER</option>
-                                    <option value="drop_point">DROP POINT</option>
+                                    <option value="drop_point">GATEWAY / DROP POINT</option>
                                   </select>
 
                                   <button
@@ -1177,7 +1203,7 @@ export default function JadwalPage() {
 
                       {/* Tipe Stop */}
                       <select
-                        value={stop.jenis_stop}
+                        value={stop.jenis_stop === "drop_point" ? "gateway" : stop.jenis_stop}
                         onChange={(e) => {
                           const newType = e.target.value;
                           handleUpdateStopField(false, idx, "jenis_stop", newType);
@@ -1379,7 +1405,7 @@ export default function JadwalPage() {
 
                       {/* Tipe Stop */}
                       <select
-                        value={stop.jenis_stop}
+                        value={stop.jenis_stop === "drop_point" ? "gateway" : stop.jenis_stop}
                         onChange={(e) => {
                           const newType = e.target.value;
                           handleUpdateStopField(true, idx, "jenis_stop", newType);
