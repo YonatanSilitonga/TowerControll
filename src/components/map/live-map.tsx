@@ -503,26 +503,20 @@ function findNextStop(
   if (resolved.length === 0) return null;
 
   if (events.length === 0) {
-    return { stop: resolved[0].stop, point: resolved[0].point };
+    const targetIdx = resolved.length > 1 ? 1 : 0;
+    return { stop: resolved[targetIdx].stop, point: resolved[targetIdx].point };
   }
 
-  // Hitung berapa kali event kedatangan/bongkar muat ("Tiba", "Bongkar Muat Barang") terjadi
   const chronologicalEvents = [...events].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
-  let currentStopIdx = 0;
-  for (const ev of chronologicalEvents) {
+  let arrivalCount = 0;
+  for (let i = 0; i < chronologicalEvents.length; i++) {
+    const ev = chronologicalEvents[i];
     const st = (ev.status || "").toLowerCase();
-    if (st.includes("tiba") || st.includes("sampai")) {
-      // Driver baru tiba di perhentian berikutnya
-      if (currentStopIdx < resolved.length - 1) {
-        // Cek jika status ini adalah kedatangan di stop selanjutnya
-        // Jika bukan di stop pertama, majukan ke stop berikutnya
-        if (ev !== chronologicalEvents[0]) {
-          currentStopIdx++;
-        }
-      }
+    if ((st.includes("tiba") || st.includes("sampai")) && i > 0) {
+      arrivalCount++;
     }
   }
 
@@ -533,20 +527,19 @@ function findNextStop(
     lastStatus.includes("keluar") ||
     lastStatus.includes("berangkat");
 
-  let targetIdx = currentStopIdx;
-  if (isEnRoute) {
-    targetIdx = Math.min(currentStopIdx + 1, resolved.length - 1);
+  let targetIdx = arrivalCount;
+  if (isEnRoute || lastStatus.includes("loading") || lastStatus.includes("muat")) {
+    targetIdx = Math.min(arrivalCount + 1, resolved.length - 1);
   }
 
-  const target = resolved.find((r) => r.idx === targetIdx);
-  return target
-    ? { stop: target.stop, point: target.point }
-    : { stop: resolved[resolved.length - 1].stop, point: resolved[resolved.length - 1].point };
+  targetIdx = Math.max(0, Math.min(targetIdx, resolved.length - 1));
+  const target = resolved.find((r) => r.idx === targetIdx) ?? resolved[resolved.length - 1];
+  return { stop: target.stop, point: target.point };
 }
 
 /**
  * Rute live armada terpilih: dari POSISI TRUCK saat ini ke stop berikutnya (ritase aktif).
- * Re-fetch OSRM cuma kalau truk pindah > 150 m atau stop berubah (hemat request).
+ * Jika ritase_stop kosong, fallback cari titik koordinat dari nama_lokasi armada (misal: Gateway SEG).
  */
 function useActiveRoute(
   vehicle: TrackingVehicle | null,
@@ -564,11 +557,45 @@ function useActiveRoute(
   const events = rit?.events ?? [];
 
   const next = useMemo(() => {
-    if (!vehicle || !rit || rit.status === "selesai") return null;
+    if (!vehicle) return null;
     const points = stops.map((s) => resolveStopPoint(s, sellers, dropList, gudangList));
-    return findNextStop(stops, points, events);
+    const found = findNextStop(stops, points, events);
+    if (found) return found;
+
+    // Fallback: Jika ritase_stop kosong, cari koordinat target dari nama_lokasi armada (misal: Gateway SEG)
+    const targetLocName = (vehicle.nama_lokasi || "").toLowerCase();
+    if (targetLocName) {
+      // 1. Match Drop Point / Gateway
+      const dpMatch = dropList.find((dp) =>
+        targetLocName.includes((dp.nama_drop_point || "").toLowerCase()) ||
+        (dp.nama_drop_point || "").toLowerCase().includes(targetLocName.replace(/j&t|express|gateway/gi, "").trim())
+      );
+      if (dpMatch && dpMatch.latitude && dpMatch.longitude) {
+        const dummyStop: RitaseStop = { id_stop: 999, urutan: 1, jenis_stop: "drop_point", id_drop_point: dpMatch.id_drop_point, nama_drop_point: dpMatch.nama_drop_point };
+        return { stop: dummyStop, point: { lat: dpMatch.latitude, lng: dpMatch.longitude, label: dpMatch.nama_drop_point, icon: DROP_ICON, kind: "drop" } };
+      }
+      // 2. Match Seller
+      const sellerMatch = sellers.find((sel) =>
+        targetLocName.includes((sel.nama_seller || "").toLowerCase()) ||
+        (sel.nama_seller || "").toLowerCase().includes(targetLocName.replace(/seller/gi, "").trim())
+      );
+      if (sellerMatch && sellerMatch.latitude && sellerMatch.longitude) {
+        const dummyStop: RitaseStop = { id_stop: 998, urutan: 1, jenis_stop: "seller", id_seller: sellerMatch.id_seller, nama_seller: sellerMatch.nama_seller };
+        return { stop: dummyStop, point: { lat: sellerMatch.latitude, lng: sellerMatch.longitude, label: sellerMatch.nama_seller, icon: SELLER_ICON, kind: "seller" } };
+      }
+      // 3. Match Gudang
+      const gudangMatch = gudangList.find((g) =>
+        targetLocName.includes((g.nama_gudang || "").toLowerCase()) ||
+        (g.nama_gudang || "").toLowerCase().includes(targetLocName.replace(/gudang/gi, "").trim())
+      );
+      if (gudangMatch && gudangMatch.latitude && gudangMatch.longitude) {
+        const dummyStop: RitaseStop = { id_stop: 997, urutan: 1, jenis_stop: "gudang", id_gudang: gudangMatch.id_gudang, nama_gudang: gudangMatch.nama_gudang };
+        return { stop: dummyStop, point: { lat: gudangMatch.latitude, lng: gudangMatch.longitude, label: gudangMatch.nama_gudang, icon: DC_ICON, kind: "gudang" } };
+      }
+    }
+    return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vehicle?.id_kendaraan, rit, stops, events, sellers, dropList, gudangList]);
+  }, [vehicle, rit, stops, events, sellers, dropList, gudangList]);
 
   const [route, setRoute] = useState<RouteResult | null>(null);
   const lastKeyRef = useRef("");
@@ -581,13 +608,13 @@ function useActiveRoute(
       lastPosRef.current = null;
       return;
     }
-    const key = `${vehicle.id_kendaraan}:${next.stop.id_stop}`;
+    const key = `${vehicle.id_kendaraan}:${next.stop.id_stop}:${next.point.lat}:${next.point.lng}`;
     const moved =
       !lastPosRef.current ||
       haversineM(
         vehicle.latitude, vehicle.longitude,
         lastPosRef.current[0], lastPosRef.current[1]
-      ) > 150;
+      ) > 15;
     if (lastKeyRef.current === key && !moved) return;
 
     let cancelled = false;
