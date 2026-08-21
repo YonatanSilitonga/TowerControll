@@ -106,6 +106,7 @@ export interface TrackingVehicle {
   status?: string | null;
   /** Ritase yang sedang berjalan (kalau ada) — buat rute live armada. */
   id_ritase?: number | null;
+  nama_lokasi?: string | null;
   last_update: string;
   /** Backend: true kalau last_update > ambang offline (default 15 mnt). */
   offline?: boolean;

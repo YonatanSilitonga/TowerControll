@@ -281,30 +281,30 @@ function VehicleMarker({
       }}
     >
       <Popup>
-  <div className={compact ? "min-w-[110px] text-xs" : "min-w-[210px] text-sm"}>
-    <p className="font-semibold text-[#1e3a5f]">{v.plat_nomor || "-"}</p>
-    <p className="text-xs text-muted-foreground">Driver: {v.nama_driver || "-"}</p>
-    {!compact && (
-  <p className="text-xs">
-    Status: {
-      v.session_online === false ? "Driver logout"
-      : v.offline ? "Belum memulai"
-      : displayTrackingStatus(v.status, v.kecepatan, v.last_update)
-    }
-  </p>
-)}
-{!compact && !stale && v.session_online !== false && !v.offline && (
-  <p className="text-xs">Kecepatan: {v.kecepatan ?? 0} km/h</p>
-)}
-{v.session_online === false ? (
-  <p className="text-xs font-medium text-rose-600">Driver sudah logout dari aplikasi</p>
-) : v.offline ? (
-  <p className="text-xs font-medium text-amber-600">Belum memulai</p>
-) : (
-  <p className={stale ? "text-xs font-medium text-amber-600" : "text-xs text-muted-foreground"}>
-    Update: {minutesAgo(v.last_update)}
-  </p>
-)}
+        <div className={compact ? "min-w-[110px] text-xs" : "min-w-[210px] text-sm"}>
+          <p className="font-semibold text-[#1e3a5f]">{v.plat_nomor || "-"}</p>
+          <p className="text-xs text-muted-foreground">Driver: {v.nama_driver || "-"}</p>
+          {!compact && (
+            <p className="text-xs">
+              Status: {
+                v.session_online === false ? "Driver logout"
+                  : v.offline ? "Belum memulai"
+                    : displayTrackingStatus(v.status, v.kecepatan, v.last_update)
+              }
+            </p>
+          )}
+          {!compact && !stale && v.session_online !== false && !v.offline && (
+            <p className="text-xs">Kecepatan: {v.kecepatan ?? 0} km/h</p>
+          )}
+          {v.session_online === false ? (
+            <p className="text-xs font-medium text-rose-600">Driver sudah logout dari aplikasi</p>
+          ) : v.offline ? (
+            <p className="text-xs font-medium text-amber-600">Belum memulai</p>
+          ) : (
+            <p className={stale ? "text-xs font-medium text-amber-600" : "text-xs text-muted-foreground"}>
+              Update: {minutesAgo(v.last_update)}
+            </p>
+          )}
           {!compact && v.last_open && (
             <p className="text-xs text-muted-foreground">App dibuka: {minutesAgo(v.last_open)}</p>
           )}
@@ -611,8 +611,8 @@ function useActiveRoute(
         (dp.nama_drop_point || "").toLowerCase().includes(targetLocName.replace(/j&t|express|gateway/gi, "").trim())
       );
       if (dpMatch && dpMatch.latitude && dpMatch.longitude) {
-        const dummyStop: RitaseStop = { id_stop: 999, urutan: 1, jenis_stop: "drop_point", id_drop_point: dpMatch.id_drop_point, nama_drop_point: dpMatch.nama_drop_point };
-        return { stop: dummyStop, point: { lat: dpMatch.latitude, lng: dpMatch.longitude, label: dpMatch.nama_drop_point, icon: DROP_ICON, kind: "drop" } };
+        const dummyStop: RitaseStop = { id_ritase: rit?.id_ritase ?? 0, id_stop: 999, urutan: 1, jenis_stop: "drop_point", id_drop_point: dpMatch.id_drop_point, nama_drop_point: dpMatch.nama_drop_point };
+        return { stop: dummyStop, point: { lat: dpMatch.latitude, lng: dpMatch.longitude, label: dpMatch.nama_drop_point ?? "Gateway", icon: DROP_ICON, kind: "drop" } };
       }
       // 2. Match Seller
       const sellerMatch = sellers.find((sel) =>
@@ -620,8 +620,8 @@ function useActiveRoute(
         (sel.nama_seller || "").toLowerCase().includes(targetLocName.replace(/seller/gi, "").trim())
       );
       if (sellerMatch && sellerMatch.latitude && sellerMatch.longitude) {
-        const dummyStop: RitaseStop = { id_stop: 998, urutan: 1, jenis_stop: "seller", id_seller: sellerMatch.id_seller, nama_seller: sellerMatch.nama_seller };
-        return { stop: dummyStop, point: { lat: sellerMatch.latitude, lng: sellerMatch.longitude, label: sellerMatch.nama_seller, icon: SELLER_ICON, kind: "seller" } };
+        const dummyStop: RitaseStop = { id_ritase: rit?.id_ritase ?? 0, id_stop: 998, urutan: 1, jenis_stop: "seller", id_seller: sellerMatch.id_seller, nama_seller: sellerMatch.nama_seller };
+        return { stop: dummyStop, point: { lat: sellerMatch.latitude, lng: sellerMatch.longitude, label: sellerMatch.nama_seller ?? "Seller", icon: SELLER_ICON, kind: "seller" } };
       }
       // 3. Match Gudang
       const gudangMatch = gudangList.find((g) =>
@@ -629,8 +629,8 @@ function useActiveRoute(
         (g.nama_gudang || "").toLowerCase().includes(targetLocName.replace(/gudang/gi, "").trim())
       );
       if (gudangMatch && gudangMatch.latitude && gudangMatch.longitude) {
-        const dummyStop: RitaseStop = { id_stop: 997, urutan: 1, jenis_stop: "gudang", id_gudang: gudangMatch.id_gudang, nama_gudang: gudangMatch.nama_gudang };
-        return { stop: dummyStop, point: { lat: gudangMatch.latitude, lng: gudangMatch.longitude, label: gudangMatch.nama_gudang, icon: DC_ICON, kind: "gudang" } };
+        const dummyStop: RitaseStop = { id_ritase: rit?.id_ritase ?? 0, id_stop: 997, urutan: 1, jenis_stop: "gudang", id_gudang: gudangMatch.id_gudang, nama_gudang: gudangMatch.nama_gudang };
+        return { stop: dummyStop, point: { lat: gudangMatch.latitude, lng: gudangMatch.longitude, label: gudangMatch.nama_gudang ?? "Gudang", icon: DC_ICON, kind: "gudang" } };
       }
     }
     return null;
