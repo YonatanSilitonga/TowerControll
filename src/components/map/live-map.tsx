@@ -273,37 +273,38 @@ function VehicleMarker({
       position={[v.latitude, v.longitude]}
       icon={selected ? TRUCK_ICON_SELECTED : TRUCK_ICON}
       eventHandlers={{
-        click: (e) => {              {/* ⬅️ GANTI baris eventHandlers ini */}
+        click: (e) => {
+          {/* ⬅️ GANTI baris eventHandlers ini */ }
           playPopAnimation(e.target as L.Marker);
           onSelect();
         },
       }}
     >
       <Popup>
-  <div className={compact ? "min-w-[110px] text-xs" : "min-w-[210px] text-sm"}>
-    <p className="font-semibold text-[#1e3a5f]">{v.plat_nomor || "-"}</p>
-    <p className="text-xs text-muted-foreground">Driver: {v.nama_driver || "-"}</p>
-    {!compact && (
-  <p className="text-xs">
-    Status: {
-      v.session_online === false ? "Driver logout"
-      : v.offline ? "Di beranda"
-      : displayTrackingStatus(v.status, v.kecepatan, v.last_update)
-    }
-  </p>
-)}
-{!compact && !stale && v.session_online !== false && !v.offline && (
-  <p className="text-xs">Kecepatan: {v.kecepatan ?? 0} km/h</p>
-)}
-{v.session_online === false ? (
-  <p className="text-xs font-medium text-rose-600">Driver sudah logout dari aplikasi</p>
-) : v.offline ? (
-  <p className="text-xs font-medium text-amber-600">Driver standby di beranda</p>
-) : (
-  <p className={stale ? "text-xs font-medium text-amber-600" : "text-xs text-muted-foreground"}>
-    Update: {minutesAgo(v.last_update)}
-  </p>
-)}
+        <div className={compact ? "min-w-[110px] text-xs" : "min-w-[210px] text-sm"}>
+          <p className="font-semibold text-[#1e3a5f]">{v.plat_nomor || "-"}</p>
+          <p className="text-xs text-muted-foreground">Driver: {v.nama_driver || "-"}</p>
+          {!compact && (
+            <p className="text-xs">
+              Status: {
+                v.session_online === false ? "Driver logout"
+                  : v.offline ? "Di beranda"
+                    : displayTrackingStatus(v.status, v.kecepatan, v.last_update)
+              }
+            </p>
+          )}
+          {!compact && !stale && v.session_online !== false && !v.offline && (
+            <p className="text-xs">Kecepatan: {v.kecepatan ?? 0} km/h</p>
+          )}
+          {v.session_online === false ? (
+            <p className="text-xs font-medium text-rose-600">Driver sudah logout dari aplikasi</p>
+          ) : v.offline ? (
+            <p className="text-xs font-medium text-amber-600">Driver standby di beranda</p>
+          ) : (
+            <p className={stale ? "text-xs font-medium text-amber-600" : "text-xs text-muted-foreground"}>
+              Update: {minutesAgo(v.last_update)}
+            </p>
+          )}
           {!compact && v.last_open && (
             <p className="text-xs text-muted-foreground">App dibuka: {minutesAgo(v.last_open)}</p>
           )}
@@ -366,20 +367,20 @@ function PoiMarker({
     }
   }, [focusKey, poiKey]);
   return (
-  <Marker
-    ref={ref}
-    position={position}
-    icon={icon}
-    eventHandlers={{
-      click: (e) => {
-        playPopAnimation(e.target as L.Marker);
-        onClick?.();
-      },
-    }}
-  >
-    {children}
-  </Marker>
-);
+    <Marker
+      ref={ref}
+      position={position}
+      icon={icon}
+      eventHandlers={{
+        click: (e) => {
+          playPopAnimation(e.target as L.Marker);
+          onClick?.();
+        },
+      }}
+    >
+      {children}
+    </Marker>
+  );
 }
 
 /** Zoom ke titik hasil pencarian (non-truk). Popup-nya dibuka oleh PoiMarker. */
@@ -683,13 +684,13 @@ const typeColor = (t: string) =>
   t === "truck"
     ? "bg-slate-100 text-slate-600"
     : t === "seller"
-    ? "bg-emerald-100 text-emerald-700"
-    : t === "gudang"
-    ? "bg-sky-100 text-sky-700"
-    : "bg-orange-100 text-orange-700";
+      ? "bg-emerald-100 text-emerald-700"
+      : t === "gudang"
+        ? "bg-sky-100 text-sky-700"
+        : "bg-orange-100 text-orange-700";
 
 function LiveMapView({
- vehicles,
+  vehicles,
   sellers,
   gudang,
   dropPoints,
@@ -703,12 +704,12 @@ function LiveMapView({
   // jadi ramping biar gampang dipakai & gak nutup peta.
   const [isSmall, setIsSmall] = useState(false);
 
-   const [show, setShow] = useState({ trucks: true, sellers: true, gudang: true, drop: true });
+  const [show, setShow] = useState({ trucks: true, sellers: true, gudang: true, drop: true });
   const toggleLayer = (k: keyof typeof show) =>
     setShow((s) => ({ ...s, [k]: !s[k] }));
 
   const [legendOpen, setLegendOpen] = useState(true);
-  
+
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 768px)");
     const fn = () => setIsSmall(mq.matches);
@@ -754,10 +755,10 @@ function LiveMapView({
       type === "seller"
         ? sellers.find((s) => s.id_seller === id)
         : type === "drop"
-        ? dropList.find((p) => p.id_drop_point === id)
-        : type === "gudang"
-        ? gudangList.find((g) => g.id_gudang === id)
-        : undefined;
+          ? dropList.find((p) => p.id_drop_point === id)
+          : type === "gudang"
+            ? gudangList.find((g) => g.id_gudang === id)
+            : undefined;
     if (!found) return;
     initialedRef.current = true;
     const ts = Date.now();
@@ -824,12 +825,12 @@ function LiveMapView({
   return (
     <div className="relative h-full w-full">
       {/* Pencarian semua kategori → klik hasil buka popup */}
-    <div
-  className={cn(
-    "absolute left-3 bottom-3 z-20",
-    compact ? "w-40 max-w-[75%]" : "w-56 max-w-[75%]"
-  )}
->
+      <div
+        className={cn(
+          "absolute left-3 bottom-3 z-20",
+          compact ? "w-40 max-w-[75%]" : "w-56 max-w-[75%]"
+        )}
+      >
         <div className="relative">
           <Search
             className={cn(
@@ -846,11 +847,11 @@ function LiveMapView({
             onFocus={() => setOpen(true)}
             placeholder={compact ? "Cari di peta..." : "Cari truk, seller, gudang, gateway..."}
             className={cn(
-  "w-full border border-slate-200 bg-white shadow-sm outline-none focus:border-[#0c1e3a] focus:ring-2 focus:ring-[#0c1e3a]/20 font-semibold placeholder:font-semibold placeholder:text-slate-500",
-  compact
-    ? "h-8 rounded-md pl-7 pr-7 text-xs"
-    : "h-9 rounded-lg pl-8 pr-8 text-sm"
-)}
+              "w-full border border-slate-200 bg-white shadow-sm outline-none focus:border-[#0c1e3a] focus:ring-2 focus:ring-[#0c1e3a]/20 font-semibold placeholder:font-semibold placeholder:text-slate-500",
+              compact
+                ? "h-8 rounded-md pl-7 pr-7 text-xs"
+                : "h-9 rounded-lg pl-8 pr-8 text-sm"
+            )}
           />
           {q && (
             <button
@@ -896,15 +897,15 @@ function LiveMapView({
       </div>
 
       <MapContainer
-  key="live-map"
-  center={JAKARTA}
-  zoom={12}
-  minZoom={11}
-  maxBounds={TANGERANG_BOUNDS}
-  maxBoundsViscosity={1.0}
-  className="h-full w-full"
-  style={{ zIndex: 0 }}
->
+        key="live-map"
+        center={JAKARTA}
+        zoom={12}
+        minZoom={11}
+        maxBounds={TANGERANG_BOUNDS}
+        maxBoundsViscosity={1.0}
+        className="h-full w-full"
+        style={{ zIndex: 0 }}
+      >
         <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />
         <MapAutoResize />
         <FitBounds vehicles={vehicles} sellers={sellers} gudang={gudangList} dropPoints={dropList} />
@@ -913,155 +914,155 @@ function LiveMapView({
         {/* Gudang (Outgoing biru / DC ungu) — dinamis, bisa difilter */}
         {show.gudang &&
           gudangList.map((g) => {
-          const isOutgoing = g.tipe === "outgoing";
-          return (
-            
-            <PoiMarker
-      key={`gudang-${g.id_gudang}`}
-    poiKey={`gudang:${g.id_gudang}`}
-    position={[g.latitude, g.longitude]}
-    icon={isOutgoing ? OUTGOING_ICON : DC_ICON}
-    focusKey={focusKey}
- >
-  <Popup autoPan={false}>   {/* ⬅️ INI — tambahkan autoPan={false} di sini */}
-    <div className={compact ? "min-w-[110px] text-xs" : "min-w-[180px] text-sm"}>
-      <p className={isOutgoing ? "font-semibold text-sky-600" : "font-semibold text-[#7c3aed]"}>
-        {isOutgoing ? "Gudang Outgoing" : "Distribution Center (DC)"}
-      </p>
-                  {!compact && (
-                    <p className="text-xs text-muted-foreground">
-                      {isOutgoing
-                        ? "Titik muat keberangkatan — acuan jarak \"Outgoing\" tiap seller."
-                        : "Gudang DC (Buaran Indah) — acuan jarak \"DC\" tiap seller."}
+            const isOutgoing = g.tipe === "outgoing";
+            return (
+
+              <PoiMarker
+                key={`gudang-${g.id_gudang}`}
+                poiKey={`gudang:${g.id_gudang}`}
+                position={[g.latitude, g.longitude]}
+                icon={isOutgoing ? OUTGOING_ICON : DC_ICON}
+                focusKey={focusKey}
+              >
+                <Popup autoPan={false}>   {/* ⬅️ INI — tambahkan autoPan={false} di sini */}
+                  <div className={compact ? "min-w-[110px] text-xs" : "min-w-[180px] text-sm"}>
+                    <p className={isOutgoing ? "font-semibold text-sky-600" : "font-semibold text-[#7c3aed]"}>
+                      {isOutgoing ? "Gudang Outgoing" : "Distribution Center (DC)"}
                     </p>
-                  )}
-                </div>
-              </Popup>
-            </PoiMarker>
-          );
-        })}
+                    {!compact && (
+                      <p className="text-xs text-muted-foreground">
+                        {isOutgoing
+                          ? "Titik muat keberangkatan — acuan jarak \"Outgoing\" tiap seller."
+                          : "Gudang DC (Buaran Indah) — acuan jarak \"DC\" tiap seller."}
+                      </p>
+                    )}
+                  </div>
+                </Popup>
+              </PoiMarker>
+            );
+          })}
 
         {/* Drop points (Gateway JKT / SEG) — dinamis, oranye, bisa difilter; klik → rute */}
         {show.drop &&
           dropList.map((p) => (
-          <PoiMarker
-            key={`dp-${p.id_drop_point}`}
-            poiKey={`drop:${p.id_drop_point}`}
-            position={[p.latitude, p.longitude]}
-            icon={DROP_ICON}
-            focusKey={focusKey}
-              >
+            <PoiMarker
+              key={`dp-${p.id_drop_point}`}
+              poiKey={`drop:${p.id_drop_point}`}
+              position={[p.latitude, p.longitude]}
+              icon={DROP_ICON}
+              focusKey={focusKey}
+            >
               <Popup autoPan={false}>   {/* ⬅️ INI — tambahkan autoPan={false} di sini */}
-    <div className={compact ? "min-w-[120px] text-xs" : "min-w-[180px] text-sm"}>
-      <p className="font-semibold text-orange-600">
-        {p.nama_drop_point || `Gateway ${p.id_drop_point}`}
-      </p>
-                {p.kode_dp && (
-                  <p className="text-xs text-muted-foreground">Kode: {p.kode_dp}</p>
-                )}
-                {!compact && (
-                  <>
-                    <p className="text-xs text-muted-foreground">Gateway</p>
-                    {(p.jarak_tempuh_km != null || p.jarak_dc_km != null) && (
-                      <div className="mt-1 space-y-0.5">
-                        {p.jarak_tempuh_km != null && (
-                          <p className="text-xs font-medium text-sky-600">
-                            Outgoing: <b>{p.jarak_tempuh_km.toFixed(1)} km</b>
-                          </p>
-                        )}
-                        {p.jarak_dc_km != null && (
-                          <p className="text-xs font-medium text-violet-600">
-                            DC: <b>{p.jarak_dc_km.toFixed(1)} km</b>
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </Popup>
-          </PoiMarker>
-        ))}
+                <div className={compact ? "min-w-[120px] text-xs" : "min-w-[180px] text-sm"}>
+                  <p className="font-semibold text-orange-600">
+                    {p.nama_drop_point || `Gateway ${p.id_drop_point}`}
+                  </p>
+                  {p.kode_dp && (
+                    <p className="text-xs text-muted-foreground">Kode: {p.kode_dp}</p>
+                  )}
+                  {!compact && (
+                    <>
+                      <p className="text-xs text-muted-foreground">Gateway</p>
+                      {(p.jarak_tempuh_km != null || p.jarak_dc_km != null) && (
+                        <div className="mt-1 space-y-0.5">
+                          {p.jarak_tempuh_km != null && (
+                            <p className="text-xs font-medium text-sky-600">
+                              Outgoing: <b>{p.jarak_tempuh_km.toFixed(1)} km</b>
+                            </p>
+                          )}
+                          {p.jarak_dc_km != null && (
+                            <p className="text-xs font-medium text-violet-600">
+                              DC: <b>{p.jarak_dc_km.toFixed(1)} km</b>
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </Popup>
+            </PoiMarker>
+          ))}
 
         {/* Seller — bisa difilter; klik → gambar rute dari Outgoing & DC */}
         {show.sellers &&
           sellers.map((s) => (
-          <PoiMarker
-            key={`seller-${s.id_seller}`}
-            poiKey={`seller:${s.id_seller}`}
-            position={[s.latitude, s.longitude]}
-            icon={SELLER_ICON}
-            focusKey={focusKey}
-               >
-             <Popup autoPan={false}>    {/* ⬅️ INI — tambahkan autoPan={false} di sini */}
-    <div className={compact ? "min-w-[140px] text-xs" : "min-w-[200px] text-sm"}>
-      {s.nama_seller && (
-        <p className="font-semibold text-emerald-700">
-          {s.nama_seller}
-                    {s.kode_seller && (
-                      <span className="ml-1 text-[10px] font-normal text-slate-400">({s.kode_seller})</span>
-                    )}
-                  </p>
-                )}
-                {s.alamat && (
-                  <p className={compact ? "max-w-[150px] truncate text-xs text-muted-foreground" : "text-xs text-muted-foreground"}>
-                    {s.alamat}
-                  </p>
-                )}
-                {!compact && (
-                  <>
-                    <p className="text-xs text-muted-foreground">{s.kota}</p>
-                    {(s.jarak_tempuh_km != null || s.jarak_dc_km != null) && (
-                      <div className="mt-1 space-y-0.5">
-                        {s.jarak_tempuh_km != null && (
-                          <p className="text-xs font-medium text-sky-600">
-                            Outgoing: <b>{s.jarak_tempuh_km.toFixed(1)} km</b>
-                          </p>
-                        )}
-                        {s.jarak_dc_km != null && (
-                          <p className="text-xs font-medium text-violet-600">
-                            DC: <b>{s.jarak_dc_km.toFixed(1)} km</b>
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    {s.pic && <p className="mt-1 text-xs">PIC: <b>{s.pic}</b></p>}
-                    {s.no_hp && (
-                      <a
-                        href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`}
-                        className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"
-                      >
-                        <Phone className="h-3 w-3" /> Telpon: {s.no_hp}
-                      </a>
-                    )}
-                  </>
-                )}
-              </div>
-            </Popup>
-          </PoiMarker>
-        ))}
+            <PoiMarker
+              key={`seller-${s.id_seller}`}
+              poiKey={`seller:${s.id_seller}`}
+              position={[s.latitude, s.longitude]}
+              icon={SELLER_ICON}
+              focusKey={focusKey}
+            >
+              <Popup autoPan={false}>    {/* ⬅️ INI — tambahkan autoPan={false} di sini */}
+                <div className={compact ? "min-w-[140px] text-xs" : "min-w-[200px] text-sm"}>
+                  {s.nama_seller && (
+                    <p className="font-semibold text-emerald-700">
+                      {s.nama_seller}
+                      {s.kode_seller && (
+                        <span className="ml-1 text-[10px] font-normal text-slate-400">({s.kode_seller})</span>
+                      )}
+                    </p>
+                  )}
+                  {s.alamat && (
+                    <p className={compact ? "max-w-[150px] truncate text-xs text-muted-foreground" : "text-xs text-muted-foreground"}>
+                      {s.alamat}
+                    </p>
+                  )}
+                  {!compact && (
+                    <>
+                      <p className="text-xs text-muted-foreground">{s.kota}</p>
+                      {(s.jarak_tempuh_km != null || s.jarak_dc_km != null) && (
+                        <div className="mt-1 space-y-0.5">
+                          {s.jarak_tempuh_km != null && (
+                            <p className="text-xs font-medium text-sky-600">
+                              Outgoing: <b>{s.jarak_tempuh_km.toFixed(1)} km</b>
+                            </p>
+                          )}
+                          {s.jarak_dc_km != null && (
+                            <p className="text-xs font-medium text-violet-600">
+                              DC: <b>{s.jarak_dc_km.toFixed(1)} km</b>
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {s.pic && <p className="mt-1 text-xs">PIC: <b>{s.pic}</b></p>}
+                      {s.no_hp && (
+                        <a
+                          href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`}
+                          className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"
+                        >
+                          <Phone className="h-3 w-3" /> Telpon: {s.no_hp}
+                        </a>
+                      )}
+                    </>
+                  )}
+                </div>
+              </Popup>
+            </PoiMarker>
+          ))}
 
         {/* Truk TIDAK dikluster — selalu keliatan satu-satu. Bisa difilter. */}
         {show.trucks &&
           vehicles.map((v) => (
-          <VehicleMarker
-            key={`vehicle-${v.id_kendaraan}`}
-            vehicle={v}
-            selected={selectedVehicleId === v.id_kendaraan}
-            onSelect={() => onSelectVehicle(v.id_kendaraan)}
-            phones={phones}
-            compact={compact}
-            eta={
-              selectedVehicleId === v.id_kendaraan && activeRoute.next && activeRoute.route
-                ? {
+            <VehicleMarker
+              key={`vehicle-${v.id_kendaraan}`}
+              vehicle={v}
+              selected={selectedVehicleId === v.id_kendaraan}
+              onSelect={() => onSelectVehicle(v.id_kendaraan)}
+              phones={phones}
+              compact={compact}
+              eta={
+                selectedVehicleId === v.id_kendaraan && activeRoute.next && activeRoute.route
+                  ? {
                     label: activeRoute.next.point.label,
                     km: `${(activeRoute.route.distanceMeters / 1000).toFixed(1)} km`,
                     durationSeconds: activeRoute.route.durationSeconds,
                   }
-                : null
-            }
-          />
-        ))}
+                  : null
+              }
+            />
+          ))}
 
 
         {/* Rute LIVE armada terpilih — emerald, dari posisi truk ke tujuan berikutnya */}
@@ -1160,10 +1161,10 @@ function LiveMapView({
             <LegendToggle compact={compact} label="Gudang Outgoing" color="#0ea5e9" active={show.gudang} onClick={() => toggleLayer("gudang")} />
             <LegendToggle compact={compact} label="Gudang DC" color="#7c3aed" active={show.gudang} onClick={() => toggleLayer("gudang")} />
             <LegendToggle compact={compact} label="Gateway" color="#f97316" active={show.drop} onClick={() => toggleLayer("drop")} />
+          </div>
+        )}
+      </div>
     </div>
-  )}
-</div>
-</div>
 
   );
 }
