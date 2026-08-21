@@ -730,7 +730,7 @@ export default function JadwalPage() {
           </h3>
           <p className="mt-1 max-w-sm text-xs text-slate-500 dark:text-slate-400">
             {selectedDate === todayStr
-              ? 'Klik tombol "Generate Otomatis (1-Klik)" di atas untuk membuatkan rute tetap untuk seluruh driver hari ini.'
+              ? 'Klik tombol "Generate Otomatis" di atas untuk membuatkan rute tetap untuk seluruh driver hari ini.'
               : "Pilih tanggal lain di bagian filter untuk melihat riwayat rute terdahulu."}
           </p>
           {selectedDate === todayStr && (
