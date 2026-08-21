@@ -287,7 +287,7 @@ function VehicleMarker({
   <p className="text-xs">
     Status: {
       v.session_online === false ? "Driver logout"
-      : v.offline ? "Di beranda"
+      : v.offline ? "Belum memulai"
       : displayTrackingStatus(v.status, v.kecepatan, v.last_update)
     }
   </p>
@@ -298,7 +298,7 @@ function VehicleMarker({
 {v.session_online === false ? (
   <p className="text-xs font-medium text-rose-600">Driver sudah logout dari aplikasi</p>
 ) : v.offline ? (
-  <p className="text-xs font-medium text-amber-600">Driver standby di beranda</p>
+  <p className="text-xs font-medium text-amber-600">Belum memulai</p>
 ) : (
   <p className={stale ? "text-xs font-medium text-amber-600" : "text-xs text-muted-foreground"}>
     Update: {minutesAgo(v.last_update)}
@@ -311,7 +311,7 @@ function VehicleMarker({
           {eta && (
             compact ? (
               <p className="mt-1 rounded-md bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-700">
-                Next: {eta.label} · {eta.km} · ETA {fmtArrival(eta.durationSeconds)}
+                Tujuan Selanjutnya: {eta.label} · {eta.km} · ETA {fmtArrival(eta.durationSeconds)}
               </p>
             ) : (
               <div className="mt-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px]">
@@ -320,7 +320,7 @@ function VehicleMarker({
                   Estimasi tiba <b>{fmtArrival(eta.durationSeconds)}</b> · {eta.km} · {fmtDuration(eta.durationSeconds)}
                 </p>
                 <p className="mt-1 border-t border-emerald-200/70 pt-1 text-[10px] italic leading-snug text-emerald-700/70">
-                  Hanya estimasi dari perhitungan rute — kondisi jalan & kecepatan aktual tidak dihitung, jadi bisa berbeda dari kenyataan.
+                  Hanya estimasi dari perhitungan rute kondisi jalan & halangan lainnya tidak dihitung, jadi bisa berbeda dari kenyataan.
                 </p>
               </div>
             )

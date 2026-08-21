@@ -49,7 +49,7 @@ export function VehicleItem({ vehicle, selected, onSelect, durasi }: VehicleItem
   const statusText = loggedOut
     ? "Logout"
     : atBeranda
-    ? "Di beranda"                                          
+    ? "Belum memulai"                                          
     : displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update);
   const statusTone = loggedOut
     ? "text-slate-400"
