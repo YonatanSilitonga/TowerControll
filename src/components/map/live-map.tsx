@@ -49,21 +49,25 @@ function createTruckIcon(selected: boolean) {
     iconSize: [34, 34],
     iconAnchor: [17, 17],
     html: `
-      <div style="
-        width:34px;height:34px;
-        background:${selected ? "#ff8f00" : "#1e3a5f"};
-        border:2px solid #fff;
-        border-radius:50%;
-        box-shadow:0 2px 6px rgba(0,0,0,.4);
-        display:flex;align-items:center;justify-content:center;
-      ">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
-          <path d="M15 18H9"/>
-          <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/>
-          <circle cx="17" cy="18" r="2"/>
-          <circle cx="7" cy="18" r="2"/>
-        </svg>
+      <div style="position:relative;width:34px;height:34px;">
+        ${selected ? `<span class="truck-pulse-ring"></span>` : ""}
+        <div class="marker-visual" style="
+          position:relative; z-index:1;
+          width:34px;height:34px;
+          background:${selected ? "#ff8f00" : "#1e3a5f"};
+          border:2px solid #fff;
+          border-radius:50%;
+          box-shadow:0 2px 6px rgba(0,0,0,.4);
+          display:flex;align-items:center;justify-content:center;
+        ">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
+            <path d="M15 18H9"/>
+            <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/>
+            <circle cx="17" cy="18" r="2"/>
+            <circle cx="7" cy="18" r="2"/>
+          </svg>
+        </div>
       </div>`,
   });
 }
@@ -74,7 +78,7 @@ function createSellerIcon() {
     iconSize: [30, 30],
     iconAnchor: [15, 15],
     html: `
-      <div style="
+      <div class="marker-visual" style="
         width:30px;height:30px;
         background:#10b981;
         border:2px solid #fff;
@@ -98,7 +102,7 @@ function createGudangIcon(color: string) {
     iconSize: [38, 38],
     iconAnchor: [19, 19],
     html: `
-      <div style="
+      <div class="marker-visual" style="
         width:38px;height:38px;
         background:${color};
         border:3px solid #fff;
@@ -113,6 +117,15 @@ function createGudangIcon(color: string) {
         </svg>
       </div>`,
   });
+}
+
+/** Restart animasi "pop" di elemen dalam marker (dipanggil tiap klik). */
+function playPopAnimation(marker: L.Marker | null) {
+  const el = marker?.getElement()?.querySelector<HTMLElement>(".marker-visual");
+  if (!el) return;
+  el.classList.remove("marker-pop");
+  void el.offsetWidth; // paksa reflow biar animasi bisa diulang walau class-nya sama
+  el.classList.add("marker-pop");
 }
 
 function FitBounds({
@@ -260,7 +273,12 @@ function VehicleMarker({
       ref={markerRef}
       position={[v.latitude, v.longitude]}
       icon={selected ? TRUCK_ICON_SELECTED : TRUCK_ICON}
-      eventHandlers={{ click: onSelect }}
+      eventHandlers={{
+        click: (e) => {              {/* ⬅️ GANTI baris eventHandlers ini */}
+          playPopAnimation(e.target as L.Marker);
+          onSelect();
+        },
+      }}
     >
       <Popup>
         <div className={compact ? "min-w-[110px] text-xs" : "min-w-[210px] text-sm"}>
@@ -326,6 +344,7 @@ function PoiMarker({
   icon: L.DivIcon;
   onClick?: () => void;
   focusKey?: string | null;
+
   children: React.ReactNode;
 }) {
   const ref = useRef<L.Marker>(null);
@@ -335,12 +354,21 @@ function PoiMarker({
       ref.current?.openPopup();
     }
   }, [focusKey, poiKey]);
-
   return (
-    <Marker ref={ref} position={position} icon={icon} eventHandlers={onClick ? { click: onClick } : undefined}>
-      {children}
-    </Marker>
-  );
+  <Marker
+    ref={ref}
+    position={position}
+    icon={icon}
+    eventHandlers={{
+      click: (e) => {
+        playPopAnimation(e.target as L.Marker);
+        onClick?.();
+      },
+    }}
+  >
+    {children}
+  </Marker>
+);
 }
 
 /** Zoom ke titik hasil pencarian (non-truk). Popup-nya dibuka oleh PoiMarker. */
@@ -693,30 +721,7 @@ function LiveMapView({
 
 
   // Rute yang digambar saat seller/gateway diklik (dari Outgoing & DC).
-  const [routes, setRoutes] = useState<{
-    targetKey: string;
-    out?: [number, number][];
-    dc?: [number, number][];
-  } | null>(null);
-  const [routeLoading, setRouteLoading] = useState(false);
 
-  const drawRoute = async (targetKey: string, lat: number, lng: number) => {
-    // Rute untuk target ini SUDAH ada → biarkan (jangan clear/refetch).
-    if (routes?.targetKey === targetKey) return;
-    setRouteLoading(true);
-    setRoutes(null);
-    const [out, dc] = await Promise.all([
-      fetchRoute(OUTGOING_LAT, OUTGOING_LON, lat, lng),
-      fetchRoute(DC_LAT, DC_LON, lat, lng),
-    ]);
-    setRoutes({ targetKey, out: out?.points, dc: dc?.points });
-    setRouteLoading(false);
-  };
-
-  const onSelectSeller = (s: SellerLocation) =>
-    drawRoute(`seller:${s.id_seller}`, s.latitude, s.longitude);
-  const onSelectDrop = (p: DropPointPoi) =>
-    drawRoute(`drop:${p.id_drop_point}`, p.latitude, p.longitude);
 
   // Rute LIVE armada terpilih: dari posisi truk → stop berikutnya (ritase aktif).
   const selectedVehicle =
@@ -893,25 +898,25 @@ function LiveMapView({
         <MapAutoResize />
         <FitBounds vehicles={vehicles} sellers={sellers} gudang={gudangList} dropPoints={dropList} />
         <FocusSelected vehicles={vehicles} selectedVehicleId={selectedVehicleId} />
-        <FitRoutes routes={routes} />
 
         {/* Gudang (Outgoing biru / DC ungu) — dinamis, bisa difilter */}
         {show.gudang &&
           gudangList.map((g) => {
           const isOutgoing = g.tipe === "outgoing";
           return (
+            
             <PoiMarker
-              key={`gudang-${g.id_gudang}`}
-              poiKey={`gudang:${g.id_gudang}`}
-              position={[g.latitude, g.longitude]}
-              icon={isOutgoing ? OUTGOING_ICON : DC_ICON}
-              focusKey={focusKey}
-            >
-              <Popup>
-                <div className={compact ? "min-w-[110px] text-xs" : "min-w-[180px] text-sm"}>
-                  <p className={isOutgoing ? "font-semibold text-sky-600" : "font-semibold text-[#7c3aed]"}>
-                    {isOutgoing ? "Gudang Outgoing" : "Distribution Center (DC)"}
-                  </p>
+      key={`gudang-${g.id_gudang}`}
+    poiKey={`gudang:${g.id_gudang}`}
+    position={[g.latitude, g.longitude]}
+    icon={isOutgoing ? OUTGOING_ICON : DC_ICON}
+    focusKey={focusKey}
+ >
+  <Popup autoPan={false}>   {/* ⬅️ INI — tambahkan autoPan={false} di sini */}
+    <div className={compact ? "min-w-[110px] text-xs" : "min-w-[180px] text-sm"}>
+      <p className={isOutgoing ? "font-semibold text-sky-600" : "font-semibold text-[#7c3aed]"}>
+        {isOutgoing ? "Gudang Outgoing" : "Distribution Center (DC)"}
+      </p>
                   {!compact && (
                     <p className="text-xs text-muted-foreground">
                       {isOutgoing
@@ -934,13 +939,12 @@ function LiveMapView({
             position={[p.latitude, p.longitude]}
             icon={DROP_ICON}
             focusKey={focusKey}
-            onClick={() => onSelectDrop(p)}
-          >
-            <Popup>
-              <div className={compact ? "min-w-[120px] text-xs" : "min-w-[180px] text-sm"}>
-                <p className="font-semibold text-orange-600">
-                  {p.nama_drop_point || `Gateway ${p.id_drop_point}`}
-                </p>
+              >
+              <Popup autoPan={false}>   {/* ⬅️ INI — tambahkan autoPan={false} di sini */}
+    <div className={compact ? "min-w-[120px] text-xs" : "min-w-[180px] text-sm"}>
+      <p className="font-semibold text-orange-600">
+        {p.nama_drop_point || `Gateway ${p.id_drop_point}`}
+      </p>
                 {p.kode_dp && (
                   <p className="text-xs text-muted-foreground">Kode: {p.kode_dp}</p>
                 )}
@@ -977,13 +981,12 @@ function LiveMapView({
             position={[s.latitude, s.longitude]}
             icon={SELLER_ICON}
             focusKey={focusKey}
-            onClick={() => onSelectSeller(s)}
-          >
-            <Popup>
-              <div className={compact ? "min-w-[140px] text-xs" : "min-w-[200px] text-sm"}>
-                {s.nama_seller && (
-                  <p className="font-semibold text-emerald-700">
-                    {s.nama_seller}
+               >
+             <Popup autoPan={false}>    {/* ⬅️ INI — tambahkan autoPan={false} di sini */}
+    <div className={compact ? "min-w-[140px] text-xs" : "min-w-[200px] text-sm"}>
+      {s.nama_seller && (
+        <p className="font-semibold text-emerald-700">
+          {s.nama_seller}
                     {s.kode_seller && (
                       <span className="ml-1 text-[10px] font-normal text-slate-400">({s.kode_seller})</span>
                     )}
@@ -1049,13 +1052,6 @@ function LiveMapView({
           />
         ))}
 
-        {/* Rute hasil klik seller — biru dari Outgoing, ungu dari DC */}
-        {routes?.out && routes.out.length > 1 && (
-          <Polyline positions={routes.out} pathOptions={{ color: "#0ea5e9", weight: 4, opacity: 0.75 }} />
-        )}
-        {routes?.dc && routes.dc.length > 1 && (
-          <Polyline positions={routes.dc} pathOptions={{ color: "#7c3aed", weight: 4, opacity: 0.75 }} />
-        )}
 
         {/* Rute LIVE armada terpilih — emerald, dari posisi truk ke tujuan berikutnya */}
         {activeRoute.route && activeRoute.route.points.length > 1 && activeRoute.next && (
@@ -1081,51 +1077,6 @@ function LiveMapView({
         {/* Fokus hasil pencarian (bukan truk) → zoom; popup dibuka PoiMarker */}
         <FocusPoi focus={focus} />
       </MapContainer>
-
-      {/* Chip info + tutup rute */}
-      {(routeLoading || routes) && (
-        <div
-          className={cn(
-            "absolute bottom-3 left-3 z-10 rounded-md border bg-white/95 shadow-sm",
-            compact ? "px-2.5 py-1.5 text-[10px]" : "px-3 py-2 text-[11px]"
-          )}
-        >
-          {routeLoading ? (
-            <p className="text-slate-500">Menggambar rute...</p>
-          ) : compact ? (
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-700">Rute dari gudang</span>
-              <i className="inline-block h-2 w-2 rounded-full bg-sky-500" />
-              <i className="inline-block h-2 w-2 rounded-full bg-violet-500" />
-              <button
-                type="button"
-                onClick={() => setRoutes(null)}
-                className="font-semibold text-slate-500 hover:text-rose-600"
-                aria-label="Tutup rute"
-              >
-                ✕
-              </button>
-            </div>
-          ) : (
-            <>
-              <p className="mb-1 font-semibold text-slate-700">Rute dari gudang:</p>
-              <p className="flex items-center gap-1.5 text-sky-600">
-                <i className="inline-block h-2 w-2 rounded-full bg-sky-500" /> Dari Gudang Outgoing
-              </p>
-              <p className="flex items-center gap-1.5 text-violet-600">
-                <i className="inline-block h-2 w-2 rounded-full bg-violet-500" /> Dari Gudang DC
-              </p>
-              <button
-                type="button"
-                onClick={() => setRoutes(null)}
-                className="mt-1 text-xs font-semibold text-slate-500 hover:text-rose-600"
-              >
-                Tutup rute ✕
-              </button>
-            </>
-          )}
-        </div>
-      )}
 
       {/* Chip rute LIVE armada terpilih — posisi truk → tujuan berikutnya */}
       {activeRoute.next && activeRoute.route && (

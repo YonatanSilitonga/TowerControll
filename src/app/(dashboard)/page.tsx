@@ -107,11 +107,15 @@ export default function DashboardPage() {
   // "" = semua tanggal; kalau diisi → filter riwayat per hari.
   const [selectedDate, setSelectedDate] = useState<string>("");
   // Jam WIB live (update tiap detik).
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
+const [now, setNow] = useState(() => new Date());
+useEffect(() => {
+  const t = setInterval(() => setNow(new Date()), 1000);
+  return () => clearInterval(t);
+}, []);
+
+useEffect(() => {
+  if (selectedId) setSelectedDate(todayLocal());
+}, [selectedId]);
 
   const token = useAuthStore((s) => s.token);
 
@@ -299,7 +303,7 @@ export default function DashboardPage() {
       </div>
 
       {/* PETA KIRI + ARMADA KANAN */}
-      <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-5 lg:grid-cols-[1fr_380px] items-start">
         {/* KIRI: peta live — dengan filter tabs */}
         <Card className="flex flex-col overflow-hidden rounded-lg border-slate-200">
   <CardContent className="flex-1 p-0">
@@ -318,8 +322,8 @@ export default function DashboardPage() {
 </Card>
 
         {/* KANAN: panel armada */}
-        <div className="space-y-4">
-          <Card className="rounded-lg border-slate-200">
+        <div className="flex h-[80vh] min-h-[700px] flex-col gap-4">
+          <Card className="shrink-0 rounded-lg border-slate-200">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                 <Truck className="h-4 w-4 text-[#0c1e3a]" /> Armada Aktif
@@ -409,8 +413,8 @@ export default function DashboardPage() {
           </Card>
 
           
-           <Card className="rounded-lg border-slate-200">
-  <CardHeader className="pb-2">
+           <Card className="flex min-h-0 flex-1 flex-col rounded-lg border-slate-200">
+  <CardHeader className="shrink-0 pb-2">
     <CardTitle className="flex items-center gap-2 text-sm font-semibold">
       <MapPin className={cn("h-4 w-4", selectedVehicle ? "text-amber-500" : "text-slate-300")} />
       {selectedVehicle ? (selectedVehicle.plat_nomor || "-") : "Detail Armada"}
@@ -427,7 +431,7 @@ export default function DashboardPage() {
       )}
     </CardTitle>
   </CardHeader>
-  <CardContent className="max-h-[500px] space-y-3 overflow-y-auto pt-0">
+  <CardContent className="min-h-0 flex-1 space-y-3 overflow-y-auto pt-0">
     {!selectedVehicle ? (
       <p className="py-10 text-center text-sm text-slate-400">
         Pilih driver untuk melihat riwayat
