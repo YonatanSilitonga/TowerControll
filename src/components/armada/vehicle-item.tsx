@@ -38,14 +38,26 @@ export function VehicleItem({ vehicle, selected, onSelect, durasi }: VehicleItem
         const t = new Date(vehicle.last_update).getTime();
         return Number.isNaN(t) ? true : Date.now() - t > 3 * 60 * 1000;
       })());
+  const loggedOut = vehicle.session_online === false;
+  const atBeranda = !loggedOut && !live;               
 
-  const dot = live ? "bg-emerald-500 animate-pulse" : "bg-rose-400";
-  const statusText = live
-    ? displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update)
-    : "Offline";
-  const statusTone = live ? "text-emerald-700" : "text-rose-600";
+  const dot = loggedOut
+    ? "bg-slate-300"
+    : atBeranda
+    ? "bg-amber-400"                                       
+    : "bg-emerald-500 animate-pulse";
+  const statusText = loggedOut
+    ? "Logout"
+    : atBeranda
+    ? "Di beranda"                                          
+    : displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update);
+  const statusTone = loggedOut
+    ? "text-slate-400"
+    : atBeranda
+    ? "text-amber-600"                                      
+    : "text-emerald-700";
 
-  return (
+ return (
     <button
       type="button"
       onClick={onSelect}
@@ -80,7 +92,7 @@ export function VehicleItem({ vehicle, selected, onSelect, durasi }: VehicleItem
           <span className="text-[11px] text-slate-400" />
         )}
         <span className="shrink-0 text-[11px] tabular-nums text-slate-400">
-          {minutesAgo(vehicle.last_update)}
+          {loggedOut || atBeranda ? "" : minutesAgo(vehicle.last_update)}  {/* ⬅️ kosongkan untuk keduanya */}
         </span>
       </div>
     </button>

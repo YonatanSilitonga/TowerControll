@@ -255,7 +255,6 @@ function VehicleMarker({
   onSelect: () => void;
   phones?: Record<string, string>;
   compact?: boolean;
-  /** Info estimasi waktu rute live armada ini (kalau terpilih & punya rute aktif). */
   eta?: { label: string; km: string; durationSeconds: number } | null;
 }) {
   const markerRef = useRef<L.Marker>(null);
@@ -281,18 +280,30 @@ function VehicleMarker({
       }}
     >
       <Popup>
-        <div className={compact ? "min-w-[110px] text-xs" : "min-w-[210px] text-sm"}>
-          <p className="font-semibold text-[#1e3a5f]">{v.plat_nomor || "-"}</p>
-          <p className="text-xs text-muted-foreground">Driver: {v.nama_driver || "-"}</p>
-          {!compact && (
-            <p className="text-xs">
-              Status: {v.offline ? "Offline" : displayTrackingStatus(v.status, v.kecepatan, v.last_update)}
-            </p>
-          )}
-          {!compact && !stale && <p className="text-xs">Kecepatan: {v.kecepatan ?? 0} km/h</p>}
-          <p className={stale ? "text-xs font-medium text-amber-600" : "text-xs text-muted-foreground"}>
-            Update: {minutesAgo(v.last_update)}
-          </p>
+  <div className={compact ? "min-w-[110px] text-xs" : "min-w-[210px] text-sm"}>
+    <p className="font-semibold text-[#1e3a5f]">{v.plat_nomor || "-"}</p>
+    <p className="text-xs text-muted-foreground">Driver: {v.nama_driver || "-"}</p>
+    {!compact && (
+  <p className="text-xs">
+    Status: {
+      v.session_online === false ? "Driver logout"
+      : v.offline ? "Di beranda"
+      : displayTrackingStatus(v.status, v.kecepatan, v.last_update)
+    }
+  </p>
+)}
+{!compact && !stale && v.session_online !== false && !v.offline && (
+  <p className="text-xs">Kecepatan: {v.kecepatan ?? 0} km/h</p>
+)}
+{v.session_online === false ? (
+  <p className="text-xs font-medium text-rose-600">Driver sudah logout dari aplikasi</p>
+) : v.offline ? (
+  <p className="text-xs font-medium text-amber-600">Driver standby di beranda</p>
+) : (
+  <p className={stale ? "text-xs font-medium text-amber-600" : "text-xs text-muted-foreground"}>
+    Update: {minutesAgo(v.last_update)}
+  </p>
+)}
           {!compact && v.last_open && (
             <p className="text-xs text-muted-foreground">App dibuka: {minutesAgo(v.last_open)}</p>
           )}
