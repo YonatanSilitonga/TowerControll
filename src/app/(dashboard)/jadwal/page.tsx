@@ -37,10 +37,16 @@ import { ApiError } from "@/types/api";
 import type { AdminRitaseItem, AdminRitaseStop } from "@/types/armada";
 
 export default function JadwalPage() {
-  const getNDaysAgo = (n: number) => {
+ const getNDaysAgo = (n: number) => {
     const d = new Date();
     d.setDate(d.getDate() - n);
-    return d.toISOString().split("T")[0];
+    // Memaksa output YYYY-MM-DD menggunakan waktu Jakarta
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(d);
   };
 
   const todayStr = getNDaysAgo(0);
