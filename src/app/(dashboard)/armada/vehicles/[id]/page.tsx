@@ -1,6 +1,6 @@
 "use client";
 
-import { notFound, useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { MapPin, Truck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,20 +29,26 @@ function minutesAgo(iso?: string | null): string {
   return d === 1 ? "1 hari lalu" : `${d} hari lalu`;
 }
 
-export default function VehicleDetailPage({ params }: { params: { id: string } }) {
-  const id = Number(params.id);
+export default function VehicleDetailPage({ params }: { params?: { id?: string } }) {
+  const routeParams = useParams();
+  const rawId = routeParams?.id ?? params?.id;
+  const id = Number(rawId);
   const router = useRouter();
 
   const { data: kendaraan, isLoading: lK } = useKendaraan();
   const { data: ritase, isLoading: lRitase } = useRitase();
   const { data: mapData } = useTrackingMap();
-  const vehicle = (kendaraan ?? []).find((k) => k.id_kendaraan === id);
-  const { data: history, isLoading: lHist } = useTrackingHistory(Number.isFinite(id) ? id : null);
+  const vehicle = Number.isFinite(id)
+    ? (kendaraan ?? []).find((k) => k.id_kendaraan === id)
+    : null;
+  const { data: history, isLoading: lHist } = useTrackingHistory(
+    Number.isFinite(id) ? id : null
+  );
   // Info live dari tracking map (kalau kendaraan ini lagi kirim posisi).
   const liveV =
     (mapData?.vehicles ?? []).find((v) => v.id_kendaraan === id) ?? null;
 
-  if (lK || kendaraan === undefined) {
+  if (lK || kendaraan === undefined || !Number.isFinite(id)) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-64" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { notFound } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
   BarChart3,
   Clock,
@@ -43,13 +43,15 @@ import { displayTrackingStatus, statusLabel } from "@/lib/constants";
 import { cn, formatDateDMY, formatDur, formatNumber } from "@/lib/utils";
 
 
-export default function RitaseDetailPage({ params }: { params: { id: string } }) {
-  const { data, isLoading } = useRitaseDetail(params.id);
+export default function RitaseDetailPage({ params }: { params?: { id?: string } }) {
+  const routeParams = useParams();
+  const rawId = (routeParams?.id ?? params?.id ?? "") as string;
+  const { data, isLoading } = useRitaseDetail(rawId);
   const { data: mapData } = useTrackingMap();
 
   const vehicle = mapData?.vehicles.find(v => v.id_kendaraan === data?.id_kendaraan);
 
-  if (isLoading || data === undefined) {
+  if (isLoading || data === undefined || !rawId) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-64" />
@@ -67,7 +69,7 @@ export default function RitaseDetailPage({ params }: { params: { id: string } })
           crumbs={[{ label: "Armada", href: "/armada" }, { label: "Ritase", href: "/armada/trips" }]}
         />
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center dark:border-slate-800 dark:bg-slate-900">
-          <p className="text-sm text-slate-500">Ritase dengan ID #{params.id} tidak ditemukan.</p>
+          <p className="text-sm text-slate-500">Ritase dengan ID #{rawId} tidak ditemukan.</p>
         </div>
       </div>
     );

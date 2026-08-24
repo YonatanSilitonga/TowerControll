@@ -1,6 +1,6 @@
 "use client";
 
-import { notFound, useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { MapPin, Phone, Truck, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,16 +16,22 @@ import { useTrackingHistory } from "@/hooks/use-tracking";
 import { cn, formatDateDMY } from "@/lib/utils";
 import type { Ritase } from "@/types/armada";
 
-export default function DriverDetailPage({ params }: { params: { id: string } }) {
-  const id = Number(params.id);
+export default function DriverDetailPage({ params }: { params?: { id?: string } }) {
+  const routeParams = useParams();
+  const rawId = routeParams?.id ?? params?.id;
+  const id = Number(rawId);
   const router = useRouter();
 
   const { data: drivers, isLoading: lDrivers } = useDriver();
   const { data: ritase, isLoading: lRitase } = useRitase();
-  const driver = (drivers ?? []).find((d) => d.id_driver === id);
-  const { data: history, isLoading: lHist } = useTrackingHistory(driver?.id_kendaraan ?? null);
+  const driver = Number.isFinite(id)
+    ? (drivers ?? []).find((d) => d.id_driver === id)
+    : null;
+  const { data: history, isLoading: lHist } = useTrackingHistory(
+    driver?.id_kendaraan ?? null
+  );
 
-  if (lDrivers || drivers === undefined) {
+  if (lDrivers || drivers === undefined || !Number.isFinite(id)) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-64" />
