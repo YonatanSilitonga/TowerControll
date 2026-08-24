@@ -191,7 +191,9 @@ export const mockDashboard: DashboardSummary = {
   total_awb: 54058,
   total_awb_hari_ini: 12000,
   total_koli: 475,
-  paket_tertinggal: 12,
+  total_koli_hari_ini: 228,
+  total_high_value_hari_ini: 1007,
+  total_eceran_hari_ini: 112,
   // Lainnya
   total_seller: 20,
   seller_terlayani: 18,

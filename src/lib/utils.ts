@@ -1,6 +1,20 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+/** Session ambang — jam sejak login sebelum dianggap "tidak aktif". */
+const SESSION_HOURS = 12;
+
+/**
+ * Hitung session aktif dari last_login (bukan field session_online backend).
+ * Backend `session_online` computed field unreliable karena DISTINCT ON + LEFT JOIN bug.
+ * Frontend hitung langsung dari last_login yang sudah pasti benar.
+ */
+export function hasActiveSession(lastLogin?: string | null): boolean {
+  if (!lastLogin) return false;
+  const ms = new Date(lastLogin).getTime();
+  return ms > 0 && (Date.now() - ms) < SESSION_HOURS * 3600 * 1000;
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

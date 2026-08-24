@@ -13,7 +13,7 @@ import type {
 } from "@/types/armada";
 import { useRitaseDetail } from "@/hooks/use-armada";
 import { displayTrackingStatus } from "@/lib/constants";
-import { cn } from "@/lib/utils";
+import { cn, hasActiveSession } from "@/lib/utils";
 
 // Tile CARTO (gratis & lebih cepat dari OSM publik) — render area baru jauh lebih responsif.
 const TILE_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
@@ -249,6 +249,8 @@ function VehicleMarker({
   phones,
   compact,
   eta,
+  isCompleted,
+  kode,
 }: {
   vehicle: TrackingVehicle;
   selected: boolean;
@@ -256,6 +258,8 @@ function VehicleMarker({
   phones?: Record<string, string>;
   compact?: boolean;
   eta?: { label: string; km: string; durationSeconds: number } | null;
+  isCompleted?: boolean;
+  kode?: string | null;
 }) {
   const markerRef = useRef<L.Marker>(null);
   const lastT = new Date(v.last_update).getTime();
@@ -287,13 +291,13 @@ function VehicleMarker({
           {!compact && (
             <p className="text-xs">
               Status: {
-                v.session_online === false ? "Driver logout"
+                !hasActiveSession(v.last_login) ? "Driver logout"
                   : v.offline ? "Belum memulai"
                     : displayTrackingStatus(v.status, v.kecepatan, v.last_update)
               }
             </p>
           )}
-          {!compact && !stale && v.session_online !== false && !v.offline && (
+          {!compact && !stale && hasActiveSession(v.last_login) && !v.offline && (
             <p className="text-xs">Kecepatan: {v.kecepatan ?? 0} km/h</p>
           )}
           {/* Kotak Informasi Jumlah Muatan yang Dibawa */}
@@ -305,20 +309,20 @@ function VehicleMarker({
               <div className="grid grid-cols-3 gap-1.5 text-center">
                 <div className="rounded border border-amber-100 bg-white/90 px-1 py-1 shadow-xs">
                   <span className="block text-[9px] font-medium text-slate-500">Koli</span>
-                  <span className="text-xs font-extrabold text-slate-800">{v.jumlah_koli ?? 0}</span>
+                  <span className="text-xs font-extrabold text-slate-800">{v.total_koli ?? 0}</span>
                 </div>
                 <div className="rounded border border-amber-100 bg-white/90 px-1 py-1 shadow-xs">
                   <span className="block text-[9px] font-medium text-slate-500">Ecer</span>
-                  <span className="text-xs font-extrabold text-slate-800">{v.jumlah_ecer ?? 0}</span>
+                  <span className="text-xs font-extrabold text-slate-800">{v.total_eceran ?? 0}</span>
                 </div>
                 <div className="rounded border border-amber-100 bg-white/90 px-1 py-1 shadow-xs">
                   <span className="block text-[9px] font-medium text-slate-500">High Value</span>
-                  <span className="text-xs font-extrabold text-slate-800">{v.jumlah_high_value ?? 0}</span>
+                  <span className="text-xs font-extrabold text-slate-800">{v.total_high_value ?? 0}</span>
                 </div>
               </div>
             </div>
           )}
-          {v.session_online === false ? (
+          {!hasActiveSession(v.last_login) ? (
             <p className="text-xs font-medium text-rose-600">Driver sudah logout dari aplikasi</p>
           ) : v.offline ? (
             <p className="text-xs font-medium text-amber-600">Belum memulai</p>
@@ -330,8 +334,12 @@ function VehicleMarker({
           {!compact && v.last_open && (
             <p className="text-xs text-muted-foreground">App dibuka: {minutesAgo(v.last_open)}</p>
           )}
-          {/* Estimasi waktu rute live armada — hanya untuk truk terpilih yang punya rute aktif */}
-          {eta && (
+          {/* Estimasi waktu rute live armada — hanya untuk truk terpilih yang punya rute aktif & gak logout */}
+          {isCompleted && hasActiveSession(v.last_login) && !compact ? (
+            <div className="mt-1.5 rounded-md border border-green-200 bg-green-50 px-2 py-1 text-[11px]">
+              <p className="font-medium text-green-700">Rute selesai</p>
+            </div>
+          ) : eta && hasActiveSession(v.last_login) && (
             compact ? (
               <p className="mt-1 rounded-md bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-700">
                 Tujuan Selanjutnya: {eta.label} · {eta.km} · ETA {fmtArrival(eta.durationSeconds)}
@@ -357,6 +365,7 @@ function VehicleMarker({
               <Phone className="h-3.5 w-3.5" /> Telpon Driver
             </a>
           )}
+
         </div>
       </Popup>
     </Marker>
@@ -565,32 +574,54 @@ function findNextStop(
   if (resolved.length === 0) return null;
 
   if (events.length === 0) {
-    const targetIdx = resolved.length > 1 ? 1 : 0;
-    return { stop: resolved[targetIdx].stop, point: resolved[targetIdx].point };
+    // Belum mulai — gak ada next stop, gak ada ETA
+    return null;
   }
 
   const chronologicalEvents = [...events].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
+  // Dedup: buang consecutive same-status (driver spam tombol)
+  const deduped = chronologicalEvents.filter((ev, i, arr) => {
+    if (i === 0) return true;
+    return ev.status !== arr[i - 1].status;
+  });
+
   let arrivalCount = 0;
-  for (let i = 0; i < chronologicalEvents.length; i++) {
-    const ev = chronologicalEvents[i];
-    const st = (ev.status || "").toLowerCase();
+  for (let i = 0; i < deduped.length; i++) {
+    const st = (deduped[i].status || "").toLowerCase();
     if ((st.includes("tiba") || st.includes("sampai")) && i > 0) {
       arrivalCount++;
     }
   }
+  // Cap: gak boleh lebih dari jumlah stops - 1
+  arrivalCount = Math.min(arrivalCount, resolved.length - 1);
 
-  const lastEvent = chronologicalEvents[chronologicalEvents.length - 1];
-  const lastStatus = (lastEvent.status || "").toLowerCase();
+  const lastEvent = deduped[deduped.length - 1];
+  const lastStatus = (lastEvent?.status || "").toLowerCase();
+
+  // CASE 1: Trip selesai → gak ada next stop
+  if (lastStatus.includes("selesai") || lastStatus.includes("done") || lastStatus.includes("completed")) {
+    return null;
+  }
+
   const isEnRoute =
     lastStatus.includes("menuju") ||
     lastStatus.includes("keluar") ||
     lastStatus.includes("berangkat");
+  const isUnloading =
+    lastStatus.includes("bongkar") ||
+    lastStatus.includes("muat") ||
+    lastStatus.includes("loading");
+
+  // CASE 2: Semua stops udah dikunjungi & gak en route & gak bongkar → trip done
+  if (arrivalCount >= resolved.length - 1 && !isEnRoute && !isUnloading) {
+    return null;
+  }
 
   let targetIdx = arrivalCount;
-  if (isEnRoute || lastStatus.includes("loading") || lastStatus.includes("muat")) {
+  if (isEnRoute || isUnloading) {
     targetIdx = Math.min(arrivalCount + 1, resolved.length - 1);
   }
 
@@ -612,6 +643,7 @@ function useActiveRoute(
   next: { stop: RitaseStop; point: StopPoint } | null;
   route: RouteResult | null;
   kode: string | null;
+  isCompleted: boolean;
 } {
   const idRitase = vehicle?.id_ritase ?? undefined;
   const { data: rit } = useRitaseDetail(idRitase);
@@ -619,7 +651,7 @@ function useActiveRoute(
   const events = rit?.events ?? [];
 
   const next = useMemo(() => {
-    if (!vehicle) return null;
+    if (!vehicle || !hasActiveSession(vehicle.last_login) || vehicle.offline) return null;
     const points = stops.map((s) => resolveStopPoint(s, sellers, dropList, gudangList));
     const found = findNextStop(stops, points, events);
     if (found) return found;
@@ -664,7 +696,7 @@ function useActiveRoute(
   const lastPosRef = useRef<[number, number] | null>(null);
 
   useEffect(() => {
-    if (!vehicle || !next) {
+    if (!vehicle || !hasActiveSession(vehicle.last_login) || !next) {
       setRoute(null);
       lastKeyRef.current = "";
       lastPosRef.current = null;
@@ -695,7 +727,18 @@ function useActiveRoute(
     };
   }, [vehicle, next]);
 
-  return { next, route, kode: rit?.kode_ritase ?? null };
+  // Detect trip completed: last event = "Selesai" atau ritase status = "completed"
+  const isCompleted = useMemo(() => {
+    if (rit?.status === "completed") return true;
+    if (events.length === 0) return false;
+    const sorted = [...events].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    const last = (sorted[sorted.length - 1]?.status || "").toLowerCase();
+    return last.includes("selesai") || last.includes("done") || last.includes("completed");
+  }, [events, rit?.status]);
+
+  return { next, route, kode: rit?.kode_ritase ?? null, isCompleted };
 }
 
 const typeLabel = (t: string) =>
@@ -893,7 +936,7 @@ function LiveMapView({
           )}
         </div>
         {open && ql && (
-          <div className="mt-1 max-h-72 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+          <div className="absolute bottom-full mb-1 max-h-72 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
             {matches.length === 0 ? (
               <p className="px-3 py-2 text-xs text-slate-400">Tidak ditemukan</p>
             ) : (
@@ -1074,6 +1117,8 @@ function LiveMapView({
               onSelect={() => onSelectVehicle(v.id_kendaraan)}
               phones={phones}
               compact={compact}
+              isCompleted={selectedVehicleId === v.id_kendaraan ? activeRoute.isCompleted : false}
+              kode={selectedVehicleId === v.id_kendaraan ? activeRoute.kode : null}
               eta={
                 selectedVehicleId === v.id_kendaraan && activeRoute.next && activeRoute.route
                   ? {
@@ -1112,41 +1157,25 @@ function LiveMapView({
         <FocusPoi focus={focus} />
       </MapContainer>
 
-      {/* Chip rute LIVE armada terpilih — posisi truk → tujuan berikutnya */}
-      {activeRoute.next && activeRoute.route && (
-        <div
-          className={cn(
-            "absolute z-10 rounded-md border bg-white/95 shadow-sm",
-            compact
-              ? "left-3 top-3 max-w-[65%] px-2.5 py-1.5 text-[10px]"
-              : "bottom-3 left-1/2 flex -translate-x-1/2 flex-col items-center gap-0.5 whitespace-nowrap px-3 py-1.5 text-[11px]"
-          )}
-        >
-          <span className={cn("flex items-center gap-1.5", compact && "w-full")}>
-            <span className="min-w-0 truncate font-semibold text-slate-700">
+      {/* Route chip — floating pojok kanan bawah map */}
+      {!compact && activeRoute.next && activeRoute.route && (
+        <div className="absolute bottom-0 right-0 z-[400] max-w-[80%] rounded-tl-lg border border-b-0 border-l-0 border-emerald-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur-sm">
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="font-semibold text-emerald-700">
               {activeRoute.kode ?? "RIT"} → {activeRoute.next.point.label}
             </span>
-            <span className="shrink-0 text-slate-400">·</span>
-            <span className="shrink-0 font-semibold tabular-nums text-emerald-700">
+            <span className="text-slate-300">·</span>
+            <span className="font-semibold tabular-nums text-emerald-700">
               {(activeRoute.route.distanceMeters / 1000).toFixed(1)} km
             </span>
-            {!compact && (
-              <>
-                <span className="text-slate-400">·</span>
-                <span className="tabular-nums text-slate-600">
-                  Estimasi {fmtArrival(activeRoute.route.durationSeconds)}
-                  <span className="ml-1 text-[10px] text-slate-400">
-                    ({fmtDuration(activeRoute.route.durationSeconds)})
-                  </span>
-                </span>
-              </>
-            )}
-          </span>
-          {!compact && (
-            <span className="text-[10px] text-slate-400">
-              Estimasi rute — kondisi jalan & kecepatan aktual tidak dihitung
+            <span className="text-slate-300">·</span>
+            <span className="tabular-nums text-emerald-600">
+              ETA {fmtArrival(activeRoute.route.durationSeconds)}
+              <span className="ml-1 text-[10px] text-emerald-400">
+                ({fmtDuration(activeRoute.route.durationSeconds)})
+              </span>
             </span>
-          )}
+          </div>
         </div>
       )}
 
@@ -1239,7 +1268,7 @@ function liveMapPropsEqual(prev: LiveMapProps, next: LiveMapProps): boolean {
   const vSig = (arr?: TrackingVehicle[]) =>
     (arr ?? [])
       .map((v) =>
-        [v.id_kendaraan, v.latitude?.toFixed(5), v.longitude?.toFixed(5), v.offline, v.session_online, v.id_ritase, v.last_update].join(":")
+        [v.id_kendaraan, v.latitude?.toFixed(5), v.longitude?.toFixed(5), v.offline, v.last_login, v.id_ritase, v.last_update].join(":")
       )
       .join("|");
   const sSig = (arr?: SellerLocation[]) =>

@@ -66,7 +66,6 @@ export async function mockRequest<T>(
       durasi: {
         rata_rata_loading: "40 menit",
         rata_rata_perjalanan: "3.2 jam",
-        rata_rata_unloading: "25 menit",
         total_ritase_dihitung: 8,
       },
       bottleneck: [

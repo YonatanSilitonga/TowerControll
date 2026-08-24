@@ -21,7 +21,10 @@ export interface DashboardSummary {
   total_awb: number;
   total_awb_hari_ini: number;
   total_koli: number;
-  paket_tertinggal: number;
+  // Muatan hari ini — dari ritase_event (data asli).
+  total_koli_hari_ini: number;
+  total_high_value_hari_ini: number;
+  total_eceran_hari_ini: number;
   // Lainnya
   total_seller: number;
   seller_terlayani: number;
@@ -36,7 +39,6 @@ export interface DashboardSummary {
 export interface DurasiAnalisis {
   rata_rata_loading: string;
   rata_rata_perjalanan: string;
-  rata_rata_unloading: string;
   total_ritase_dihitung: number;
 }
 
@@ -47,6 +49,7 @@ export interface Bottleneck {
   nilai: number;
   deskripsi?: string;
   rekomendasi?: string;
+  detail?: string[];
 }
 
 export interface AlertAnomali {

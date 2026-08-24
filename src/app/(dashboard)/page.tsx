@@ -5,11 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  Boxes,
   CheckCircle2,
   Clock,
+  Gem,
   MapPin,
+  Package,
   PackageCheck,
-  PackageOpen,
   PlayCircle,
   RadioTower,
   Route as RouteIcon,
@@ -109,15 +111,11 @@ export default function DashboardPage() {
   // "" = semua tanggal; kalau diisi → filter riwayat per hari.
   const [selectedDate, setSelectedDate] = useState<string>("");
   // Jam WIB live (update tiap detik).
-const [now, setNow] = useState(() => new Date());
-useEffect(() => {
-  const t = setInterval(() => setNow(new Date()), 1000);
-  return () => clearInterval(t);
-}, []);
-
-useEffect(() => {
-  if (selectedId) setSelectedDate(todayLocal());
-}, [selectedId]);
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const token = useAuthStore((s) => s.token);
 
@@ -168,7 +166,7 @@ useEffect(() => {
   const durasiOf = (v: TrackingVehicle) => {
     const sum = summarizeEvents(histById.get(v.id_kendaraan) ?? []);
     return sum.total > 0
-      ? `L ${fmtShort(sum.loading)} · J ${fmtShort(sum.perjalanan)} · T ${fmtShort(sum.total)}`
+      ? `Load ${fmtShort(sum.loading)} · Jalan ${fmtShort(sum.perjalanan)} · Total ${fmtShort(sum.total)}`
       : undefined;
   };
 
@@ -187,8 +185,8 @@ useEffect(() => {
     return (
       <div className="space-y-6">
         <Skeleton className="h-24 w-full rounded-lg" />
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-[88px] rounded-lg" />
           ))}
         </div>
@@ -216,8 +214,7 @@ useEffect(() => {
   };
   const avgLoading = avgOf("loading");
   const avgPerjalanan = avgOf("perjalanan");
-  const avgUnloading = avgOf("tiba");
-  const totalAvg = avgLoading + avgPerjalanan + avgUnloading;
+  const totalAvg = avgLoading + avgPerjalanan;
   const pct = (v: number) => (totalAvg > 0 ? Math.round((v / totalAvg) * 100) : 0);
   const lastUpdate =
     vehicles.length > 0
@@ -244,7 +241,6 @@ useEffect(() => {
     { label: "Selesai", value: formatNumber(d?.armada_selesai ?? 0), icon: CheckCircle2 },
     { label: "Rata² Loading", value: fmtShort(avgLoading), icon: PackageCheck },
     { label: "Rata² Perjalanan", value: fmtShort(avgPerjalanan), icon: RouteIcon },
-    { label: "Rata² Unloading", value: fmtShort(avgUnloading), icon: PackageOpen },
   ];
 
   // Filter peta: truk → hanya kendaraan; gudang → hanya gudang + drop point; semua → semua.
@@ -285,7 +281,7 @@ useEffect(() => {
       )}
 
       {/* KPI */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
         {summaryCards.map((c) => (
           <div
             key={c.label}
@@ -505,19 +501,19 @@ useEffect(() => {
             <div className="rounded-md border border-amber-100 bg-white p-1.5 shadow-xs dark:border-slate-700 dark:bg-slate-800">
               <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400">Koli</span>
               <span className="text-sm font-extrabold text-slate-800 dark:text-white">
-                {selectedVehicle.jumlah_koli ?? 0}
+                {selectedVehicle.total_koli ?? 0}
               </span>
             </div>
             <div className="rounded-md border border-amber-100 bg-white p-1.5 shadow-xs dark:border-slate-700 dark:bg-slate-800">
               <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400">Ecer</span>
               <span className="text-sm font-extrabold text-slate-800 dark:text-white">
-                {selectedVehicle.jumlah_ecer ?? 0}
+                {selectedVehicle.total_eceran ?? 0}
               </span>
             </div>
             <div className="rounded-md border border-amber-100 bg-white p-1.5 shadow-xs dark:border-slate-700 dark:bg-slate-800">
               <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400">High Value</span>
               <span className="text-sm font-extrabold text-slate-800 dark:text-white">
-                {selectedVehicle.jumlah_high_value ?? 0}
+                {selectedVehicle.total_high_value ?? 0}
               </span>
             </div>
           </div>
@@ -552,6 +548,34 @@ useEffect(() => {
         </div>
       </div>
 
+      {/* Muatan Hari Ini */}
+      <Card className="rounded-lg border-slate-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <Package className="h-4 w-4 text-slate-400" /> Muatan Hari Ini
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-3">
+            <MuatanTile
+              icon={Package}
+              label="Total Koli"
+              value={d?.total_koli_hari_ini ?? 0}
+            />
+            <MuatanTile
+              icon={Gem}
+              label="High Value"
+              value={d?.total_high_value_hari_ini ?? 0}
+            />
+            <MuatanTile
+              icon={Boxes}
+              label="Eceran (pcs)"
+              value={d?.total_eceran_hari_ini ?? 0}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* INFO BAWAH (full-width) */}
       <div className="grid gap-5 md:grid-cols-3">
         {/* Durasi proses */}
@@ -559,7 +583,7 @@ useEffect(() => {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
               <Clock className="h-4 w-4 text-slate-400" /> Durasi Proses
-              <InfoTip text="Rata-rata durasi Loading, Perjalanan & Unloading dari ritase aktif — buat lihat bottleneck." />
+              <InfoTip text="Rata-rata durasi Loading & Perjalanan dari ritase aktif — buat lihat bottleneck." />
               <span className="ml-auto text-xs font-normal text-slate-400">
                 {allHist.length} ritase
               </span>
@@ -568,7 +592,6 @@ useEffect(() => {
           <CardContent className="space-y-3.5">
             <DurasiBar label="Loading" value={avgLoading} pct={pct(avgLoading)} />
             <DurasiBar label="Perjalanan" value={avgPerjalanan} pct={pct(avgPerjalanan)} />
-            <DurasiBar label="Unloading" value={avgUnloading} pct={pct(avgUnloading)} />
             <div className="flex items-center justify-between border-t border-slate-100 pt-2.5 text-xs">
               <span className="text-slate-500">Total siklus rata-rata</span>
               <span className="font-bold tabular-nums text-slate-800">{fmtFull(totalAvg)}</span>
@@ -606,6 +629,24 @@ function MetricRow({ label, value }: { label: string; value: React.ReactNode }) 
     <div className="flex items-center justify-between gap-2 text-sm">
       <span className="text-xs text-slate-500">{label}</span>
       <span className="text-sm font-medium text-slate-800">{value}</span>
+    </div>
+  );
+}
+
+function MuatanTile({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-center">
+      <Icon className="mx-auto mb-1 h-5 w-5 text-slate-400" />
+      <div className="text-lg font-bold tabular-nums text-slate-800">{formatNumber(value)}</div>
+      <div className="text-[11px] text-slate-500">{label}</div>
     </div>
   );
 }

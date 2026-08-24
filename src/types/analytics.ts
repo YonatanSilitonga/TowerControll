@@ -10,6 +10,8 @@ export interface TrendPoint {
   ritase_batal: number;
   total_awb: number;
   total_koli: number;
+  total_high_value: number;
+  total_eceran: number;
   seller_terlayani: number;
   /** Ritase yang drop point/gateway-nya JKT (outgoing). */
   outgoing: number;
@@ -24,13 +26,13 @@ export interface DriverPerformance {
   ritase_selesai: number;
   total_awb: number;
   total_koli: number;
-  paket_tertinggal: number;
+  total_high_value: number;
+  total_eceran: number;
   outgoing: number;
   incoming: number;
   /** Detik; null = belum ada data event. */
   rata_loading?: number | null;
   rata_perjalanan?: number | null;
-  rata_unloading?: number | null;
 }
 
 export interface SellerAnalytics {
@@ -44,6 +46,6 @@ export interface SellerAnalytics {
   ritase_selesai: number;
   total_awb: number;
   total_koli: number;
-  /** Detik (sampai_seller → berangkat_seller); null = belum ada data. */
-  rata_bongkar?: number | null;
+  total_high_value: number;
+  total_eceran: number;
 }

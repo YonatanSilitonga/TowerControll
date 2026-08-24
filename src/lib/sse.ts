@@ -39,8 +39,32 @@ class RealtimeConnection {
   private controller: AbortController | null = null;
   private stopped = false;
   private retryDelay = 2000;
+  private lastEventAt = 0;
+  private watchdog: number | null = null;
+  private forceReconnect = false;
 
   constructor(private opts: SSEOptions) {}
+
+  private startWatchdog(): void {
+    if (this.watchdog != null) return;
+    // Cek tiap 10 detik: kalau >30 detik gak ada event (proxy buffering /
+    // server diam-diam mati) → paksa putus stream biar reconnect jalan.
+    this.lastEventAt = Date.now();
+    this.watchdog = window.setInterval(() => {
+      if (Date.now() - this.lastEventAt > 30_000) {
+        console.warn("[SSE] watchdog: tidak ada event >30s, paksa reconnect");
+        this.forceReconnect = true;
+        this.controller?.abort();
+      }
+    }, 10_000);
+  }
+
+  private stopWatchdog(): void {
+    if (this.watchdog != null) {
+      window.clearInterval(this.watchdog);
+      this.watchdog = null;
+    }
+  }
 
   async start(): Promise<void> {
     const { url, headers, onMessage, onStatus } = this.opts;
@@ -60,6 +84,8 @@ class RealtimeConnection {
 
       onStatus?.("connected");
       this.retryDelay = 2000; // reset backoff setelah connect sukses
+      this.forceReconnect = false;
+      this.startWatchdog();
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -81,6 +107,7 @@ class RealtimeConnection {
             if (raw) {
               try {
                 onMessage(JSON.parse(raw));
+                this.lastEventAt = Date.now();
               } catch {
                 /* abaikan chunk yang gak valid */
               }
@@ -90,11 +117,14 @@ class RealtimeConnection {
       }
     } catch (err) {
       const aborted = err instanceof DOMException && err.name === "AbortError";
-      if (aborted || this.stopped) {
+      if ((aborted && !this.forceReconnect) || this.stopped) {
         return; // intentional stop
       }
+      this.forceReconnect = false;
       this.opts.onStatus?.("reconnecting");
     }
+
+    this.stopWatchdog();
 
     // Stream putus — reconnect kalau masih mau jalan.
     if (!this.stopped && this.opts.reconnect !== false) {
@@ -111,6 +141,7 @@ class RealtimeConnection {
 
   stop(): void {
     this.stopped = true;
+    this.stopWatchdog();
     this.controller?.abort();
     this.opts.onStatus?.("disconnected");
   }

@@ -94,6 +94,11 @@ export interface AdminRitaseItem {
   nama_drop_point: string;
   ritase_ke: number;
   status: string;
+  jam_mulai?: string | null;
+  jam_selesai?: string | null;
+  total_koli?: number | null;
+  total_eceran?: number | null;
+  total_high_value?: number | null;
   stops: AdminRitaseStop[];
 }
 
@@ -108,12 +113,16 @@ export interface TrackingVehicle {
   kecepatan?: number | null;
   arah?: number | null;
   status?: string | null;
+  /** Nama lokasi terakhir dari app driver (mis. "Gateway SEG"). */
+  nama_lokasi?: string | null;
   /** Ritase yang sedang berjalan (kalau ada) — buat rute live armada. */
   id_ritase?: number | null;
-  nama_lokasi?: string | null;
-  jumlah_koli?: number | null;
-  jumlah_ecer?: number | null;
-  jumlah_high_value?: number | null;
+  /** Kode & muatan ritase aktif (kalau ada) — dari backend tracking live. */
+  kode_ritase?: string;
+  total_awb?: number | null;
+  total_koli?: number | null;
+  total_high_value?: number | null;
+  total_eceran?: number | null;
   last_update: string;
   /** Backend: true kalau last_update > ambang offline (default 15 mnt). */
   offline?: boolean;
@@ -227,6 +236,9 @@ export interface Ritase {
   ritase_ke?: number | null;
   total_awb?: number | null;
   total_koli?: number | null;
+  /** Muatan dari ritase_event: high value & eceran (pcs). */
+  total_high_value?: number | null;
+  total_eceran?: number | null;
   paket_tertinggal?: number | null;
   alasan_tertinggal?: string | null;
   jam_berangkat?: string | null;

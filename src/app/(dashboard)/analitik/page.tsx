@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   AlertTriangle,
@@ -9,7 +9,10 @@ import {
   Boxes,
   CalendarDays,
   CheckCircle2,
+  Clock,
+  Gem,
   Package,
+  PackageCheck,
   Percent,
   Route as RouteIcon,
   Truck,
@@ -63,9 +66,17 @@ function daysAgo(n: number): string {
   ).padStart(2, "0")}`;
 }
 
-function fmtShortDate(t: string): string {
+/** Tanggal lengkap (15 Agu 2026) — buat tooltip & label periode. */
+function fmtFullDate(t: string): string {
   const d = new Date(`${t}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? t : format(d, "d MMM");
+  return Number.isNaN(d.getTime()) ? t : format(d, "d MMM yyyy");
+}
+
+/** Tick sumbu-X: "d MMM", tambah tahun di bulan Januari biar konteks lintas tahun jelas. */
+function fmtTick(t: string): string {
+  const d = new Date(`${t}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return t;
+  return d.getMonth() === 0 ? format(d, "d MMM yyyy") : format(d, "d MMM");
 }
 
 /** Durasi ringkas dari detik → "45m" / "1j 5m". */
@@ -176,6 +187,13 @@ export default function AnalitikPage() {
   const [from, setFrom] = useState(daysAgo(29));
   const [to, setTo] = useState(todayLocal());
 
+  // Jam "diupdate" realtime — refresh tiap 30 detik biar label waktu selalu segar.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   const trend = useAnalyticsTrend(from, to);
   const drivers = useAnalyticsDrivers(from, to);
   const sellers = useAnalyticsSellers(from, to);
@@ -196,6 +214,8 @@ export default function AnalitikPage() {
       selesai = 0,
       awb = 0,
       koli = 0,
+      hv = 0,
+      ecer = 0,
       out = 0,
       inc = 0;
     for (const t of trendData) {
@@ -203,10 +223,12 @@ export default function AnalitikPage() {
       selesai += t.ritase_selesai;
       awb += t.total_awb;
       koli += t.total_koli;
+      hv += t.total_high_value;
+      ecer += t.total_eceran;
       out += t.outgoing;
       inc += t.incoming;
     }
-    return { ritase, selesai, awb, koli, out, inc };
+    return { ritase, selesai, awb, koli, hv, ecer, out, inc };
   }, [trendData]);
 
   const insight = useMemo(() => {
@@ -291,11 +313,36 @@ export default function AnalitikPage() {
 
         {/* ===== RINGKASAN ===== */}
         <TabsContent value="ringkasan" className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+          {/* Label periode eksplisit — biar jelas data ini untuk rentang kapan */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-500">
+            <span className="flex items-center gap-1.5 font-medium text-slate-700">
+              <CalendarDays className="h-3.5 w-3.5 text-[#0c1e3a]" />
+              Periode:{" "}
+              <b className="tabular-nums">
+                {fmtFullDate(from)} – {fmtFullDate(to)}
+              </b>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <CalendarDays className="h-3.5 w-3.5 text-slate-400" />
+              {insight.days} hari berdata
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-slate-400" />
+              Diupdate pukul{" "}
+              <b className="tabular-nums">
+                {now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+              </b>{" "}
+              WIB
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-8">
             <KpiCard label="Total Ritase" value={kpi.ritase} icon={Truck} loading={loading} info="Jumlah ritase pada periode (tanggal jadwal)." sub={insight.days > 0 ? `${insight.rataHari.toFixed(1)}/hari` : undefined} />
             <KpiCard label="Selesai" value={kpi.selesai} icon={CheckCircle2} tone="text-[#0c1e3a]" loading={loading} info="Ritase berstatus selesai." sub={`${insight.pctSelesai}% dari total`} progress={insight.pctSelesai} />
             <KpiCard label="Total AWB" value={kpi.awb} icon={Boxes} tone="text-slate-400" loading={loading} sub={kpi.ritase > 0 ? `${Math.round(kpi.awb / kpi.ritase)} AWB/ritase` : undefined} />
             <KpiCard label="Total Koli" value={kpi.koli} icon={Package} tone="text-slate-400" loading={loading} sub={kpi.awb > 0 ? `${(kpi.koli / kpi.awb).toFixed(2)} koli/AWB` : undefined} />
+            <KpiCard label="High Value" value={kpi.hv} icon={Gem} tone="text-amber-500" loading={loading} sub={kpi.koli > 0 ? `${((kpi.hv / kpi.koli) * 100).toFixed(1)}% dari koli` : undefined} />
+            <KpiCard label="Eceran" value={kpi.ecer} icon={PackageCheck} tone="text-violet-500" loading={loading} sub={kpi.koli > 0 ? `${((kpi.ecer / kpi.koli) * 100).toFixed(1)}% dari koli` : undefined} />
             <KpiCard label="Outgoing" value={kpi.out} icon={ArrowUpFromLine} tone="text-slate-400" loading={loading} info="Ritase ke Gateway JKT (barang keluar)." sub={`${insight.outPct}% arah`} />
             <KpiCard label="Incoming" value={kpi.inc} icon={ArrowDownToLine} tone="text-slate-400" loading={loading} info="Ritase ke Gateway SEG (barang masuk)." sub={`${100 - insight.outPct}% arah`} />
           </div>
@@ -370,9 +417,9 @@ export default function AnalitikPage() {
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                        <XAxis dataKey="tanggal" tickFormatter={fmtShortDate} tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
+                        <XAxis dataKey="tanggal" tickFormatter={fmtTick} minTickGap={28} tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
                         <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} allowDecimals={false} />
-                        <Tooltip labelFormatter={(l) => fmtShortDate(String(l))} />
+                        <Tooltip labelFormatter={(l) => fmtFullDate(String(l))} />
                         <Legend />
                         <Area type="monotone" dataKey="ritase_total" name="Total" stroke="#0c1e3a" strokeWidth={2} fill="url(#gTotal)" />
                         <Area type="monotone" dataKey="ritase_selesai" name="Selesai" stroke="#64748b" strokeWidth={2} fill="url(#gSelesai)" />
@@ -400,9 +447,9 @@ export default function AnalitikPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={trendData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                        <XAxis dataKey="tanggal" tickFormatter={fmtShortDate} tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
+                        <XAxis dataKey="tanggal" tickFormatter={fmtTick} minTickGap={28} tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
                         <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} allowDecimals={false} />
-                        <Tooltip labelFormatter={(l) => fmtShortDate(String(l))} />
+                        <Tooltip labelFormatter={(l) => fmtFullDate(String(l))} />
                         <Legend />
                         <Bar dataKey="outgoing" name="Outgoing (JKT)" stackId="a" fill="#0c1e3a" />
                         <Bar dataKey="incoming" name="Incoming (SEG)" stackId="a" fill="#cbd5e1" />
@@ -474,13 +521,13 @@ export default function AnalitikPage() {
                   { header: "Ritase", render: (d) => <span className="tabular-nums font-semibold">{formatNumber(d.ritase_total)}</span> },
                   { header: "Selesai", render: (d) => <span className="tabular-nums text-[#0c1e3a]">{formatNumber(d.ritase_selesai)}</span> },
                   { header: "AWB", render: (d) => <span className="tabular-nums">{formatNumber(d.total_awb)}</span> },
-                  { header: "Koli", render: (d) => <span className="tabular-nums">{formatNumber(d.total_koli)}</span> },
-                  { header: "Tertinggal", render: (d) => <span className="tabular-nums text-rose-600">{formatNumber(d.paket_tertinggal)}</span> },
-                  { header: "Out", render: (d) => <ArahBadge n={d.outgoing} arah="out" /> },
+                   { header: "Koli", render: (d) => <span className="tabular-nums">{formatNumber(d.total_koli)}</span> },
+                   { header: "HV", render: (d) => <span className="tabular-nums text-amber-500">{formatNumber(d.total_high_value)}</span> },
+                   { header: "Ecer", render: (d) => <span className="tabular-nums text-violet-500">{formatNumber(d.total_eceran)}</span> },
+                   { header: "Out", render: (d) => <ArahBadge n={d.outgoing} arah="out" /> },
                   { header: "In", render: (d) => <ArahBadge n={d.incoming} arah="inc" /> },
                   { header: "Loading", render: (d) => <span className="tabular-nums text-slate-500">{fmtDur(d.rata_loading)}</span> },
                   { header: "Jalan", render: (d) => <span className="tabular-nums text-slate-500">{fmtDur(d.rata_perjalanan)}</span> },
-                  { header: "Bongkar", render: (d) => <span className="tabular-nums text-slate-500">{fmtDur(d.rata_unloading)}</span> },
                 ]}
               />
             </CardContent>
@@ -551,8 +598,9 @@ export default function AnalitikPage() {
                   { header: "Kunjungan", render: (s) => <span className="tabular-nums font-semibold">{formatNumber(s.kunjungan)}</span> },
                   { header: "Selesai", render: (s) => <span className="tabular-nums text-[#0c1e3a]">{formatNumber(s.ritase_selesai)}</span> },
                   { header: "AWB", render: (s) => <span className="tabular-nums">{formatNumber(s.total_awb)}</span> },
-                  { header: "Koli", render: (s) => <span className="tabular-nums">{formatNumber(s.total_koli)}</span> },
-                  { header: "Bongkar", render: (s) => <span className="tabular-nums text-slate-500">{fmtDur(s.rata_bongkar)}</span> },
+                   { header: "Koli", render: (s) => <span className="tabular-nums">{formatNumber(s.total_koli)}</span> },
+                   { header: "HV", render: (s) => <span className="tabular-nums text-amber-500">{formatNumber(s.total_high_value)}</span> },
+                   { header: "Ecer", render: (s) => <span className="tabular-nums text-violet-500">{formatNumber(s.total_eceran)}</span> },
                   {
                     header: "Jarak OG",
                     render: (s) => (

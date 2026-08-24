@@ -24,6 +24,7 @@ export function useDriver() {
     queryKey: ["armada-driver"],
     queryFn: () => get<DriverArmada[]>("/armada/driver", { token }),
     enabled: !!token,
+    refetchInterval: 15_000,
   });
 }
 
@@ -34,6 +35,7 @@ export function useRitase() {
     queryKey: ["armada-ritase"],
     queryFn: () => get<Ritase[]>("/armada/ritase", { token }),
     enabled: !!token,
+    refetchInterval: 15_000,
   });
 }
 
@@ -44,5 +46,6 @@ export function useRitaseDetail(id: number | string | undefined) {
     queryKey: ["armada-ritase", id],
     queryFn: () => get<RitaseDetail>(`/armada/ritase/${id}`, { token }),
     enabled: !!token && !!id,
+    refetchInterval: 15_000,
   });
 }

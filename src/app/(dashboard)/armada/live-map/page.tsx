@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { MapPin, RadioTower } from "lucide-react";
+import { MapPin, RadioTower, X } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,9 +11,11 @@ import {
   useTrackingHistory,
   useTrackingMap,
 } from "@/hooks/use-tracking";
-import { statusLabel } from "@/lib/constants";
-import { cn, formatDateTime } from "@/lib/utils";
+import { OFFLINE_MINUTES } from "@/lib/constants";
+import { cn, hasActiveSession } from "@/lib/utils";
 import { VehicleItem } from "@/components/armada/vehicle-item";
+import { StatusTimeline } from "@/components/armada/status-timeline";
+import { DriverSummary } from "@/components/armada/driver-summary";
 import { InfoTip } from "@/components/ui/info-tip";
 import type { TrackingVehicle } from "@/types/armada";
 
@@ -28,15 +30,6 @@ const LiveMap = dynamic(
     ),
   }
 );
-
-function formatDuration(seconds?: number | null): string {
-  if (!seconds) return "-";
-  if (seconds < 60) return `${seconds} dtk`;
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
-  if (rest === 0) return `${minutes} mnt`;
-  return `${minutes} mnt ${rest} dtk`;
-}
 
 /** Tanggal lokal (WIB) dalam format YYYY-MM-DD. */
 function todayLocal(): string {
@@ -66,7 +59,7 @@ function LiveMapBody() {
 
   const { data, isLoading } = useTrackingMap();
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>(todayLocal());
+  const [selectedDate, setSelectedDate] = useState<string>("");
   // Mobile (< lg): switch antara tampilan Peta dan daftar Armada.
   const [mobileTab, setMobileTab] = useState<"peta" | "armada">("peta");
   const { data: history, isLoading: loadingHistory } = useTrackingHistory(selectedId, selectedDate);
@@ -77,9 +70,8 @@ function LiveMapBody() {
   }, [kendaraanParam]);
 
   // Pilih armada (dari marker peta): set selected + di mobile pindah ke tab armada
-  // biar detail langsung kebuka (popup peta di HP cuma ringkas).
   const handleSelectVehicle = (id: number | null) => {
-    setSelectedId((cur) => (cur === id ? null : id));
+    setSelectedId(id);
     if (typeof window !== "undefined" && window.innerWidth < 1024) {
       setMobileTab("armada");
     }
@@ -90,27 +82,34 @@ function LiveMapBody() {
   const selectedVehicle =
     vehicles.find((v) => v.id_kendaraan === selectedId) ?? null;
 
-  // Definisi "Aktif/LIVE": GPS masih fresh (≤ 15 menit) — app benar-benar mengirim posisi.
-  // Status cuma 2: LIVE (app hidup) atau Offline. Sesi login (session_online) & riwayat
-  // buka app (last_open/last_login) tampil sebagai konteks di panel detail, bukan status.
+  // Definisi LIVE: GPS masih fresh (≤ ambang offline OFFLINE_MINUTES) — app benar-benar
+  // mengirim posisi. Status cuma 2: LIVE (app hidup) atau Offline. Sesi login
+  // (session_online) & riwayat buka app (last_open/last_login) tampil sebagai konteks
+  // di panel detail, bukan status.
   const isOnline = (v: TrackingVehicle) =>
     !(v.offline ??
       (() => {
         const t = new Date(v.last_update).getTime();
-        return Number.isNaN(t) ? true : Date.now() - t > 3 * 60 * 1000;
+        return Number.isNaN(t) ? true : Date.now() - t > OFFLINE_MINUTES * 60 * 1000;
       })());
-  const onlineVehicles = vehicles.filter(isOnline);
-  const offlineVehicles = vehicles.filter((v) => !isOnline(v));
+  const liveVehicles = vehicles.filter(isOnline);
+  const restingVehicles = vehicles.filter((v) => !isOnline(v));
+  const inactiveVehicles = restingVehicles.filter((v) => hasActiveSession(v.last_login));
+  const offlineVehicles = restingVehicles.filter((v) => !hasActiveSession(v.last_login));
 
   return (
     <div>
       <PageHeader
         title="Live Tracking"
         description="Posisi terkini armada + lokasi seller (auto-refresh tiap 10 detik)"
+        crumbs={[
+          { label: "Armada", href: "/armada" },
+          { label: "Live Map" },
+        ]}
         actions={
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <RadioTower className="h-4 w-4 text-emerald-600" />
-            <span>{onlineVehicles.length} truk aktif</span>
+            <span>{liveVehicles.length} truk aktif</span>
             <span className="text-slate-300">|</span>
             <span>{sellers.length} seller</span>
           </div>
@@ -141,14 +140,14 @@ function LiveMapBody() {
               : "text-slate-500"
           )}
         >
-          Armada ({onlineVehicles.length})
+          Armada ({liveVehicles.length})
         </button>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
         {/* Peta — mobile: tab "peta" full tinggi; desktop: flex-1 mengikuti panel kanan */}
         <div className={cn(mobileTab !== "peta" && "hidden lg:block")}>
-          <Card className="flex h-[calc(100vh-230px)] min-h-[420px] flex-col overflow-hidden lg:h-auto">
+          <Card className="flex h-[calc(100vh-230px)] min-h-[420px] flex-col overflow-hidden">
             <CardContent className="flex h-full flex-1 p-0">
               <div className="h-full min-h-[420px] w-full flex-1">
                 {isLoading ? (
@@ -175,7 +174,7 @@ function LiveMapBody() {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <RadioTower className="h-4 w-4 text-[#0c1e3a]" />
-                Armada Aktif <InfoTip text="Posisi realtime armada. Klik untuk parkir popup & riwayat di bawah." />
+                Armada Aktif <InfoTip text="Posisi realtime armada. LIVE = app masih kirim posisi; layar HP mati tetap LIVE (service jalan). Klik marker untuk popup & riwayat di bawah." />
               </CardTitle>
             </CardHeader>
             <CardContent className="max-h-[280px] space-y-2 overflow-y-auto">
@@ -183,24 +182,35 @@ function LiveMapBody() {
                 Array.from({ length: 3 }).map((_, i) => (
                   <Skeleton key={i} className="h-14 w-full" />
                 ))
-              ) : onlineVehicles.length === 0 && offlineVehicles.length === 0 ? (
+              ) : liveVehicles.length === 0 && inactiveVehicles.length === 0 && offlineVehicles.length === 0 ? (
                 <p className="py-6 text-center text-sm text-muted-foreground">
                   Belum ada armada mengirim posisi
                 </p>
               ) : (
                 <>
-                  {onlineVehicles.map((v) => (
+                  {liveVehicles.map((v) => (
                     <VehicleItem
                       key={v.id_kendaraan}
                       vehicle={v}
                       selected={selectedId === v.id_kendaraan}
-                      onSelect={() =>
-                        setSelectedId((cur) =>
-                          cur === v.id_kendaraan ? null : v.id_kendaraan
-                        )
-                      }
+                      onSelect={() => setSelectedId(v.id_kendaraan)}
                     />
                   ))}
+                  {inactiveVehicles.length > 0 && (
+                    <>
+                      <p className="pt-1 text-[10px] font-bold uppercase tracking-wider text-amber-500">
+                        Tidak aktif ({inactiveVehicles.length})
+                      </p>
+                      {inactiveVehicles.map((v) => (
+                        <VehicleItem
+                          key={v.id_kendaraan}
+                          vehicle={v}
+                          selected={selectedId === v.id_kendaraan}
+                          onSelect={() => setSelectedId(v.id_kendaraan)}
+                        />
+                      ))}
+                    </>
+                  )}
                   {offlineVehicles.length > 0 && (
                     <>
                       <p className="pt-1 text-[10px] font-bold uppercase tracking-wider text-rose-500">
@@ -211,11 +221,7 @@ function LiveMapBody() {
                           key={v.id_kendaraan}
                           vehicle={v}
                           selected={selectedId === v.id_kendaraan}
-                          onSelect={() =>
-                            setSelectedId((cur) =>
-                              cur === v.id_kendaraan ? null : v.id_kendaraan
-                            )
-                          }
+                          onSelect={() => setSelectedId(v.id_kendaraan)}
                         />
                       ))}
                     </>
@@ -231,51 +237,95 @@ function LiveMapBody() {
                 <CardTitle className="flex items-center gap-2 text-base">
                   <MapPin className="h-4 w-4 text-amber-600" />
                   Detail Armada · {selectedVehicle.plat_nomor || "-"}
-                  <InfoTip text="Status terkini + riwayat log kendaraan. Filter tanggal untuk lihat hari tertentu." />
+                  <InfoTip text="Status terkini + riwayat log kendaraan. Kosongkan tanggal untuk lihat semua." />
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(null)}
+                    className="ml-auto rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                    title="Tutup detail"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </CardTitle>
                 <input
                   type="date"
                   value={selectedDate}
                   max={todayLocal()}
-                  onChange={(e) =>
-                    setSelectedDate(e.target.value || todayLocal())
-                  }
+                  onChange={(e) => setSelectedDate(e.target.value || "")}
                   className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#0c1e3a] focus:outline-none focus:ring-2 focus:ring-[#0c1e3a]/20"
                 />
               </CardHeader>
               <CardContent className="max-h-[420px] space-y-3 overflow-y-auto">
                 {(() => {
                   const selLive = isOnline(selectedVehicle);
+                  const sesOnline = hasActiveSession(selectedVehicle.last_login);
+                  const badgeTxt = selLive
+                    ? "LIVE"
+                    : sesOnline
+                      ? "Tidak aktif"
+                      : "Offline";
                   return (
-                    <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 pb-2">
-                      <span
-                        className={cn(
-                          "rounded-md px-2 py-0.5 text-[11px] font-bold",
-                          selLive
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-rose-100 text-rose-700"
-                        )}
-                      >
-                        {selLive ? "LIVE" : "Offline"}
-                      </span>
+                    <div className="space-y-1.5 border-b border-slate-100 pb-2">
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <span className="text-xs text-slate-500">Status</span>
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-bold",
+                            selLive
+                              ? "bg-emerald-50 text-emerald-700"
+                              : sesOnline
+                                ? "bg-amber-50 text-amber-700"
+                                : "bg-rose-50 text-rose-700"
+                          )}
+                        >
+                          <i
+                            className={cn(
+                              "h-1.5 w-1.5 rounded-full",
+                              selLive ? "bg-emerald-500" : sesOnline ? "bg-amber-500" : "bg-rose-500"
+                            )}
+                          />
+                          {badgeTxt}
+                        </span>
+                      </div>
                       {selLive && (
-                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                          {`${selectedVehicle.kecepatan ?? 0} km/h`}
-                        </span>
+                        <div className="flex items-center justify-between gap-2 text-sm">
+                          <span className="text-xs text-slate-500">Kecepatan</span>
+                          <span className="text-sm font-medium tabular-nums text-slate-800">{`${selectedVehicle.kecepatan ?? 0} km/h`}</span>
+                        </div>
                       )}
-                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                        Update {minutesAgo(selectedVehicle.last_update)}
-                      </span>
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <span className="text-xs text-slate-500">Update</span>
+                        <span className="text-sm font-medium text-slate-800">{minutesAgo(selectedVehicle.last_update)}</span>
+                      </div>
                       {selectedVehicle.last_login && (
-                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                          Login {minutesAgo(selectedVehicle.last_login)}
-                        </span>
+                        <div className="flex items-center justify-between gap-2 text-sm">
+                          <span className="text-xs text-slate-500">Login</span>
+                          <span className="text-sm font-medium text-slate-800">{minutesAgo(selectedVehicle.last_login)}</span>
+                        </div>
                       )}
                       {selectedVehicle.last_open && (
-                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                          App dibuka {minutesAgo(selectedVehicle.last_open)}
-                        </span>
+                        <div className="flex items-center justify-between gap-2 text-sm">
+                          <span className="text-xs text-slate-500">App dibuka</span>
+                          <span className="text-sm font-medium text-slate-800">{minutesAgo(selectedVehicle.last_open)}</span>
+                        </div>
                       )}
+                    </div>
+                  );
+                })()}
+                {(() => {
+                  // Tampil kalau ada ritase aktif (kode_ritase), bukan berdasarkan angka > 0
+                  if (!selectedVehicle.kode_ritase) return null;
+                  const koli = selectedVehicle.total_koli ?? 0;
+                  const hv = selectedVehicle.total_high_value ?? 0;
+                  const ec = selectedVehicle.total_eceran ?? 0;
+                  return (
+                    <div className="space-y-1.5 border-b border-slate-100 pb-2">
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <span className="text-xs text-slate-500">Muatan</span>
+                        <span className="text-sm font-medium text-slate-800">
+                          {koli} koli{hv > 0 && <> · {hv} HV</>}{ec > 0 && <> · {ec} pcs</>}
+                        </span>
+                      </div>
                     </div>
                   );
                 })()}
@@ -286,34 +336,12 @@ function LiveMapBody() {
                     Belum ada riwayat status
                   </p>
                 ) : (
-                  (history ?? []).map((h, idx) => (
-                    <div key={h.id_event} className="flex gap-3">
-                      <div className="flex flex-col items-center">
-                        <div
-                          className={cn(
-                            "mt-1 h-3 w-3 shrink-0 rounded-full border-2 border-white shadow",
-                            idx === 0 ? "bg-amber-500" : "bg-[#0c1e3a]"
-                          )}
-                        />
-                        {idx < (history?.length ?? 0) - 1 && (
-                          <div className="w-px flex-1 bg-slate-200" />
-                        )}
-                      </div>
-                      <div className="pb-4">
-                        <p className="text-sm font-medium">
-                          {statusLabel(h.status)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDateTime(h.created_at)} · {formatDuration(h.durasi_detik)}
-                        </p>
-                        {h.catatan && (
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            {h.catatan}
-                          </p>
-                        )}
-                      </div>
+                  <>
+                    <DriverSummary events={history ?? []} stops={[]} title="Ringkasan Durasi" />
+                    <div className="mt-3 border-t pt-3">
+                      <StatusTimeline events={history ?? []} stops={[]} limit={15} />
                     </div>
-                  ))
+                  </>
                 )}
               </CardContent>
             </Card>

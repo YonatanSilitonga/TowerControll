@@ -14,17 +14,21 @@ export const LIVE_MAP_POLL_INTERVAL = 60_000;
 /** Data peta live: posisi terbaru setiap kendaraan + lokasi seller. */
 export function useTrackingMap() {
   const token = useAuthStore(tokenSelector);
+
   return useQuery({
     queryKey: ["tracking-map"],
     queryFn: () => get<TrackingMap>("/armada/tracking/map", { token }),
     enabled: !!token,
+    staleTime: 15_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    // Polling 60s SELALU aktif — jaring pengaman (lihat use-dashboard.ts).
     refetchInterval: LIVE_MAP_POLL_INTERVAL,
   });
 }
 
 /** Riwayat status (checkpoint) untuk satu kendaraan, opsional filter tanggal (YYYY-MM-DD).
- *  Auto-refresh tiap 15s biar timeline ikut update saat ada event baru.
- *  (Belum di-push SSE — per-kendaraan & jarang berubah, polling 15s cukup.) */
+ *  Cache 30s — jarang berubah & di-invalidate via SSE untuk kendaraan terpilih. */
 export function useTrackingHistory(idKendaraan: number | null, tanggal?: string) {
   const token = useAuthStore(tokenSelector);
   return useQuery({
@@ -35,5 +39,8 @@ export function useTrackingHistory(idKendaraan: number | null, tanggal?: string)
         query: { kendaraan_id: idKendaraan ?? undefined, tanggal },
       }),
     enabled: !!token && idKendaraan != null,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 }
