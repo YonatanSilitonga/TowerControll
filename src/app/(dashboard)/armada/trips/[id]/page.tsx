@@ -40,7 +40,7 @@ import { InfoTip } from "@/components/ui/info-tip";
 import { useRitaseDetail } from "@/hooks/use-armada";
 import { useTrackingMap } from "@/hooks/use-tracking";
 import { displayTrackingStatus, statusLabel } from "@/lib/constants";
-import { cn, formatDateDMY, formatDur, formatNumber } from "@/lib/utils";
+import { cn, formatDateDMY, formatDur, formatNumber, hasActiveSession } from "@/lib/utils";
 
 
 export default function RitaseDetailPage({ params }: { params?: { id?: string } }) {
@@ -78,7 +78,8 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
   const muatan = [
     { label: "Total AWB", value: data.total_awb ?? 0 },
     { label: "Total Koli", value: data.total_koli ?? 0 },
-    { label: "Paket Tertinggal", value: data.paket_tertinggal ?? 0 },
+    { label: "High Value", value: data.total_high_value ?? 0 },
+    { label: "Eceran (pcs)", value: data.total_eceran ?? 0 },
   ];
 
   // ── Statistik ritase (client-side dari events + stops) ──
@@ -143,7 +144,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
             <Info
               icon={<RadioTower className="h-4 w-4" />}
               label="Status Live"
-              value={displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update)}
+              value={displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update, hasActiveSession(vehicle.last_login))}
             />
           )}
            <Info
@@ -275,7 +276,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
           <CardHeader>
             <CardTitle className="text-sm font-semibold">
               Muatan
-              <InfoTip text="Jumlah AWB, koli, dan paket yang tertinggal." />
+              <InfoTip text="Jumlah AWB, koli, high value, dan eceran (pcs) yang tercatat." />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">

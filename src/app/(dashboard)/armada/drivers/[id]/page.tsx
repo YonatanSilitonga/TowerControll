@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import { MapPin, Phone, Truck, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +17,11 @@ import { useTrackingHistory } from "@/hooks/use-tracking";
 import { cn, formatDateDMY } from "@/lib/utils";
 import type { Ritase } from "@/types/armada";
 
+function todayLocal(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export default function DriverDetailPage({ params }: { params?: { id?: string } }) {
   const routeParams = useParams();
   const rawId = routeParams?.id ?? params?.id;
@@ -27,8 +33,9 @@ export default function DriverDetailPage({ params }: { params?: { id?: string } 
   const driver = Number.isFinite(id)
     ? (drivers ?? []).find((d) => d.id_driver === id)
     : null;
+  const [selectedDate, setSelectedDate] = useState<string>("");
   const { data: history, isLoading: lHist } = useTrackingHistory(
-    driver?.id_kendaraan ?? null
+    driver?.id_kendaraan ?? null, selectedDate || undefined
   );
 
   if (lDrivers || drivers === undefined || !Number.isFinite(id)) {
@@ -84,6 +91,13 @@ export default function DriverDetailPage({ params }: { params?: { id?: string } 
               </CardTitle>
             </CardHeader>
             <CardContent>
+              <input
+                type="date"
+                value={selectedDate}
+                max={todayLocal()}
+                onChange={(e) => setSelectedDate(e.target.value || "")}
+                className="mb-3 w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm focus:border-[#0c1e3a] focus:outline-none focus:ring-2 focus:ring-[#0c1e3a]/20"
+              />
               {!driver.id_kendaraan ? (
                 <p className="py-3 text-center text-sm text-slate-400">
                   Driver belum terhubung ke kendaraan mana pun
@@ -96,7 +110,7 @@ export default function DriverDetailPage({ params }: { params?: { id?: string } 
                 <>
                   <DriverSummary events={history ?? []} stops={[]} title="Ringkasan Durasi" />
                   <div className="mt-4 border-t pt-3">
-                    <StatusTimeline events={history ?? []} stops={[]} limit={12} />
+                    <StatusTimeline events={history ?? []} stops={[]} />
                   </div>
                 </>
               )}

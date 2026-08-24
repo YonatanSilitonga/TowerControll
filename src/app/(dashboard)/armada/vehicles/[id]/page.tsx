@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import { MapPin, Truck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +16,11 @@ import { useKendaraan, useRitase } from "@/hooks/use-armada";
 import { useTrackingHistory, useTrackingMap } from "@/hooks/use-tracking";
 import { formatDateDMY, formatNumber } from "@/lib/utils";
 import type { Ritase } from "@/types/armada";
+
+function todayLocal(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 function minutesAgo(iso?: string | null): string {
   if (!iso) return "-";
@@ -41,8 +47,9 @@ export default function VehicleDetailPage({ params }: { params?: { id?: string }
   const vehicle = Number.isFinite(id)
     ? (kendaraan ?? []).find((k) => k.id_kendaraan === id)
     : null;
+  const [selectedDate, setSelectedDate] = useState<string>("");
   const { data: history, isLoading: lHist } = useTrackingHistory(
-    Number.isFinite(id) ? id : null
+    Number.isFinite(id) ? id : null, selectedDate || undefined
   );
   // Info live dari tracking map (kalau kendaraan ini lagi kirim posisi).
   const liveV =
@@ -99,6 +106,13 @@ export default function VehicleDetailPage({ params }: { params?: { id?: string }
               </CardTitle>
             </CardHeader>
             <CardContent>
+              <input
+                type="date"
+                value={selectedDate}
+                max={todayLocal()}
+                onChange={(e) => setSelectedDate(e.target.value || "")}
+                className="mb-3 w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm focus:border-[#0c1e3a] focus:outline-none focus:ring-2 focus:ring-[#0c1e3a]/20"
+              />
               {lHist ? (
                 <Skeleton className="h-24 w-full" />
               ) : (history ?? []).length === 0 ? (
