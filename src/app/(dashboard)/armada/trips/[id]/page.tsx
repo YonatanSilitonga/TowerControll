@@ -49,7 +49,7 @@ export default function RitaseDetailPage({ params }: { params: { id: string } })
 
   const vehicle = mapData?.vehicles.find(v => v.id_kendaraan === data?.id_kendaraan);
 
-  if (isLoading) {
+  if (isLoading || data === undefined) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-64" />
@@ -58,7 +58,20 @@ export default function RitaseDetailPage({ params }: { params: { id: string } })
       </div>
     );
   }
-  if (!data) return notFound();
+  if (!data) {
+    return (
+      <div className="space-y-4">
+        <PageHeader
+          title="Ritase Tidak Ditemukan"
+          description="Data ritase tidak tersedia atau ID tidak valid."
+          crumbs={[{ label: "Armada", href: "/armada" }, { label: "Ritase", href: "/armada/trips" }]}
+        />
+        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center dark:border-slate-800 dark:bg-slate-900">
+          <p className="text-sm text-slate-500">Ritase dengan ID #{params.id} tidak ditemukan.</p>
+        </div>
+      </div>
+    );
+  }
 
   const muatan = [
     { label: "Total AWB", value: data.total_awb ?? 0 },

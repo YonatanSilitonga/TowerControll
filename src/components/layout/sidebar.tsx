@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Calendar,
+  Camera,
   ClipboardCheck,
   LayoutDashboard,
   MapPin,
@@ -21,6 +22,7 @@ const NAV: { label: string; href: string; icon: React.ComponentType<{ className?
   { label: "Armada", href: "/armada", icon: Truck, key: "armada" },
   { label: "Live Map", href: "/armada/live-map", icon: MapPin, key: "live-map" },
   { label: "Jadwal Ritase", href: "/jadwal", icon: Calendar, key: "jadwal" },
+  { label: "Foto Manifest", href: "/manifest-foto", icon: Camera, key: "manifest-foto" },
   { label: "Analitik", href: "/analitik", icon: BarChart3, key: "analitik" },
   { label: "Gudang", href: "/gudang", icon: Warehouse, key: "gudang" },
   { label: "Absensi", href: "/absensi", icon: ClipboardCheck, key: "absensi" },

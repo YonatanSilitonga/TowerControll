@@ -42,7 +42,7 @@ export default function VehicleDetailPage({ params }: { params: { id: string } }
   const liveV =
     (mapData?.vehicles ?? []).find((v) => v.id_kendaraan === id) ?? null;
 
-  if (lK) {
+  if (lK || kendaraan === undefined) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-64" />
@@ -51,7 +51,20 @@ export default function VehicleDetailPage({ params }: { params: { id: string } }
       </div>
     );
   }
-  if (!vehicle) return notFound();
+  if (!vehicle) {
+    return (
+      <div className="space-y-4">
+        <PageHeader
+          title="Kendaraan Tidak Ditemukan"
+          description="Data kendaraan tidak tersedia atau ID tidak valid."
+          crumbs={[{ label: "Armada", href: "/armada" }, { label: "Kendaraan", href: "/armada/vehicles" }]}
+        />
+        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center dark:border-slate-800 dark:bg-slate-900">
+          <p className="text-sm text-slate-500">Kendaraan dengan ID #{id} tidak ditemukan.</p>
+        </div>
+      </div>
+    );
+  }
 
   const vehicleRitase = (ritase ?? []).filter((r) => r.id_kendaraan === id);
 

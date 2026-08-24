@@ -276,3 +276,25 @@ export interface RitaseDetail extends Ritase {
   events: RitaseEvent[];
   stops: RitaseStop[];
 }
+
+export interface ManifestPhotoItem {
+  id_event: number;
+  id_ritase: number;
+  kode_ritase: string;
+  tanggal: string;
+  ritase_ke: number;
+  id_driver: number;
+  nama_driver: string;
+  jabatan_driver: string;
+  id_kendaraan: number;
+  nopol: string;
+  jenis_kendaraan: string;
+  nama_lokasi: string;
+  status: string;
+  jumlah_koli: number;
+  jumlah_ecer: number;
+  jumlah_high_value: number;
+  durasi_detik: number;
+  foto_manifest_url: string;
+  created_at: string;
+}

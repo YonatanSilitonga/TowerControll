@@ -25,7 +25,7 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
   const driver = (drivers ?? []).find((d) => d.id_driver === id);
   const { data: history, isLoading: lHist } = useTrackingHistory(driver?.id_kendaraan ?? null);
 
-  if (lDrivers) {
+  if (lDrivers || drivers === undefined) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-64" />
@@ -34,7 +34,20 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
       </div>
     );
   }
-  if (!driver) return notFound();
+  if (!driver) {
+    return (
+      <div className="space-y-4">
+        <PageHeader
+          title="Driver Tidak Ditemukan"
+          description="Data driver tidak tersedia atau ID tidak valid."
+          crumbs={[{ label: "Armada", href: "/armada" }, { label: "Driver", href: "/armada/drivers" }]}
+        />
+        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center dark:border-slate-800 dark:bg-slate-900">
+          <p className="text-sm text-slate-500">Driver dengan ID #{id} tidak ditemukan.</p>
+        </div>
+      </div>
+    );
+  }
 
   const driverRitase = (ritase ?? []).filter((r) => r.id_driver === id);
   const plat = driver.plat_nomor ?? null;
