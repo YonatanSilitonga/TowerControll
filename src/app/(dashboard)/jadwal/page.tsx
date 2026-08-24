@@ -30,7 +30,7 @@ import {
   usePreviewDailyRitase,
   useUpdateRitase,
 } from "@/hooks/use-admin-ritase";
-import { cn } from "@/lib/utils";
+import { cn, formatDur } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { ApiError } from "@/types/api";
@@ -863,6 +863,12 @@ export default function JadwalPage() {
                               <span>{stop.jumlah_koli ?? 0} Koli</span>
                               {(stop.jumlah_ecer ?? 0) > 0 && <span>• {stop.jumlah_ecer} Ecer</span>}
                               {(stop.jumlah_high_value ?? 0) > 0 && <span>• {stop.jumlah_high_value} HV</span>}
+                            </span>
+                          )}
+                          {(stop.durasi_detik != null && stop.durasi_detik > 0) && (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-[10px] font-bold text-blue-800 dark:bg-blue-950/40 dark:border-blue-700/50 dark:text-blue-300 shadow-sm">
+                              <span>⏱️</span>
+                              <span>{formatDur(stop.durasi_detik)}</span>
                             </span>
                           )}
                         </div>
