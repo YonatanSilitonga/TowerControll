@@ -296,6 +296,28 @@ function VehicleMarker({
           {!compact && !stale && v.session_online !== false && !v.offline && (
             <p className="text-xs">Kecepatan: {v.kecepatan ?? 0} km/h</p>
           )}
+          {/* Kotak Informasi Jumlah Muatan yang Dibawa */}
+          {!compact && v.session_online !== false && (
+            <div className="my-1.5 rounded-lg border border-amber-200/80 bg-amber-50/70 p-2 text-xs">
+              <p className="mb-1 flex items-center gap-1.5 text-[11px] font-bold text-amber-900">
+                <span>📦</span> Jumlah Muatan yang Dibawa:
+              </p>
+              <div className="grid grid-cols-3 gap-1.5 text-center">
+                <div className="rounded border border-amber-100 bg-white/90 px-1 py-1 shadow-xs">
+                  <span className="block text-[9px] font-medium text-slate-500">Koli</span>
+                  <span className="text-xs font-extrabold text-slate-800">{v.jumlah_koli ?? 0}</span>
+                </div>
+                <div className="rounded border border-amber-100 bg-white/90 px-1 py-1 shadow-xs">
+                  <span className="block text-[9px] font-medium text-slate-500">Ecer</span>
+                  <span className="text-xs font-extrabold text-slate-800">{v.jumlah_ecer ?? 0}</span>
+                </div>
+                <div className="rounded border border-amber-100 bg-white/90 px-1 py-1 shadow-xs">
+                  <span className="block text-[9px] font-medium text-slate-500">High Value</span>
+                  <span className="text-xs font-extrabold text-slate-800">{v.jumlah_high_value ?? 0}</span>
+                </div>
+              </div>
+            </div>
+          )}
           {v.session_online === false ? (
             <p className="text-xs font-medium text-rose-600">Driver sudah logout dari aplikasi</p>
           ) : v.offline ? (

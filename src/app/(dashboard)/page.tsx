@@ -496,6 +496,33 @@ useEffect(() => {
           );
         })()}
 
+        {/* Kotak Rincian Jumlah Muatan yang Dibawa */}
+        <div className="rounded-lg border border-amber-200/80 bg-amber-50/60 p-2.5 dark:border-amber-700/40 dark:bg-amber-950/20">
+          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-amber-900 dark:text-amber-300">
+            <span>📦</span> Jumlah Muatan yang Dibawa
+          </p>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-md border border-amber-100 bg-white p-1.5 shadow-xs dark:border-slate-700 dark:bg-slate-800">
+              <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400">Koli</span>
+              <span className="text-sm font-extrabold text-slate-800 dark:text-white">
+                {selectedVehicle.jumlah_koli ?? 0}
+              </span>
+            </div>
+            <div className="rounded-md border border-amber-100 bg-white p-1.5 shadow-xs dark:border-slate-700 dark:bg-slate-800">
+              <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400">Ecer</span>
+              <span className="text-sm font-extrabold text-slate-800 dark:text-white">
+                {selectedVehicle.jumlah_ecer ?? 0}
+              </span>
+            </div>
+            <div className="rounded-md border border-amber-100 bg-white p-1.5 shadow-xs dark:border-slate-700 dark:bg-slate-800">
+              <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400">High Value</span>
+              <span className="text-sm font-extrabold text-slate-800 dark:text-white">
+                {selectedVehicle.jumlah_high_value ?? 0}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <input
           type="date"
           value={selectedDate}

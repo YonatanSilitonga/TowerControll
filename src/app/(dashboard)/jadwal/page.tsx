@@ -810,7 +810,7 @@ export default function JadwalPage() {
                   <div className="relative pl-4 space-y-2.5 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
                     {(r.stops ?? []).map((stop) => (
                       <div key={stop.id_stop} className="relative flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="relative z-10 flex h-5 w-5 items-center justify-center rounded-full bg-[#0c1e3a] text-[10px] font-bold text-white">
                             {stop.urutan}
                           </span>
@@ -820,8 +820,15 @@ export default function JadwalPage() {
                           <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 uppercase dark:bg-slate-800">
                             {stop.jenis_stop}
                           </span>
+                          {((stop.jumlah_koli ?? 0) > 0 || (stop.jumlah_ecer ?? 0) > 0 || (stop.jumlah_high_value ?? 0) > 0) && (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/40 dark:border-amber-700/50 dark:text-amber-300 shadow-sm">
+                              <span>📦</span>
+                              <span>{stop.jumlah_koli ?? 0} Koli</span>
+                              {(stop.jumlah_ecer ?? 0) > 0 && <span>• {stop.jumlah_ecer} Ecer</span>}
+                              {(stop.jumlah_high_value ?? 0) > 0 && <span>• {stop.jumlah_high_value} HV</span>}
+                            </span>
+                          )}
                         </div>
-
                       </div>
                     ))}
                   </div>

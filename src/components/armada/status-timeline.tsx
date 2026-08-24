@@ -11,6 +11,10 @@ interface TimelineItem {
   created_at: string;
   durasi_detik?: number | null;
   catatan?: string | null;
+  nama_lokasi?: string | null;
+  jumlah_koli?: number | null;
+  jumlah_ecer?: number | null;
+  jumlah_high_value?: number | null;
 }
 
 function stopName(s?: RitaseStop): string {
@@ -76,7 +80,7 @@ export function StatusTimeline({
     return <p className="py-3 text-center text-sm text-slate-400">Belum ada riwayat status</p>;
   }
 
-  // Label titik per event (dari rute stops)
+  // Label titik per event (dari event.nama_lokasi atau rute stops)
   const names = (stops ?? []).map(stopName);
   let arrived = 0;
   const labeled = cleaned.map((ev) => {
@@ -86,7 +90,7 @@ export function StatusTimeline({
     let idx = isTiba || isMenuju ? arrived + 1 : arrived;
     if (names.length > 0) idx = Math.min(idx, names.length - 1);
     if (isTiba) arrived += 1;
-    const titik = names.length > 0 ? names[idx] : "";
+    const titik = ev.nama_lokasi || (names.length > 0 ? names[idx] : "");
     return { ...ev, titik };
   });
 
@@ -123,6 +127,13 @@ export function StatusTimeline({
                       {ev.titik && (
                         <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
                           {ev.titik}
+                        </span>
+                      )}
+                      {((ev.jumlah_koli ?? 0) > 0 || (ev.jumlah_ecer ?? 0) > 0 || (ev.jumlah_high_value ?? 0) > 0) && (
+                        <span className="rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                          📦 {ev.jumlah_koli ?? 0} Koli
+                          {(ev.jumlah_ecer ?? 0) > 0 && ` • ${ev.jumlah_ecer} Ecer`}
+                          {(ev.jumlah_high_value ?? 0) > 0 && ` • ${ev.jumlah_high_value} HV`}
                         </span>
                       )}
                       <span className="text-xs text-slate-400">{timeOnly(ev.created_at)}</span>

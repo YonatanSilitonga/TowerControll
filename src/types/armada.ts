@@ -75,6 +75,9 @@ export interface AdminRitaseStop {
   id_gudang?: number | null;
   keterangan?: string | null;
   nama_lokasi: string;
+  jumlah_koli?: number | null;
+  jumlah_ecer?: number | null;
+  jumlah_high_value?: number | null;
 }
 
 export interface AdminRitaseItem {
@@ -107,6 +110,9 @@ export interface TrackingVehicle {
   /** Ritase yang sedang berjalan (kalau ada) — buat rute live armada. */
   id_ritase?: number | null;
   nama_lokasi?: string | null;
+  jumlah_koli?: number | null;
+  jumlah_ecer?: number | null;
+  jumlah_high_value?: number | null;
   last_update: string;
   /** Backend: true kalau last_update > ambang offline (default 15 mnt). */
   offline?: boolean;
@@ -172,7 +178,11 @@ export interface TrackingCheckpoint {
   catatan?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  nama_lokasi?: string | null;
   durasi_detik?: number | null;
+  jumlah_koli?: number | null;
+  jumlah_ecer?: number | null;
+  jumlah_high_value?: number | null;
   created_at: string;
 }
 
@@ -240,6 +250,9 @@ export interface RitaseStop {
   keterangan?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  jumlah_koli?: number | null;
+  jumlah_ecer?: number | null;
+  jumlah_high_value?: number | null;
 }
 
 export interface RitaseEvent {
@@ -249,7 +262,11 @@ export interface RitaseEvent {
   catatan?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  nama_lokasi?: string | null;
   durasi_detik?: number | null;
+  jumlah_koli?: number | null;
+  jumlah_ecer?: number | null;
+  jumlah_high_value?: number | null;
   created_at: string;
 }
 
