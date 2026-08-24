@@ -3,7 +3,7 @@
 import { ArrowRight, Package, Warehouse } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { stopTypeLabel } from "@/lib/constants";
-import type { RitaseStop } from "@/types/armada";
+import type { RitaseEvent, RitaseStop } from "@/types/armada";
 
 function stopTitle(stop: RitaseStop): string {
   if (stop.nama_gudang) return `${stop.nama_gudang}${stop.tipe_gudang ? ` (${stop.tipe_gudang})` : ""}`;
@@ -38,7 +38,13 @@ function stopIcon(stop: RitaseStop) {
 }
 
 /** Render rute ritase sebagai urutan titik (Gudang → seller → … → GTW). */
-export function RuteStepper({ stops }: { stops: RitaseStop[] }) {
+export function RuteStepper({
+  stops,
+  events,
+}: {
+  stops: RitaseStop[];
+  events?: RitaseEvent[];
+}) {
   if (!stops || stops.length === 0) {
     return <p className="text-sm text-muted-foreground">Belum ada rute</p>;
   }
@@ -46,16 +52,20 @@ export function RuteStepper({ stops }: { stops: RitaseStop[] }) {
     <div className="flex flex-wrap items-center gap-2">
       {stops.map((stop, i) => (
         <div key={`${stop.id_stop}-${i}`} className="flex items-center gap-2">
-          <div className={cn("flex items-center gap-2 rounded-lg border px-3 py-1.5", stopTone(stop))}>
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-sm">
-              {stopIcon(stop)}
+          <div className={cn("flex items-center gap-2 rounded-lg border px-3 py-1.5 shadow-sm", stopTone(stop))}>
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white font-bold text-[10px] shadow-sm">
+              {stop.urutan ?? i + 1}
             </span>
             <div className="leading-tight">
               <p className="text-xs font-semibold">{stopTitle(stop)}</p>
               <p className="text-[10px] capitalize opacity-70">{stopTypeLabel(stop.jenis_stop)}</p>
             </div>
           </div>
-          {i < stops.length - 1 && <ArrowRight className="h-4 w-4 shrink-0 text-slate-400" />}
+          {i < stops.length - 1 && (
+            <div className="flex items-center gap-1">
+              <ArrowRight className="h-4 w-4 shrink-0 text-slate-400" />
+            </div>
+          )}
         </div>
       ))}
     </div>

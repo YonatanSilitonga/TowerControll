@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn, hasActiveSession } from "@/lib/utils";
 import { displayTrackingStatus } from "@/lib/constants";
 import type { TrackingVehicle } from "@/types/armada";
 
@@ -38,7 +38,8 @@ export function VehicleItem({ vehicle, selected, onSelect, durasi }: VehicleItem
         const t = new Date(vehicle.last_update).getTime();
         return Number.isNaN(t) ? true : Date.now() - t > 3 * 60 * 1000;
       })());
-  const loggedOut = vehicle.session_online === false;
+  // Hitung session dari last_login langsung (backend session_online computed field unreliable)
+  const loggedOut = !hasActiveSession(vehicle.last_login);
   const atBeranda = !loggedOut && !live;               
 
   const dot = loggedOut

@@ -36,7 +36,7 @@ export default function ArmadaOverviewPage() {
     (acc, k) => acc + (k.kapasitas_kg ?? 0),
     0
   );
-  const driverAktif = (driver ?? []).filter((d) => d.tracking_fresh).length;
+  const driverOnline = (driver ?? []).filter((d) => d.tracking_fresh).length;
 
   return (
     <div>
@@ -84,7 +84,7 @@ export default function ArmadaOverviewPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              Status Kendaraan <InfoTip text="Ringkasan jumlah kendaraan per status (aktif, tersedia, maintenance, dst)." />
+              Status Kendaraan <InfoTip text="Status registrasi kendaraan di database (tersedia, maintenance, nonaktif, dst) — BUKAN penanda online/offline realtime." />
               <span className="ml-auto text-xs font-normal text-slate-400">
                 {kendaraan?.length ?? 0} total
               </span>
@@ -122,7 +122,7 @@ export default function ArmadaOverviewPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              Status Driver <InfoTip text="Ringkasan jumlah driver per status (bertugas, libur, dst)." />
+              Status Driver <InfoTip text="Status kepegawaian driver (bertugas, libur, dst) — BUKAN penanda online/offline realtime. Yang online beneran dihitung dari GPS terbaru (baris 'Sedang online' di bawah)." />
               <span className="ml-auto text-xs font-normal text-slate-400">
                 {driver?.length ?? 0} total
               </span>
@@ -137,15 +137,15 @@ export default function ArmadaOverviewPage() {
               <>
                 <Breakdown items={driver ?? []} field="status_driver" />
 
-                <div className="mt-3.5 space-y-1.5 border-t border-slate-100 pt-2.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Sedang aktif</span>
-                    <span className="inline-flex items-center gap-1.5 font-bold tabular-nums text-emerald-700">
-                      <i className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                      {driverAktif} driver
-                    </span>
+                  <div className="mt-3.5 space-y-1.5 border-t border-slate-100 pt-2.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Sedang online</span>
+                      <span className="inline-flex items-center gap-1.5 font-bold tabular-nums text-emerald-700">
+                        <i className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                        {driverOnline} driver
+                      </span>
+                    </div>
                   </div>
-                </div>
               </>
             )}
           </CardContent>

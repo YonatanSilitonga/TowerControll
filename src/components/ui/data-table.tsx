@@ -106,7 +106,7 @@ export function DataTable<T>({
       )}
 
       {/* Tabel normal (layar >= md) */}
-      <div className="hidden overflow-x-auto border bg-card md:block">
+      <div className={cn("hidden border bg-card md:block", tableLayout === "fixed" ? "overflow-hidden" : "overflow-x-auto")}>
         <table
           className={cn(
             "w-full text-sm",
@@ -201,7 +201,7 @@ export function DataTable<T>({
                   <span className="shrink-0 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                     {c.header}
                   </span>
-                  <span className="min-w-0 text-right text-sm text-slate-800">{c.render(row)}</span>
+                  <span className="min-w-0 shrink-0 truncate text-right text-sm text-slate-800">{c.render(row)}</span>
                 </div>
               ))}
             </div>

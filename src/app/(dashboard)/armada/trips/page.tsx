@@ -10,7 +10,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { PageHeader } from "@/components/layout/page-header";
 import { ArmadaTabs } from "@/components/armada/armada-tabs";
 import { useRitase } from "@/hooks/use-armada";
-import { formatDateDMY } from "@/lib/utils";
+import { formatDateDMY, formatNumber } from "@/lib/utils";
 import type { Ritase } from "@/types/armada";
 
 export default function RitasePage() {
@@ -70,6 +70,10 @@ export default function RitasePage() {
           { header: "Driver", className: "font-medium", render: (r) => r.nama_driver },
           { header: "Plat", className: "font-mono text-xs", render: (r) => r.plat_nomor },
           { header: "RIT", className: "text-right", render: (r) => r.ritase_ke ?? "-" },
+          { header: "AWB", className: "text-right tabular-nums", render: (r) => formatNumber(r.total_awb ?? 0) },
+          { header: "Koli", className: "text-right tabular-nums", render: (r) => formatNumber(r.total_koli ?? 0) },
+          { header: "HV", className: "text-right tabular-nums", render: (r) => formatNumber(r.total_high_value ?? 0) },
+          { header: "Eceran", className: "text-right tabular-nums", render: (r) => formatNumber(r.total_eceran ?? 0) },
           {
             header: "Jadwal",
             render: (r) =>

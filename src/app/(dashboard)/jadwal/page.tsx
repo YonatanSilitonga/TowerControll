@@ -808,6 +808,18 @@ export default function JadwalPage() {
                     <p className="text-xs text-slate-500 dark:text-slate-400">
                       Plat: <span className="font-semibold text-slate-700 dark:text-slate-300">{r.nopol}</span>
                     </p>
+                    {r.jam_mulai && (
+                      <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+                        ⏱ {r.jam_mulai} – {r.jam_selesai ?? "?"}
+                      </span>
+                    )}
+                    {((r.total_koli ?? 0) > 0 || (r.total_eceran ?? 0) > 0 || (r.total_high_value ?? 0) > 0) && (
+                      <span className="mt-1 inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300">
+                        📦 {r.total_koli ?? 0} Koli
+                        {(r.total_eceran ?? 0) > 0 && ` • ${r.total_eceran} Ecer`}
+                        {(r.total_high_value ?? 0) > 0 && ` • ${r.total_high_value} HV`}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">

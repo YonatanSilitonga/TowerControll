@@ -14,6 +14,7 @@ import { ArmadaTabs } from "@/components/armada/armada-tabs";
 import { useKendaraan, useDriver } from "@/hooks/use-armada";
 import { useTrackingMap } from "@/hooks/use-tracking";
 import { cn, formatNumber } from "@/lib/utils";
+import { OFFLINE_MINUTES } from "@/lib/constants";
 import type { Kendaraan } from "@/types/armada";
 
 const LiveMap = dynamic(
@@ -37,14 +38,14 @@ function minutesAgo(iso?: string): string {
   return d === 1 ? "1 hari lalu" : `${d} hari lalu`;
 }
 
-/** LIVE = GPS masih fresh (≤ 15 menit) — kecepatan cuma valid kalau ini. */
+/** LIVE = GPS masih fresh (≤ ambang offline) — kecepatan cuma valid kalau ini. */
 function isLiveV(v?: { offline?: boolean; last_update: string }): boolean {
   return (
     !!v &&
     !(v.offline ??
       (() => {
         const t = new Date(v.last_update).getTime();
-        return Number.isNaN(t) ? true : Date.now() - t > 3 * 60 * 1000;
+        return Number.isNaN(t) ? true : Date.now() - t > OFFLINE_MINUTES * 60 * 1000;
       })())
   );
 }

@@ -52,6 +52,7 @@ export default function SellersPage() {
       <ArmadaTabs />
 
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_360px]">
+        <div className="min-w-0 overflow-hidden">
         <DataTable<Seller>
           loading={isLoading}
           rows={sellers}
@@ -86,10 +87,10 @@ export default function SellersPage() {
             },
             {
               header: "Alamat",
-              className: "w-[160px]",
+              className: "w-[160px] overflow-hidden whitespace-nowrap",
               render: (s) =>
                 s.address ? (
-                  <span title={s.address} className="block w-full truncate text-slate-600">
+                  <span title={s.address} className="block truncate text-slate-600">
                     {s.address}
                   </span>
                 ) : (
@@ -136,6 +137,7 @@ export default function SellersPage() {
             },
           ]}
         />
+        </div>
 
         {/* Panel kanan: peta seller + detail */}
         <div className="space-y-4">
@@ -238,7 +240,7 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   return (
     <div className="flex items-start justify-between gap-2 border-b border-slate-100 py-1.5 last:border-0">
       <span className="shrink-0 text-xs text-slate-500">{label}</span>
-      <span className="text-right text-sm font-medium text-slate-800">{value}</span>
+      <span className="min-w-0 max-w-[220px] break-words text-right text-sm font-medium text-slate-800">{value}</span>
     </div>
   );
 }

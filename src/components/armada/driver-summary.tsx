@@ -37,19 +37,26 @@ export interface DurationSummary {
   total: number;
 }
 
-/** Hitung ringkasan durasi (detik) dari daftar event. Dipakai dashboard & detail. */
+/** Hitung ringkasan durasi (detik) dari daftar event. Dipakai dashboard & detail.
+ *  PRIORITAS: durasi = selisih created_at ke event berikutnya (paling akurat, gak
+ *  terpengaruh bug atribusi durasi_detik dari mobile yang geser ke stage berikutnya).
+ *  durasi_detik cuma fallback untuk event terakhir (gak ada next). */
 export function summarizeEvents(events: Ev[]): DurationSummary {
   const sorted = [...(events ?? [])].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
   const out: DurationSummary = { loading: 0, perjalanan: 0, tiba: 0, selesai: 0, total: 0 };
   sorted.forEach((ev, i) => {
-    let dur = toSec(ev.durasi_detik);
-    if (dur <= 0) {
-      const next = sorted[i + 1];
-      if (next) {
-        dur = Math.max(0, (new Date(next.created_at).getTime() - new Date(ev.created_at).getTime()) / 1000);
-      }
+    let dur = 0;
+    const next = sorted[i + 1];
+    if (next) {
+      dur = Math.max(
+        0,
+        (new Date(next.created_at).getTime() - new Date(ev.created_at).getTime()) / 1000
+      );
+    } else {
+      // event terakhir (biasanya "selesai") — gak ada next, fallback durasi_detik.
+      dur = toSec(ev.durasi_detik);
     }
     const c = catOf(ev.status);
     if (c !== "lain") out[c] += dur;
@@ -134,7 +141,129 @@ export function DriverSummary({
           </div>
         </div>
       )}
+    </div>
+  );
+}
 
+/** Tipe data rincian leg (transit vs loading) */
+export interface LegBreakdownItem {
+  id: string;
+  stageName: string;
+  category: "loading" | "perjalanan" | "tiba" | "selesai" | "lain";
+  statusText: string;
+  durasiDetik: number;
+  startTime?: string;
+  endTime?: string;
+}
+
+/** Rincian waktu transit per leg & waktu loading per titik */
+export function LegBreakdownTimeline({
+  events,
+  stops,
+}: {
+  events: Ev[];
+  stops?: RitaseStop[];
+}) {
+  const sorted = [...(events ?? [])].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+
+  if (sorted.length === 0) {
+    return (
+      <p className="py-4 text-center text-xs text-slate-400">
+        Belum ada data event perjalanan
+      </p>
+    );
+  }
+
+  const legs: LegBreakdownItem[] = sorted.map((ev, i) => {
+    const next = sorted[i + 1];
+    let dur = 0;
+    if (next) {
+      dur = Math.max(
+        0,
+        (new Date(next.created_at).getTime() - new Date(ev.created_at).getTime()) / 1000
+      );
+    } else {
+      dur = toSec(ev.durasi_detik);
+    }
+
+    const cat = catOf(ev.status);
+    const fmtTime = (iso: string) => {
+      try {
+        const d = new Date(iso);
+        return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+      } catch {
+        return "-";
+      }
+    };
+
+    return {
+      id: `${ev.id ?? i}-${ev.created_at}`,
+      stageName: statusLabel(ev.status),
+      category: cat,
+      statusText: ev.status,
+      durasiDetik: dur,
+      startTime: fmtTime(ev.created_at),
+      endTime: next ? fmtTime(next.created_at) : undefined,
+    };
+  });
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+        Rincian Waktu Transit & Loading Per Stage
+      </p>
+      <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white text-xs">
+        {legs.map((item, idx) => {
+          const isTransit = item.category === "perjalanan";
+          const isLoading = item.category === "loading";
+
+          return (
+            <div
+              key={item.id}
+              className="flex items-center justify-between p-2.5 transition-colors hover:bg-slate-50/80"
+            >
+              <div className="flex items-center gap-2.5">
+                <span
+                  className={cn(
+                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-md font-bold text-[10px]",
+                    isTransit
+                      ? "bg-sky-100 text-sky-800"
+                      : isLoading
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-slate-100 text-slate-700"
+                  )}
+                >
+                  {idx + 1}
+                </span>
+                <div>
+                  <p className="font-semibold text-slate-800">{item.stageName}</p>
+                  {item.startTime && (
+                    <p className="text-[10px] text-slate-400">
+                      {item.startTime} {item.endTime ? `→ ${item.endTime}` : "(Aktif)"}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="text-right">
+                <span
+                  className={cn(
+                    "inline-block rounded px-2 py-0.5 font-bold tabular-nums",
+                    isTransit
+                      ? "bg-sky-50 text-sky-700"
+                      : isLoading
+                      ? "bg-amber-50 text-amber-700"
+                      : "bg-slate-100 text-slate-600"
+                  )}
+                >
+                  {formatDur(item.durasiDetik)}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

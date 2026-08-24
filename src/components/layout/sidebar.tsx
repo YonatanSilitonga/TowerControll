@@ -43,7 +43,8 @@ export function Sidebar() {
   const nav = filterNav(role);
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-[#0c1e3a] bg-[#0c1e3a] text-slate-300 lg:flex">
+    <div className="hidden w-60 shrink-0 bg-[#0c1e3a] lg:block">
+    <aside className="sticky top-0 flex h-screen w-full flex-col border-r border-[#0c1e3a] text-slate-300">
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-white/10 px-5">
         <Image
@@ -108,5 +109,6 @@ export function Sidebar() {
         </div>
       </div>
     </aside>
+    </div>
   );
 }

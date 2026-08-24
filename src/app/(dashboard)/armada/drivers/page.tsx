@@ -66,21 +66,25 @@ export default function DriversPage() {
                   <span className="font-mono text-xs font-semibold text-slate-800">
                     {d.plat_nomor}
                   </span>
-                  {d.tracking_fresh ? (
-                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
-                      <i className="h-1 w-1 rounded-full bg-emerald-500" />
-                      Live
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 rounded-md bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
-                      <i className="h-1 w-1 rounded-full bg-rose-500" />
-                      Offline
-                    </span>
-                  )}
                 </div>
               ) : (
                 <span className="inline-flex items-center gap-1 text-xs text-slate-300">
                   <Truck className="h-3.5 w-3.5" /> Belum ada
+                </span>
+              ),
+          },
+          {
+            header: "Online",
+            render: (d) =>
+              d.tracking_fresh ? (
+                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                  <i className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
+                  Live
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-md bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
+                  <i className="h-1 w-1 rounded-full bg-rose-500" />
+                  Offline
                 </span>
               ),
           },
@@ -93,7 +97,7 @@ export default function DriversPage() {
                 <span className="text-xs text-slate-300">-</span>
               ),
           },
-          { header: "Status", render: (d) => <StatusBadge status={d.status_driver} /> },
+          { header: "Status Karyawan", render: (d) => <StatusBadge status={d.status_driver} /> },
           {
             header: "Aksi",
             className: "text-right",
