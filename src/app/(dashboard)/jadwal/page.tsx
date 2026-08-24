@@ -51,6 +51,7 @@ export default function JadwalPage() {
 
   const todayStr = getNDaysAgo(0);
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+  const isDatePast = selectedDate < todayStr;
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [ritaseFilter, setRitaseFilter] = useState<string>("all");
   const [showGenerateModal, setShowGenerateModal] = useState<boolean>(false);
@@ -141,6 +142,7 @@ export default function JadwalPage() {
 
   const handleGenerate = () => {
     const payload = {
+      tanggal: selectedDate,
       routes: editableRoutes.map((r: PreviewRoute) => ({
         id_driver: Number(r.id_driver),
         id_kendaraan: Number(r.id_kendaraan),
@@ -202,7 +204,21 @@ export default function JadwalPage() {
   };
 
   const handleRemoveRoute = (routeIdx: number) => {
-    setEditableRoutes(editableRoutes.filter((_, idx) => idx !== routeIdx));
+    setConfirmBox({
+      title: "Hapus Rute dari Preview?",
+      message: `Yakin ingin menghapus rute "${editableRoutes[routeIdx]?.nama_driver ?? "Driver"}" Ritase Ke-${editableRoutes[routeIdx]?.ritase_ke ?? "?"} dari daftar generate?`,
+      onConfirm: () => {
+        setEditableRoutes(editableRoutes.filter((_, idx) => idx !== routeIdx));
+      },
+    });
+  };
+
+  const handleMoveRoute = (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= editableRoutes.length) return;
+    const arr = [...editableRoutes];
+    [arr[index], arr[targetIndex]] = [arr[targetIndex], arr[index]];
+    setEditableRoutes(arr);
   };
 
   const handleAddRoute = () => {
@@ -296,6 +312,17 @@ export default function JadwalPage() {
   const handlePreviewRemoveStop = (routeIdx: number, stopIdx: number) => {
     const updated = [...editableRoutes];
     updated[routeIdx].stops = updated[routeIdx].stops.filter((_, idx) => idx !== stopIdx);
+    setEditableRoutes(updated);
+  };
+
+  const handlePreviewMoveStop = (routeIdx: number, stopIdx: number, direction: "up" | "down") => {
+    const targetIdx = direction === "up" ? stopIdx - 1 : stopIdx + 1;
+    const stops = editableRoutes[routeIdx].stops;
+    if (targetIdx < 0 || targetIdx >= stops.length) return;
+    const updated = [...editableRoutes];
+    const routeStops = [...updated[routeIdx].stops];
+    [routeStops[stopIdx], routeStops[targetIdx]] = [routeStops[targetIdx], routeStops[stopIdx]];
+    updated[routeIdx] = { ...updated[routeIdx], stops: routeStops };
     setEditableRoutes(updated);
   };
 
@@ -588,8 +615,9 @@ export default function JadwalPage() {
             {/* Tombol Utama: 1-Klik Generate Otomatis */}
             <button
               type="button"
-              onClick={() => { setShowGenerateModal(true); fetchPreview(); }}
-              className="inline-flex items-center justify-center gap-2 rounded-md bg-[#0c1e3a] px-5 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#16335a]"
+              disabled={isDatePast}
+              onClick={() => { if (isDatePast) return; setShowGenerateModal(true); fetchPreview(); }}
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-[#0c1e3a] px-5 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#16335a] disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Zap className="h-4 w-4" />
               <span>Generate Otomatis</span>
@@ -597,6 +625,15 @@ export default function JadwalPage() {
           </div>
         }
       />
+
+      {isDatePast && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-950/40">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+          <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
+            Tanggal yang dipilih sudah berlalu. Tidak bisa generate atau membuat jadwal baru.
+          </p>
+        </div>
+      )}
 
       {/* ── METRICS SUMMARY CARDS ── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -662,10 +699,8 @@ export default function JadwalPage() {
             <input
               type="date"
               value={selectedDate}
-              max={todayStr}
               onChange={(e) => {
-                const v = e.target.value;
-                setSelectedDate(v <= todayStr ? v : todayStr);
+                setSelectedDate(e.target.value);
               }}
               className="bg-transparent text-xs font-semibold text-slate-700 outline-none dark:text-slate-200"
             />
@@ -694,7 +729,9 @@ export default function JadwalPage() {
         {/* Tombol Buat Jadwal Manual — sendiri di paling kanan */}
         <button
           type="button"
+          disabled={isDatePast}
           onClick={() => {
+            if (isDatePast) return;
             setNewRitase({
               ...newRitase,
               tanggal: selectedDate,
@@ -704,7 +741,7 @@ export default function JadwalPage() {
             });
             setShowCreateModal(true);
           }}
-          className="group inline-flex items-center gap-2 rounded-md border border-[#FEA103] bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-[#FEA103] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-[#FEA103] dark:hover:text-white"
+          className="group inline-flex items-center gap-2 rounded-md border border-[#FEA103] bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-[#FEA103] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-[#FEA103] dark:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Plus className="h-4 w-4 text-slate-400 transition-colors group-hover:text-white" />
           <span>Buat Jadwal Manual</span>
@@ -856,7 +893,7 @@ export default function JadwalPage() {
                     Preview & Edit Tambah Rute Otomatis
                   </h3>
                   <p className="text-xs text-blue-200/80 mt-0.5">
-                    Anda dapat mengubah rute, driver, kendaraan, menambah/menghapus ritase atau perhentian sebelum disave untuk tanggal <span className="font-bold text-white">{todayStr}</span>.
+                    Anda dapat mengubah rute, driver, kendaraan, menambah/menghapus ritase atau perhentian sebelum disave untuk tanggal <span className="font-bold text-white">{selectedDate}</span>.
                   </p>
                 </div>
               </div>
@@ -895,15 +932,48 @@ export default function JadwalPage() {
                                   className="w-12 rounded border border-[#0c1e3a]/20 bg-[#0c1e3a]/5 px-1.5 py-0.5 text-center font-extrabold dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-200"
                                 />
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveRoute(rIdx)}
-                                className="flex items-center gap-1 text-[11px] font-semibold text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/50 px-2 py-1 rounded transition-colors"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                                <span>Hapus</span>
-                              </button>
+                              <div className="flex items-center gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveRoute(rIdx, "up")}
+                                  disabled={rIdx === 0}
+                                  className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                  title="Pindah ke atas"
+                                >
+                                  <ArrowUp className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveRoute(rIdx, "down")}
+                                  disabled={rIdx === editableRoutes.length - 1}
+                                  className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                  title="Pindah ke bawah"
+                                >
+                                  <ArrowDown className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveRoute(rIdx)}
+                                  className="flex items-center gap-1 text-[11px] font-semibold text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/50 px-2 py-1 rounded transition-colors"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <span>Hapus</span>
+                                </button>
+                              </div>
                             </div>
+
+                            {/* Date Badge */}
+                            {route.tanggal_label && (
+                              <div className={`mb-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                                route.tanggal_label === "Hari Ini"
+                                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                                  : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                              }`}>
+                                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                                {route.tanggal_label === "Hari Ini" ? "Hari Ini" : "Besok"}
+                                {route.tanggal && <span className="opacity-60 ml-0.5">({route.tanggal})</span>}
+                              </div>
+                            )}
 
                             {/* Driver Select */}
                             <div className="mb-2">
@@ -969,13 +1039,33 @@ export default function JadwalPage() {
                                     <option value="drop_point">GATEWAY / DROP POINT</option>
                                   </select>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => handlePreviewRemoveStop(rIdx, sIdx)}
-                                    className="text-slate-400 hover:text-rose-500 p-0.5"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
+                                  <div className="flex items-center gap-0.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => handlePreviewMoveStop(rIdx, sIdx, "up")}
+                                      disabled={sIdx === 0}
+                                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-0.5 disabled:opacity-25 disabled:cursor-not-allowed"
+                                      title="Pindah ke atas"
+                                    >
+                                      <ArrowUp className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handlePreviewMoveStop(rIdx, sIdx, "down")}
+                                      disabled={sIdx === route.stops.length - 1}
+                                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-0.5 disabled:opacity-25 disabled:cursor-not-allowed"
+                                      title="Pindah ke bawah"
+                                    >
+                                      <ArrowDown className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handlePreviewRemoveStop(rIdx, sIdx)}
+                                      className="text-slate-400 hover:text-rose-500 p-0.5"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
                                 </div>
 
                                 {/* Location Select */}
@@ -1046,7 +1136,12 @@ export default function JadwalPage() {
 
             <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-700/50 bg-white dark:bg-[#0c1e3a] px-6 py-4">
               <div className="text-xs text-slate-500 dark:text-blue-200/60 font-medium">
-                * Total <span className="font-bold text-[#0c1e3a] dark:text-blue-300">{editableRoutes.length}</span> ritase siap disave &amp; dikirim ke HP driver
+                * Total <span className="font-bold text-[#0c1e3a] dark:text-blue-300">{editableRoutes.length}</span> ritase
+                {previewData?.total_hari_ini !== undefined && previewData?.total_besok !== undefined ? (
+                  <>: <span className="text-blue-600 dark:text-blue-400">{previewData.total_hari_ini}</span> hari ini, <span className="text-amber-600 dark:text-amber-400">{previewData.total_besok}</span> besok</>
+                ) : (
+                  <> siap disave &amp; dikirim ke HP driver</>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <button
