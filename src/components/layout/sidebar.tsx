@@ -56,7 +56,7 @@ export function Sidebar() {
         />
         <div className="leading-tight">
           <p className="text-sm font-bold text-white">Tower Control</p>
-          <p className="text-[10px] uppercase tracking-wider text-slate-400">
+          <p className="text-[10px] tracking-wider text-slate-400">
             Logistics Management
           </p>
         </div>
