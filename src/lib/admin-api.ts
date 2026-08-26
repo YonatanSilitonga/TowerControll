@@ -23,7 +23,8 @@ async function adminFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.message || `HTTP ${res.status}`);
   }
-  return res.json();
+  const json = await res.json();
+  return json.data as T;
 }
 
 function toQuery(params: Record<string, string | undefined>): string {
