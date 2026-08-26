@@ -81,8 +81,8 @@ export default function ManifestFotoPage() {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>("ritase");
-  const [collapsedRitase, setCollapsedRitase] = useState<Set<number>>(new Set());
-  const [collapsedDrivers, setCollapsedDrivers] = useState<Set<number>>(new Set());
+  const [expandedRitase, setExpandedRitase] = useState<Set<number>>(new Set());
+  const [expandedDrivers, setExpandedDrivers] = useState<Set<number>>(new Set());
 
   const { data: drivers = [] } = useDriver();
 
@@ -174,7 +174,7 @@ export default function ManifestFotoPage() {
 
   /* ── toggle collapse ── */
   const toggleRitase = useCallback((id: number) => {
-    setCollapsedRitase((prev) => {
+    setExpandedRitase((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
@@ -182,7 +182,7 @@ export default function ManifestFotoPage() {
   }, []);
 
   const toggleDriver = useCallback((id: number) => {
-    setCollapsedDrivers((prev) => {
+    setExpandedDrivers((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
@@ -190,14 +190,14 @@ export default function ManifestFotoPage() {
   }, []);
 
   const expandAll = useCallback(() => {
-    setCollapsedRitase(new Set());
-    setCollapsedDrivers(new Set());
-  }, []);
+    setExpandedRitase(new Set(ritaseGroups.map((g) => g.id_ritase)));
+    setExpandedDrivers(new Set(driverGroups.map((g) => g.id_driver)));
+  }, [ritaseGroups, driverGroups]);
 
   const collapseAll = useCallback(() => {
-    setCollapsedRitase(new Set(ritaseGroups.map((g) => g.id_ritase)));
-    setCollapsedDrivers(new Set(driverGroups.map((g) => g.id_driver)));
-  }, [ritaseGroups, driverGroups]);
+    setExpandedRitase(new Set());
+    setExpandedDrivers(new Set());
+  }, []);
 
   /* ── modal handlers ── */
   const handleOpenModal = (photo: ManifestPhotoItem) => {
@@ -267,77 +267,84 @@ export default function ManifestFotoPage() {
       </div>
 
       {/* ── Filter Bar: Date + Driver + Search + Refresh ── */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900">
-        <span className="hidden sm:inline text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0 mr-1">Filter</span>
-        <div className="flex items-center gap-1 sm:gap-1.5">
-          <DatePill label="Hari Ini" active={selectedDate === todayStr} onClick={() => setSelectedDate(todayStr)} />
-          <DatePill label="Kemarin" active={selectedDate === yesterdayStr} onClick={() => setSelectedDate(yesterdayStr)} />
-          <DatePill label="Semua" active={selectedDate === "all"} onClick={() => setSelectedDate("all")} />
-          <input
-            type="date"
-            value={selectedDate === "all" ? "" : selectedDate}
-            max={todayStr}
-            onChange={(e) => setSelectedDate(e.target.value || "all")}
+      <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900">
+        {/* Kiri: Filter label + Date pills */}
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:inline text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0 mr-1">Filter</span>
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            <DatePill label="Hari Ini" active={selectedDate === todayStr} onClick={() => setSelectedDate(todayStr)} />
+            <DatePill label="Kemarin" active={selectedDate === yesterdayStr} onClick={() => setSelectedDate(yesterdayStr)} />
+            <DatePill label="Semua" active={selectedDate === "all"} onClick={() => setSelectedDate("all")} />
+            <input
+              type="date"
+              value={selectedDate === "all" ? "" : selectedDate}
+              max={todayStr}
+              onChange={(e) => setSelectedDate(e.target.value || "all")}
+              className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            />
+          </div>
+        </div>
+
+        {/* Kanan: Driver + Search + Refresh */}
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedDriverId}
+            onChange={(e) => setSelectedDriverId(e.target.value)}
             className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-          />
+          >
+            <option value="all">Semua Driver</option>
+            {drivers.map((d: DriverArmada) => (
+              <option key={d.id_driver} value={d.id_driver.toString()}>
+                {d.nama_driver}
+              </option>
+            ))}
+          </select>
+
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari driver, nopol, lokasi..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-7 w-40 rounded-md border border-slate-200 bg-white pl-7 pr-2 text-[11px] focus:border-[#0c1e3a] focus:outline-none sm:w-48 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            />
+          </div>
+
+          <button
+            onClick={() => refetch()}
+            disabled={isLoading || isRefetching}
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
+            title="Refresh"
+          >
+            <RefreshCw className={cn("h-3 w-3", (isLoading || isRefetching) && "animate-spin")} />
+          </button>
         </div>
-
-        <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
-
-        <select
-          value={selectedDriverId}
-          onChange={(e) => setSelectedDriverId(e.target.value)}
-          className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-        >
-          <option value="all">Semua Driver</option>
-          {drivers.map((d: DriverArmada) => (
-            <option key={d.id_driver} value={d.id_driver.toString()}>
-              {d.nama_driver}
-            </option>
-          ))}
-        </select>
-
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Cari driver, nopol, lokasi..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-7 w-40 rounded-md border border-slate-200 bg-white pl-7 pr-2 text-[11px] focus:border-[#0c1e3a] focus:outline-none sm:w-48 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-          />
-        </div>
-
-        <button
-          onClick={() => refetch()}
-          disabled={isLoading || isRefetching}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
-          title="Refresh"
-        >
-          <RefreshCw className={cn("h-3 w-3", (isLoading || isRefetching) && "animate-spin")} />
-        </button>
       </div>
 
       {/* ── View Mode Bar: Tampilan + Expand/Collapse ── */}
-      <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900">
-        <span className="hidden sm:inline text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0">Tampilan</span>
-        <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800 shrink-0">
-          <ViewBtn active={viewMode === "ritase"} onClick={() => setViewMode("ritase")} icon={Rows3} label="Per Ritase" />
-          <ViewBtn active={viewMode === "grid"} onClick={() => setViewMode("grid")} icon={LayoutGrid} label="Galeri" />
-          <ViewBtn active={viewMode === "timeline"} onClick={() => setViewMode("timeline")} icon={Images} label="Per Driver" />
+      <div className="flex w-full items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900">
+        {/* Kiri: Tampilan label + View toggle */}
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:inline text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0">Tampilan</span>
+          <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800 shrink-0">
+            <ViewBtn active={viewMode === "ritase"} onClick={() => setViewMode("ritase")} icon={Rows3} label="Per Ritase" />
+            <ViewBtn active={viewMode === "grid"} onClick={() => setViewMode("grid")} icon={LayoutGrid} label="Galeri" />
+            <ViewBtn active={viewMode === "timeline"} onClick={() => setViewMode("timeline")} icon={Images} label="Per Driver" />
+          </div>
         </div>
 
+        {/* Kanan: Expand / Collapse */}
         {viewMode !== "grid" && (
-          <>
-            <div className="hidden sm:block h-4 w-px bg-slate-200 dark:bg-slate-700" />
-            <button onClick={expandAll} className="hidden sm:inline text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0">
+          <div className="flex items-center gap-2">
+            <button onClick={expandAll} className="text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0">
               Buka Semua
             </button>
-            <span className="hidden sm:inline text-slate-300 dark:text-slate-700">·</span>
-            <button onClick={collapseAll} className="hidden sm:inline text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0">
+            <span className="text-slate-300 dark:text-slate-700">·</span>
+            <button onClick={collapseAll} className="text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0">
               Tutup Semua
             </button>
-          </>
+          </div>
         )}
       </div>
 
@@ -354,7 +361,7 @@ export default function ManifestFotoPage() {
         /* ─── GROUPED BY RITASE ─── */
         <div className="space-y-2">
           {ritaseGroups.map((g) => {
-            const isCollapsed = collapsedRitase.has(g.id_ritase);
+            const isCollapsed = !expandedRitase.has(g.id_ritase);
             // Hitung total durasi dari semua foto dalam ritase ini
             const totalDurasi = g.photos.reduce((sum, p) => sum + (p.durasi_detik || 0), 0);
             // Cari waktu pertama & terakhir dari created_at
@@ -482,7 +489,7 @@ export default function ManifestFotoPage() {
         /* ─── GROUPED BY DRIVER ─── */
         <div className="space-y-2">
           {driverGroups.map((g) => {
-            const isCollapsed = collapsedDrivers.has(g.id_driver);
+            const isCollapsed = !expandedDrivers.has(g.id_driver);
             const totalDurasi = g.photos.reduce((sum, p) => sum + (p.durasi_detik || 0), 0);
             return (
               <div key={g.id_driver} className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
