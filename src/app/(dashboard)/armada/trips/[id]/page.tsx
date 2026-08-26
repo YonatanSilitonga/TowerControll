@@ -109,7 +109,11 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
   const fmtTime = (iso?: string | null) => {
     if (!iso) return null;
     const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? null : d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false });
+    if (Number.isNaN(d.getTime())) return null;
+    // Pakai format manual (bukan toLocaleTimeString) biar gak hydration mismatch
+    const h = String(d.getUTCHours() + 7).padStart(2, "0"); // WIB = UTC+7
+    const m = String(d.getUTCMinutes()).padStart(2, "0");
+    return `${h}:${m}`;
   };
 
   const realisasiRows = [
