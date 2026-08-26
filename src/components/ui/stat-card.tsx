@@ -1,55 +1,58 @@
 "use client";
 
-import { Loader2, type LucideIcon } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { formatNumber } from "@/lib/utils";
+import { LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
+import { CARD_PADDING, FONT_SIZES, FONT_WEIGHTS, ICON_SIZES } from "@/lib/design-tokens";
 
-/** Kartu statistik generik: ikon + judul + nilai (dengan state loading). */
+interface StatCardProps {
+  label: string;
+  value: string | number;
+  trend?: number; // positive or negative percentage
+  icon?: LucideIcon;
+  color?: "blue" | "green" | "purple" | "amber";
+}
+
+const colorMap = {
+  blue: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+  green: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
+  purple: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
+  amber: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
+};
+
 export function StatCard({
-  title,
+  label,
   value,
-  description,
+  trend,
   icon: Icon,
-  loading,
-}: {
-  title: string;
-  value?: number | string;
-  description?: string;
-  icon: LucideIcon;
-  loading?: boolean;
-}) {
+  color = "blue",
+}: StatCardProps) {
+  const isTrendUp = trend && trend > 0;
+  const TrendIcon = isTrendUp ? TrendingUp : TrendingDown;
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-        {Icon ? <Icon className="h-4 w-4 text-muted-foreground" /> : null}
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-7 w-20" />
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+    <div className={`rounded-lg border border-slate-200 bg-white ${CARD_PADDING.default} dark:border-slate-800 dark:bg-slate-900`}>
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <p className={`${FONT_SIZES.caption} ${FONT_WEIGHTS.medium} uppercase tracking-wider text-slate-500 dark:text-slate-400`}>
+            {label}
+          </p>
+          <div className="mt-3 flex items-baseline gap-2">
+            <p className={`${FONT_SIZES.metric} ${FONT_WEIGHTS.bold} text-slate-900 dark:text-white`}>
+              {value}
+            </p>
+            {trend !== undefined && (
+              <div className={`flex items-center gap-1 text-xs font-medium ${isTrendUp ? "text-green-600 dark:text-green-400" : "text-rose-600 dark:text-rose-400"}`}>
+                <TrendIcon className={ICON_SIZES.sm} />
+                <span>{Math.abs(trend)}%</span>
+              </div>
+            )}
           </div>
-        ) : (
-          <>
-            <div className="text-2xl font-bold">
-              {typeof value === "number" ? formatNumber(value) : value ?? "-"}
-            </div>
-            {description ? (
-              <CardDescription>{description}</CardDescription>
-            ) : null}
-          </>
+        </div>
+        {Icon && (
+          <div className={`flex h-9 w-9 items-center justify-center rounded-md ${colorMap[color]}`}>
+            <Icon className={ICON_SIZES.md} />
+          </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

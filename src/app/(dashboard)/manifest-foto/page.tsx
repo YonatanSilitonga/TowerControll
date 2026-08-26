@@ -23,6 +23,7 @@ import {
   Images,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
+import { KPICard } from "@/components/ui/kpi-card";
 import { useManifestPhotos } from "@/hooks/use-manifest-photos";
 import { useDriver } from "@/hooks/use-armada";
 import { API_URL } from "@/lib/constants";
@@ -232,56 +233,41 @@ export default function ManifestFotoPage() {
 
       {/* ── KPI Summary Cards — tema konsisten ── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <div className="rounded-lg border border-slate-200 bg-white p-4 transition-colors dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Foto</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-              <Camera className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{stats.totalPhotos}</p>
-          <p className="mt-0.5 text-[11px] text-slate-500">foto manifest</p>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4 transition-colors dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Driver</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-              <Truck className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{stats.uniqueDrivers}</p>
-          <p className="mt-0.5 text-[11px] text-slate-500">armada aktif</p>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4 transition-colors dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Koli</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-              <Package className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{stats.totalKoli}</p>
-          <p className="mt-0.5 text-[11px] text-slate-500">koli tervalidasi</p>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4 transition-colors dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Eceran</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-              <Package className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{stats.totalEcer}</p>
-          <p className="mt-0.5 text-[11px] text-slate-500">pcs eceran</p>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4 transition-colors dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">High Value</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-              <Package className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{stats.totalHV}</p>
-          <p className="mt-0.5 text-[11px] text-slate-500">barang high value</p>
-        </div>
+        <KPICard
+          label="Total Foto"
+          value={stats.totalPhotos}
+          icon={Camera}
+          color="slate"
+          size="sm"
+        />
+        <KPICard
+          label="Driver"
+          value={stats.uniqueDrivers}
+          icon={Truck}
+          color="blue"
+          size="sm"
+        />
+        <KPICard
+          label="Total Koli"
+          value={stats.totalKoli}
+          icon={Package}
+          color="green"
+          size="sm"
+        />
+        <KPICard
+          label="Eceran"
+          value={stats.totalEcer}
+          icon={Package}
+          color="amber"
+          size="sm"
+        />
+        <KPICard
+          label="High Value"
+          value={stats.totalHV}
+          icon={Package}
+          color="purple"
+          size="sm"
+        />
       </div>
 
       {/* ── Filter Toolbar — semua dalam 1 bar ── */}
