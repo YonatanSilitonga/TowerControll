@@ -7,10 +7,13 @@ import {
   BarChart3,
   Calendar,
   Camera,
+  Car,
   ClipboardCheck,
   LayoutDashboard,
   MapPin,
+  Store,
   Truck,
+  Users,
   Warehouse,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,6 +32,15 @@ const NAV: { label: string; href: string; icon: React.ComponentType<{ className?
   // { label: "Laporan", href: "/laporan", icon: FileText, key: "laporan" }, // di-hide sementara (masih pengembangan), aktifkan saat modul siap
 ];
 
+const ADMIN_NAV: { label: string; href: string; icon: React.ComponentType<{ className?: string }>; key: string }[] = [
+  { label: "Dashboard", href: "/admin", icon: LayoutDashboard, key: "admin-dashboard" },
+  { label: "Driver", href: "/admin/drivers", icon: Users, key: "admin-drivers" },
+  { label: "Kendaraan", href: "/admin/vehicles", icon: Car, key: "admin-vehicles" },
+  { label: "Seller", href: "/admin/sellers", icon: Store, key: "admin-sellers" },
+  { label: "Gudang", href: "/admin/gudang", icon: Warehouse, key: "admin-gudang" },
+  { label: "Users & Role", href: "/admin/users", icon: Users, key: "admin-users" },
+];
+
 /** Item menu sesuai role — dipakai sidebar desktop & drawer mobile. */
 export function filterNav(role?: string) {
   const allowed = role ? ROLE_MENU[role as keyof typeof ROLE_MENU] ?? [] : [];
@@ -40,7 +52,9 @@ export function Sidebar() {
   const role = useAuthStore((s) => s.user?.role);
   const user = useAuthStore((s) => s.user);
 
-  const nav = filterNav(role);
+  const isAdminRoute = pathname.startsWith("/admin");
+  const nav = isAdminRoute ? ADMIN_NAV : filterNav(role);
+  const navLabel = isAdminRoute ? "Admin" : "Menu Utama";
 
   return (
     <div className="hidden w-60 shrink-0 bg-[#0c1e3a] lg:block">
@@ -65,7 +79,7 @@ export function Sidebar() {
       {/* Menu */}
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-          Menu Utama
+          {navLabel}
         </p>
         {nav.map((item) => {
           const active =
