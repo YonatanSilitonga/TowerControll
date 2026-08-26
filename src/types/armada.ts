@@ -79,6 +79,7 @@ export interface AdminRitaseStop {
   jumlah_ecer?: number | null;
   jumlah_high_value?: number | null;
   durasi_detik?: number | null;
+  foto_manifest_url?: string | null;
 }
 
 export interface AdminRitaseItem {
@@ -267,6 +268,7 @@ export interface RitaseStop {
   jumlah_ecer?: number | null;
   jumlah_high_value?: number | null;
   durasi_detik?: number | null;
+  foto_manifest_url?: string | null;
 }
 
 export interface RitaseEvent {

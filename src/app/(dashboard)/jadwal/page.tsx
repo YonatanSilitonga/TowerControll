@@ -814,7 +814,7 @@ export default function JadwalPage() {
                       </span>
                     )}
                     {((r.total_koli ?? 0) > 0 || (r.total_eceran ?? 0) > 0 || (r.total_high_value ?? 0) > 0) && (
-                      <span className="mt-1 inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300">
+                      <span className="mt-2 inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300">
                         📦 {r.total_koli ?? 0} Koli
                         {(r.total_eceran ?? 0) > 0 && ` • ${r.total_eceran} Ecer`}
                         {(r.total_high_value ?? 0) > 0 && ` • ${r.total_high_value} HV`}
@@ -882,6 +882,25 @@ export default function JadwalPage() {
                               <span>⏱️</span>
                               <span>{formatDur(stop.durasi_detik)}</span>
                             </span>
+                          )}
+                          {stop.foto_manifest_url && (
+                            <a
+                              href={stop.foto_manifest_url.startsWith("http") ? stop.foto_manifest_url : `http://127.0.0.1:8080${stop.foto_manifest_url.startsWith("/") ? "" : "/"}${stop.foto_manifest_url}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group/photo relative h-6 w-6 shrink-0 overflow-hidden rounded-md border border-slate-200 dark:border-slate-700"
+                              title="Lihat Foto Manifest"
+                            >
+                              <img
+                                src={stop.foto_manifest_url.startsWith("http") ? stop.foto_manifest_url : `http://127.0.0.1:8080${stop.foto_manifest_url.startsWith("/") ? "" : "/"}${stop.foto_manifest_url}`}
+                                alt={`Foto ${stop.nama_lokasi}`}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                              <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover/photo:opacity-100">
+                                <span className="text-[8px] font-bold text-white">📷</span>
+                              </span>
+                            </a>
                           )}
                         </div>
                       </div>

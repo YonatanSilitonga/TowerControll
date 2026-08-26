@@ -60,6 +60,22 @@ export function RuteStepper({
               <p className="text-xs font-semibold">{stopTitle(stop)}</p>
               <p className="text-[10px] capitalize opacity-70">{stopTypeLabel(stop.jenis_stop)}</p>
             </div>
+            {stop.foto_manifest_url && (
+              <a
+                href={stop.foto_manifest_url.startsWith("http") ? stop.foto_manifest_url : `http://127.0.0.1:8080${stop.foto_manifest_url.startsWith("/") ? "" : "/"}${stop.foto_manifest_url}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-1 h-7 w-7 shrink-0 overflow-hidden rounded border border-slate-300 shadow-xs hover:shadow-md transition-shadow"
+                title="Foto Manifest"
+              >
+                <img
+                  src={stop.foto_manifest_url.startsWith("http") ? stop.foto_manifest_url : `http://127.0.0.1:8080${stop.foto_manifest_url.startsWith("/") ? "" : "/"}${stop.foto_manifest_url}`}
+                  alt={`Foto ${stopTitle(stop)}`}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              </a>
+            )}
           </div>
           {i < stops.length - 1 && (
             <div className="flex items-center gap-1">
