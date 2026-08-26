@@ -34,6 +34,7 @@ export default function RitasePage() {
         rows={rows}
         rowKey={(r) => String(r.id_ritase)}
         searchPlaceholder="Cari kode / driver / plat..."
+        showRowIndex
         toolbar={
           <>
             <Input

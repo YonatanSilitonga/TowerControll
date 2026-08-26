@@ -84,6 +84,7 @@ export default function KendaraanPage() {
           rows={data ?? []}
           rowKey={(k) => String(k.id_kendaraan)}
           searchPlaceholder="Cari plat / jenis kendaraan..."
+          showRowIndex
           searchFilter={(k, q) =>
             k.plat_nomor.toLowerCase().includes(q.toLowerCase()) ||
             (k.jenis_kendaraan ?? "").toLowerCase().includes(q.toLowerCase())

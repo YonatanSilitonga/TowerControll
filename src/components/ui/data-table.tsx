@@ -28,6 +28,8 @@ interface DataTableProps<T> {
   defaultPageSize?: number;
   /** "fixed" = table-layout fixed (lebar kolom dihormati — cegah overflow), default "auto". */
   tableLayout?: "auto" | "fixed";
+  /** Tampilkan kolom nomor urut (#) di kiri tabel. */
+  showRowIndex?: boolean;
 }
 
 /** Tabel reusable: search + pagination + skeleton + empty state. Tahan banyak data. */
@@ -45,6 +47,7 @@ export function DataTable<T>({
   pageSizes = [10, 20, 50],
   defaultPageSize = 10,
   tableLayout = "auto",
+  showRowIndex = false,
 }: DataTableProps<T>) {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -115,6 +118,9 @@ export function DataTable<T>({
         >
           <thead>
             <tr className="border-b-2 border-slate-200 text-left text-[11px] uppercase tracking-wide text-slate-500">
+              {showRowIndex && (
+                <th className="px-4 py-2.5 font-semibold select-none w-10">#</th>
+              )}
               {columns.map((c, idx) => (
                 <th
                   key={c.header}
@@ -134,6 +140,9 @@ export function DataTable<T>({
             {loading ? (
               Array.from({ length: skeletonRows }).map((_, i) => (
                 <tr key={i} className="border-b border-slate-100 last:border-0">
+                  {showRowIndex && (
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-6" /></td>
+                  )}
                   {columns.map((c, j) => (
                     <td key={j} className={cn("px-4 py-3", c.className)}>
                       <Skeleton className="h-4 w-full" />
@@ -143,12 +152,12 @@ export function DataTable<T>({
               ))
             ) : shown.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-10 text-center text-slate-400">
+                <td colSpan={showRowIndex ? columns.length + 1 : columns.length} className="px-4 py-10 text-center text-slate-400">
                   {q ? "Tidak ada data yang cocok" : emptyText}
                 </td>
               </tr>
             ) : (
-              shown.map((row) => (
+              shown.map((row, rowIdx) => (
                 <tr
                   key={rowKey(row)}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
@@ -157,6 +166,11 @@ export function DataTable<T>({
                     onRowClick && "cursor-pointer transition-colors hover:bg-slate-50"
                   )}
                 >
+                  {showRowIndex && (
+                    <td className="px-4 py-3 text-center text-xs font-medium text-slate-400 tabular-nums">
+                      {start + rowIdx + 1}
+                    </td>
+                  )}
                   {columns.map((c, j) => (
                     <td key={j} className={cn("px-4 py-3", c.className)} style={{ width: widths[j] ?? undefined }}>
                       {c.render(row)}

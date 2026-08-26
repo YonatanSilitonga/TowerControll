@@ -59,6 +59,7 @@ export default function SellersPage() {
           rowKey={(s) => String(s.id)}
           tableLayout="fixed"
           searchPlaceholder="Cari nama / kota / alamat..."
+          showRowIndex
           searchFilter={(s, q) =>
             s.name.toLowerCase().includes(q.toLowerCase()) ||
             (s.city ?? "").toLowerCase().includes(q.toLowerCase()) ||

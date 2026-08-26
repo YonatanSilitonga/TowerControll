@@ -28,6 +28,7 @@ export default function DriversPage() {
         rows={data ?? []}
         rowKey={(d) => String(d.id_driver)}
         searchPlaceholder="Cari nama / no HP driver..."
+        showRowIndex
         searchFilter={(d, q) =>
           d.nama_driver.toLowerCase().includes(q.toLowerCase()) ||
           (d.no_hp ?? "").toLowerCase().includes(q.toLowerCase())
