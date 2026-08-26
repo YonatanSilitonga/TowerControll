@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 
 function BootLoader() {
@@ -17,17 +17,25 @@ function BootLoader() {
 }
 
 /**
- * Admin layout — hanya role "admin" yang boleh akses.
- * Kalau bukan admin, redirect ke /login.
+ * Admin layout — skip guard kalau sudah di /admin/login
+ * (login page tidak perlu validasi token).
  */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
   const token = useAuthStore((s) => s.token);
-  const user = useAuthStore((s) => s.user);
   const [ready, setReady] = useState(false);
 
+  const isLoginPage = pathname === "/admin/login";
+
   useEffect(() => {
+    // Login page tidak perlu guard
+    if (isLoginPage) {
+      setReady(true);
+      return;
+    }
+
     let active = true;
 
     (async () => {
@@ -43,7 +51,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         router.replace("/admin/login");
         return;
       }
-      // Hanya admin yang boleh akses
       if (after.user && after.user.role !== "admin") {
         after.clear();
         router.replace("/admin/login");
@@ -51,7 +58,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     })();
 
     return () => { active = false; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isLoginPage]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Login page langsung render tanpa guard
+  if (isLoginPage) return <>{children}</>;
 
   if (!hasHydrated || !ready) return <BootLoader />;
   if (!token) return <BootLoader />;
