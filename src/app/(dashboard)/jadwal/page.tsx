@@ -33,7 +33,7 @@ import {
   usePreviewDailyRitase,
   useUpdateRitase,
 } from "@/hooks/use-admin-ritase";
-import { cn, formatDur, computeStopTiming, formatSelisih } from "@/lib/utils";
+import { cn, formatDur } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { KPICard } from "@/components/ui/kpi-card";
@@ -834,92 +834,56 @@ export default function JadwalPage() {
                 <div className="mt-4 space-y-2">
 
                   <div className="relative pl-4 space-y-2.5 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
-                    {(() => {
-                      const timing = computeStopTiming(r.jam_mulai, r.jam_selesai, r.stops ?? []);
-                      return timing.map((t) => {
-                        const stop = (r.stops ?? []).find((s) => s.urutan === t.urutan);
-                        return (
-                          <div key={t.urutan} className="relative flex items-start justify-between gap-2 text-xs">
-                            {/* Kiri: Nomor + Info stop */}
-                            <div className="flex-1 min-w-0">
-                              {/* Baris 1: Nomor + Nama + Jenis */}
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="relative z-10 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0c1e3a] text-[10px] font-bold text-white">
-                                  {t.urutan}
-                                </span>
-                                <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
-                                  {t.nama_lokasi}
-                                </span>
-                                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 uppercase dark:bg-slate-800">
-                                  {stop?.jenis_stop}
-                                </span>
-                              </div>
-                              {/* Baris 2: Jadwal vs Realisasi */}
-                              {(t.jadwal_mulai || t.realisasi_mulai) && (
-                                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-6.5 text-[10px]">
-                                  {t.jadwal_mulai && t.jadwal_selesai && (
-                                    <span className="inline-flex items-center gap-0.5 text-slate-400 dark:text-slate-500" title="Jadwal: perkiraan waktu berangkat–sampai di titik ini">
-                                      <Clock className="h-2.5 w-2.5" />
-                                      {t.jadwal_mulai}–{t.jadwal_selesai}
-                                    </span>
-                                  )}
-                                  {t.realisasi_mulai && t.realisasi_selesai && (
-                                    <span className="inline-flex items-center gap-0.5 font-semibold text-slate-600 dark:text-slate-300" title="Realisasi: waktu aktual berangkat–sampai di titik ini">
-                                      <Clock className="h-2.5 w-2.5" />
-                                      {t.realisasi_mulai}–{t.realisasi_selesai}
-                                    </span>
-                                  )}
-                                  {t.selisih_menit != null && (
-                                    <span
-                                      className={cn(
-                                        "inline-flex items-center rounded px-1 py-0.5 text-[9px] font-bold",
-                                        t.selisih_menit <= 0
-                                          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                          : "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
-                                      )}
-                                      title={t.selisih_menit <= 0 ? "Lebih cepat dari jadwal" : "Lebih lambat dari jadwal"}
-                                    >
-                                      {formatSelisih(t.selisih_menit)}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                              {/* Baris 3: Muatan + Durasi */}
-                              <div className="mt-1 flex flex-wrap items-center gap-1.5 pl-6.5">
-                                {(((stop?.jumlah_koli ?? 0) > 0) || ((stop?.jumlah_ecer ?? 0) > 0) || ((stop?.jumlah_high_value ?? 0) > 0)) && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 dark:text-slate-500" title="Muatan: jumlah koli, eceran, dan high value di titik ini">
-                                    <Package className="h-2.5 w-2.5" />
-                                    {stop?.jumlah_koli ?? 0} Koli
-                                    {(stop?.jumlah_ecer ?? 0) > 0 && <span> · {stop?.jumlah_ecer} Ecer</span>}
-                                    {(stop?.jumlah_high_value ?? 0) > 0 && <span> · {stop?.jumlah_high_value} HV</span>}
-                                  </span>
-                                )}
-                                {t.durasi_detik > 0 && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 dark:text-slate-500" title="Durasi: waktu yang dihabiskan di titik ini">
-                                    <Clock className="h-2.5 w-2.5" />
-                                    {formatDur(t.durasi_detik)}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Kanan: Foto button */}
-                            {stop?.foto_manifest_url && (
-                              <a
-                                href={stop.foto_manifest_url.startsWith("http") ? stop.foto_manifest_url : `http://127.0.0.1:8080${stop.foto_manifest_url.startsWith("/") ? "" : "/"}${stop.foto_manifest_url}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title="Lihat foto bukti bongkar muat"
-                                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-[#0c1e3a] hover:text-white hover:border-[#0c1e3a] transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-[#0c1e3a]"
-                              >
-                                <Camera className="h-3 w-3" />
-                                Foto
-                              </a>
+                    {(r.stops ?? []).map((stop) => (
+                      <div key={stop.id_stop} className="relative flex items-start justify-between gap-2 text-xs">
+                        {/* Kiri: Nomor + Info stop */}
+                        <div className="flex-1 min-w-0">
+                          {/* Baris 1: Nomor + Nama + Jenis */}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="relative z-10 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0c1e3a] text-[10px] font-bold text-white">
+                              {stop.urutan}
+                            </span>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                              {stop.nama_lokasi}
+                            </span>
+                            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 uppercase dark:bg-slate-800">
+                              {stop.jenis_stop}
+                            </span>
+                          </div>
+                          {/* Baris 2: Muatan + Durasi */}
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5 pl-6.5">
+                            {((stop.jumlah_koli ?? 0) > 0 || (stop.jumlah_ecer ?? 0) > 0 || (stop.jumlah_high_value ?? 0) > 0) && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 dark:text-slate-500">
+                                <Package className="h-2.5 w-2.5" />
+                                {stop.jumlah_koli ?? 0} Koli
+                                {(stop.jumlah_ecer ?? 0) > 0 && <span> · {stop.jumlah_ecer} Ecer</span>}
+                                {(stop.jumlah_high_value ?? 0) > 0 && <span> · {stop.jumlah_high_value} HV</span>}
+                              </span>
+                            )}
+                            {(stop.durasi_detik != null && stop.durasi_detik > 0) && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 dark:text-slate-500">
+                                <Clock className="h-2.5 w-2.5" />
+                                {formatDur(stop.durasi_detik)}
+                              </span>
                             )}
                           </div>
-                        );
-                      });
-                    })()}
+                        </div>
+
+                        {/* Kanan: Foto button */}
+                        {stop.foto_manifest_url && (
+                          <a
+                            href={stop.foto_manifest_url.startsWith("http") ? stop.foto_manifest_url : `http://127.0.0.1:8080${stop.foto_manifest_url.startsWith("/") ? "" : "/"}${stop.foto_manifest_url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Lihat foto bukti bongkar muat"
+                            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-[#0c1e3a] hover:text-white hover:border-[#0c1e3a] transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-[#0c1e3a]"
+                          >
+                            <Camera className="h-3 w-3" />
+                            Foto
+                          </a>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
