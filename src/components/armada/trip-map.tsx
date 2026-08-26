@@ -15,6 +15,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MapPin, Milestone } from "lucide-react";
 
 // Icons... (keeping the same icons)
+const TANGERANG_BOUNDS: L.LatLngBoundsExpression = [
+  [-6.35, 106.45], // titik barat daya (kiri bawah)
+  [-6.00, 106.85], // titik timur laut (kanan atas)
+];
 const GUDANG_ICON = new L.DivIcon({
   html: `<div class="h-5 w-5 rounded-md flex items-center justify-center bg-sky-500 border-2 border-white shadow"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M22 21V7L12 2L2 7v14h20z"/><path d="M6 21V11"/><path d="M18 21V11"/><path d="M12 21V11"/></svg></div>`,
   className: "", iconSize: [20, 20], iconAnchor: [10, 10],
@@ -71,16 +75,19 @@ export function TripMap({ stops, events }: { stops: RitaseStop[]; events?: Ritas
 
   if (!bounds) {
     return (
-      <div className="h-[400px] w-full flex items-center justify-center bg-slate-50 rounded-md">
+      <div className="h-[350px] w-full flex items-center justify-center bg-slate-50 rounded-md">
         <p className="text-sm text-slate-500">Tidak ada data lokasi untuk ditampilkan di peta.</p>
       </div>
     );
   }
 
   return (
-    <div className="relative h-[400px] w-full rounded-lg overflow-hidden border">
+    <div className="relative h-[350px] w-full rounded-lg overflow-hidden border">
       <MapContainer
         bounds={bounds}
+        minZoom={11}
+        maxBounds={TANGERANG_BOUNDS}
+        maxBoundsViscosity={1.0}
         scrollWheelZoom={true}
         className="h-full w-full"
       >
@@ -141,5 +148,5 @@ export function TripMap({ stops, events }: { stops: RitaseStop[]; events?: Ritas
 }
 
 export function TripMapSkeleton() {
-    return <Skeleton className="h-[400px] w-full" />;
+    return <Skeleton className="h-[350px] w-full" />;
 }
