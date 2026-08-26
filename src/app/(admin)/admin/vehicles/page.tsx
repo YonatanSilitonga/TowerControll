@@ -27,7 +27,7 @@ export default function AdminVehiclesPage() {
   return (
     <AdminCrudPage
       title="Kendaraan"
-      description="Kelola data kendaraan"
+      subtitle="Kelola data kendaraan"
       columns={columns}
       fields={fields}
       emptyText="Belum ada kendaraan"

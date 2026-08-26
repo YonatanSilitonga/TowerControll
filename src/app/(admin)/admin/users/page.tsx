@@ -43,7 +43,7 @@ export default function AdminUsersPage() {
   return (
     <AdminCrudPage
       title="Users & Role"
-      description="Kelola akun user dan role akses"
+      subtitle="Kelola akun user dan role akses"
       columns={columns}
       fields={fields}
       emptyText="Belum ada user"

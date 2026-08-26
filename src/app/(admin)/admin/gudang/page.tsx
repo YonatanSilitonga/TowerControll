@@ -30,7 +30,7 @@ export default function AdminGudangPage() {
   return (
     <AdminCrudPage
       title="Gudang"
-      description="Kelola data gudang"
+      subtitle="Kelola data gudang"
       columns={columns}
       fields={fields}
       emptyText="Belum ada gudang"

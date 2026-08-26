@@ -36,7 +36,7 @@ export default function AdminSellersPage() {
   return (
     <AdminCrudPage
       title="Seller"
-      description="Kelola data seller/toko"
+      subtitle="Kelola data seller/toko"
       columns={columns}
       fields={fields}
       emptyText="Belum ada seller"

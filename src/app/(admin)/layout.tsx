@@ -7,7 +7,7 @@ import { useAuthStore } from "@/stores/auth-store";
 
 function BootLoader() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50">
+    <main className="flex min-h-screen items-center justify-center bg-[#f8fafc]">
       <div className="flex flex-col items-center gap-3">
         <Image src="/logo-icon.png" alt="Tower Control" width={40} height={40} priority className="h-10 w-10 animate-pulse object-contain" />
         <p className="text-sm text-slate-400">Memuat panel admin…</p>
@@ -16,10 +16,6 @@ function BootLoader() {
   );
 }
 
-/**
- * Admin layout — skip guard kalau sudah di /admin/login
- * (login page tidak perlu validasi token).
- */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -30,14 +26,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isLoginPage = pathname === "/admin/login";
 
   useEffect(() => {
-    // Login page tidak perlu guard
-    if (isLoginPage) {
-      setReady(true);
-      return;
-    }
+    if (isLoginPage) { setReady(true); return; }
 
     let active = true;
-
     (async () => {
       const st = useAuthStore.getState();
       if (st.token) {
@@ -47,22 +38,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       setReady(true);
 
       const after = useAuthStore.getState();
-      if (!after.token) {
-        router.replace("/admin/login");
-        return;
-      }
+      if (!after.token) { router.replace("/admin/login"); return; }
       if (after.user && after.user.role !== "admin") {
         after.clear();
         router.replace("/admin/login");
       }
     })();
-
     return () => { active = false; };
-  }, [isLoginPage]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isLoginPage]);
 
-  // Login page langsung render tanpa guard
   if (isLoginPage) return <>{children}</>;
-
   if (!hasHydrated || !ready) return <BootLoader />;
   if (!token) return <BootLoader />;
 

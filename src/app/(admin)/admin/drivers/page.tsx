@@ -28,7 +28,7 @@ export default function AdminDriversPage() {
   return (
     <AdminCrudPage
       title="Driver"
-      description="Kelola data driver"
+      subtitle="Kelola data driver"
       columns={columns}
       fields={fields}
       emptyText="Belum ada driver"
