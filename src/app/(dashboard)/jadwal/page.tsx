@@ -7,10 +7,13 @@ import {
   ArrowDown,
   ArrowUp,
   Calendar as CalendarIcon,
+  Camera,
   CheckCircle2,
   ChevronDown,
+  Clock,
   Edit2,
   Layers,
+  Package,
   Plus,
   RefreshCw,
   Search,
@@ -767,36 +770,39 @@ export default function JadwalPage() {
               <div>
                 {/* Card Header */}
                 <div className="flex items-start justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
-                  <div>
-                    <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                         Ritase ke-{r.ritase_ke}
                       </span>
+                      <StatusBadge status={r.status} />
                     </div>
-                    <h4 className="mt-1 text-base font-bold text-slate-900 dark:text-white">
+                    <h4 className="mt-1.5 text-base font-bold text-slate-900 dark:text-white">
                       {r.nama_driver}
                     </h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Plat: <span className="font-semibold text-slate-700 dark:text-slate-300">{r.nopol}</span>
-                    </p>
-                    {r.jam_mulai && (
-                      <div className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
-                        ⏱ {r.jam_mulai} – {r.jam_selesai ?? "?"}
-                      </div>
-                    )}
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
+                      <span className="inline-flex items-center gap-1">
+                        <Truck className="h-3 w-3" />
+                        <span className="font-semibold font-mono text-slate-700 dark:text-slate-300">{r.nopol}</span>
+                      </span>
+                      {r.jam_mulai && (
+                        <span className="inline-flex items-center gap-1" title="Waktu perjalanan ritase">
+                          <Clock className="h-3 w-3" />
+                          {r.jam_mulai} – {r.jam_selesai ?? "?"}
+                        </span>
+                      )}
+                    </div>
                     {((r.total_koli ?? 0) > 0 || (r.total_eceran ?? 0) > 0 || (r.total_high_value ?? 0) > 0) && (
-                      <div className="mt-2 inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300">
-                        📦 {r.total_koli ?? 0} Koli
-                        {(r.total_eceran ?? 0) > 0 && ` • ${r.total_eceran} Ecer`}
-                        {(r.total_high_value ?? 0) > 0 && ` • ${r.total_high_value} HV`}
+                      <div className="mt-2 inline-flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500" title="Total muatan ritase ini">
+                        <Package className="h-3 w-3" />
+                        <span className="font-semibold text-slate-600 dark:text-slate-300">{r.total_koli ?? 0} Koli</span>
+                        {(r.total_eceran ?? 0) > 0 && <span>· <span className="font-semibold text-slate-600 dark:text-slate-300">{r.total_eceran} Ecer</span></span>}
+                        {(r.total_high_value ?? 0) > 0 && <span>· <span className="font-semibold text-amber-600 dark:text-amber-400">{r.total_high_value} HV</span></span>}
                       </div>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {/* Status Badge */}
-                    <StatusBadge status={r.status} />
-
+                  <div className="flex items-center gap-2 shrink-0">
                     {/* Action Edit */}
                     <button
                       type="button"
@@ -829,42 +835,53 @@ export default function JadwalPage() {
 
                   <div className="relative pl-4 space-y-2.5 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
                     {(r.stops ?? []).map((stop) => (
-                      <div key={stop.id_stop} className="relative flex items-center justify-between text-xs">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="relative z-10 flex h-5 w-5 items-center justify-center rounded-full bg-[#0c1e3a] text-[10px] font-bold text-white">
-                            {stop.urutan}
-                          </span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">
-                            {stop.nama_lokasi}
-                          </span>
-                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 uppercase dark:bg-slate-800">
-                            {stop.jenis_stop}
-                          </span>
-                          {((stop.jumlah_koli ?? 0) > 0 || (stop.jumlah_ecer ?? 0) > 0 || (stop.jumlah_high_value ?? 0) > 0) && (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/40 dark:border-amber-700/50 dark:text-amber-300 shadow-sm">
-                              <span>📦</span>
-                              <span>{stop.jumlah_koli ?? 0} Koli</span>
-                              {(stop.jumlah_ecer ?? 0) > 0 && <span>• {stop.jumlah_ecer} Ecer</span>}
-                              {(stop.jumlah_high_value ?? 0) > 0 && <span>• {stop.jumlah_high_value} HV</span>}
+                      <div key={stop.id_stop} className="relative flex items-start justify-between gap-2 text-xs">
+                        {/* Kiri: Nomor + Info stop */}
+                        <div className="flex-1 min-w-0">
+                          {/* Baris 1: Nomor + Nama + Jenis */}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="relative z-10 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0c1e3a] text-[10px] font-bold text-white">
+                              {stop.urutan}
                             </span>
-                          )}
-                          {(stop.durasi_detik != null && stop.durasi_detik > 0) && (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-[10px] font-bold text-blue-800 dark:bg-blue-950/40 dark:border-blue-700/50 dark:text-blue-300 shadow-sm">
-                              <span>⏱️</span>
-                              <span>{formatDur(stop.durasi_detik)}</span>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                              {stop.nama_lokasi}
                             </span>
-                          )}
-                          {stop.foto_manifest_url && (
-                            <a
-                              href={stop.foto_manifest_url.startsWith("http") ? stop.foto_manifest_url : `http://127.0.0.1:8080${stop.foto_manifest_url.startsWith("/") ? "" : "/"}${stop.foto_manifest_url}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 rounded-md bg-violet-50 border border-violet-200 px-1.5 py-0.5 text-[10px] font-bold text-violet-700 hover:bg-violet-100 transition-colors dark:bg-violet-950/40 dark:border-violet-700/50 dark:text-violet-300"
-                            >
-                              📷 Foto
-                            </a>
-                          )}
+                            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 uppercase dark:bg-slate-800">
+                              {stop.jenis_stop}
+                            </span>
+                          </div>
+                          {/* Baris 2: Muatan + Waktu */}
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5 pl-6.5">
+                            {((stop.jumlah_koli ?? 0) > 0 || (stop.jumlah_ecer ?? 0) > 0 || (stop.jumlah_high_value ?? 0) > 0) && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 dark:text-slate-500" title="Muatan: jumlah koli, eceran, dan high value di titik ini">
+                                <Package className="h-2.5 w-2.5" />
+                                {stop.jumlah_koli ?? 0} Koli
+                                {(stop.jumlah_ecer ?? 0) > 0 && <span> · {stop.jumlah_ecer} Ecer</span>}
+                                {(stop.jumlah_high_value ?? 0) > 0 && <span> · {stop.jumlah_high_value} HV</span>}
+                              </span>
+                            )}
+                            {(stop.durasi_detik != null && stop.durasi_detik > 0) && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 dark:text-slate-500" title="Durasi: waktu yang dihabiskan di titik ini">
+                                <Clock className="h-2.5 w-2.5" />
+                                {formatDur(stop.durasi_detik)}
+                              </span>
+                            )}
+                          </div>
                         </div>
+
+                        {/* Kanan: Foto button */}
+                        {stop.foto_manifest_url && (
+                          <a
+                            href={stop.foto_manifest_url.startsWith("http") ? stop.foto_manifest_url : `http://127.0.0.1:8080${stop.foto_manifest_url.startsWith("/") ? "" : "/"}${stop.foto_manifest_url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Lihat foto bukti bongkar muat"
+                            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-[#0c1e3a] hover:text-white hover:border-[#0c1e3a] transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-[#0c1e3a]"
+                          >
+                            <Camera className="h-3 w-3" />
+                            Foto
+                          </a>
+                        )}
                       </div>
                     ))}
                   </div>
