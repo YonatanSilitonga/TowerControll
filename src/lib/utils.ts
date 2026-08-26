@@ -85,3 +85,127 @@ export function formatDur(sec?: number | null): string {
   if (rm === 0) return `${h}j`;
   return `${h}j ${rm}m`;
 }
+
+/* ──────────── Jadwal vs Realisasi per Stop ──────────── */
+
+export interface StopTiming {
+  /** Urutan stop */
+  urutan: number;
+  /** Nama lokasi */
+  nama_lokasi: string;
+  /** Durasi aktual (detik) */
+  durasi_detik: number;
+  /** Jadwal estimasi: jam mulai (HH:MM) */
+  jadwal_mulai?: string;
+  /** Jadwal estimasi: jam selesai (HH:MM) */
+  jadwal_selesai?: string;
+  /** Realisasi: jam mulai aktual (HH:MM) */
+  realisasi_mulai?: string;
+  /** Realisasi: jam selesai aktual (HH:MM) */
+  realisasi_selesai?: string;
+  /** Selisih menit (negatif = cepat, positif = lambat) */
+  selisih_menit?: number;
+}
+
+/**
+ * Parse "HH:MM" atau "HH:MM:SS" ke total menit dari tengah malam.
+ * Handle backend format "1970-01-01T07:00:00Z" juga.
+ */
+function parseTimeToMinutes(time?: string | null): number | null {
+  if (!time) return null;
+  // Handle full ISO datetime — extract time part
+  const t = time.includes("T") ? time.split("T")[1]! : time;
+  const parts = t.replace("Z", "").split(":");
+  const h = parseInt(parts[0] ?? "0", 10);
+  const m = parseInt(parts[1] ?? "0", 10);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h * 60 + m;
+}
+
+/** Format menit ke "HH:MM" */
+function minutesToTime(min: number): string {
+  const h = Math.floor(((min % (24 * 60)) + 24 * 60) % (24 * 60) / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/** Format selisih menit ke string — "-15m" (cepat) atau "+20m" (lambat) */
+export function formatSelisih(menit?: number): string {
+  if (menit == null || Number.isNaN(menit)) return "";
+  if (menit === 0) return "Tepat";
+  const sign = menit > 0 ? "+" : "";
+  return `${sign}${menit}m`;
+}
+
+/**
+ * Hitung jadwal & realisasi per stop.
+ *
+ * @param jamMulai  - jadwal mulai ritase ("HH:MM" atau ISO)
+ * @param jamSelesai - jadwal selesai ritase ("HH:MM" atau ISO)
+ * @param stops     - array stop dengan urutan & durasi_detik
+ * @returns array StopTiming dengan jadwal/realisasi per stop
+ */
+export function computeStopTiming(
+  jamMulai?: string | null,
+  jamSelesai?: string | null,
+  stops?: Array<{ urutan: number; nama_lokasi?: string | null; durasi_detik?: number | null }>,
+): StopTiming[] {
+  if (!stops || stops.length === 0) return [];
+
+  const mulaiMin = parseTimeToMinutes(jamMulai);
+  const selesaiMin = parseTimeToMinutes(jamSelesai);
+
+  // Total durasi aktual semua stop
+  const totalDurasi = stops.reduce((sum, s) => sum + (s.durasi_detik ?? 0), 0);
+
+  // Kalau tidak ada jam_mulai atau jam_selesai, tetap tampilkan durasi
+  const hasJadwal = mulaiMin != null && selesaiMin != null && totalDurasi > 0;
+  const totalJadwal = hasJadwal ? selesaiMin - mulaiMin : 0;
+
+  let cursorJadwal = mulaiMin ?? 0;
+  let cursorRealisasi = mulaiMin ?? 0; // mulai dari jam_mulai sebagai baseline
+
+  return stops.map((s) => {
+    const dur = s.durasi_detik ?? 0;
+
+    // ── Jadwal estimasi: proporsi berdasarkan durasi aktual ──
+    let jMulai: string | undefined;
+    let jSelesai: string | undefined;
+    if (hasJadwal && dur > 0) {
+      const jadwalDurasi = totalJadwal > 0
+        ? Math.round((dur / totalDurasi) * totalJadwal)
+        : 0;
+      jMulai = minutesToTime(cursorJadwal);
+      cursorJadwal += jadwalDurasi;
+      jSelesai = minutesToTime(cursorJadwal);
+    }
+
+    // ── Realisasi: dari jam_mulai + kumulasi durasi ──
+    let rMulai: string | undefined;
+    let rSelesai: string | undefined;
+    if (dur > 0) {
+      rMulai = minutesToTime(cursorRealisasi);
+      cursorRealisasi += dur;
+      rSelesai = minutesToTime(cursorRealisasi);
+    }
+
+    // ── Selisih ──
+    let selisih: number | undefined;
+    if (hasJadwal && jMulai && rMulai) {
+      const jMin = parseTimeToMinutes(jMulai) ?? 0;
+      const rMin = parseTimeToMinutes(rMulai) ?? 0;
+      selisih = rMin - jMin; // negatif = cepat, positif = lambat
+    }
+
+    return {
+      urutan: s.urutan,
+      nama_lokasi: s.nama_lokasi ?? "-",
+      durasi_detik: dur,
+      jadwal_mulai: jMulai,
+      jadwal_selesai: jSelesai,
+      realisasi_mulai: rMulai,
+      realisasi_selesai: rSelesai,
+      selisih_menit: selisih,
+    };
+  });
+}

@@ -192,7 +192,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <RuteStepper stops={data.stops ?? []} />
+            <RuteStepper stops={data.stops ?? []} jamMulai={data.jam_mulai} jamSelesai={data.jam_selesai} />
 
             {sum.total > 0 && (
               <div>

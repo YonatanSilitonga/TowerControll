@@ -441,12 +441,17 @@ export default function ManifestFotoPage() {
                             {idx + 1}
                           </span>
 
-                          {/* Info: Lokasi + Muatan + Waktu */}
+                          {/* Info: Lokasi + Waktu + Muatan */}
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
                               {photo.nama_lokasi}
                             </p>
                             <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-400 dark:text-slate-500">
+                              {/* Waktu realisasi dari created_at */}
+                              <span className="inline-flex items-center gap-0.5 font-semibold text-slate-600 dark:text-slate-300" title="Waktu realisasi: kapan foto diambil">
+                                <Clock className="h-2.5 w-2.5" />
+                                {new Date(photo.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                              </span>
                               {(photo.jumlah_koli > 0 || photo.jumlah_ecer > 0 || photo.jumlah_high_value > 0) && (
                                 <span className="inline-flex items-center gap-0.5" title="Muatan: jumlah koli, ecer, dan high value di titik ini">
                                   <Package className="h-2.5 w-2.5" />
@@ -457,7 +462,7 @@ export default function ManifestFotoPage() {
                               )}
                               {photo.durasi_detik > 0 && (
                                 <span className="inline-flex items-center gap-0.5" title="Durasi: waktu yang dihabiskan di titik ini">
-                                  <Clock className="h-2.5 w-2.5" />
+                                  <Timer className="h-2.5 w-2.5" />
                                   {formatDur(photo.durasi_detik)}
                                 </span>
                               )}
@@ -544,6 +549,11 @@ export default function ManifestFotoPage() {
                               {photo.nama_lokasi}
                             </p>
                             <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-400 dark:text-slate-500">
+                              {/* Waktu realisasi dari created_at */}
+                              <span className="inline-flex items-center gap-0.5 font-semibold text-slate-600 dark:text-slate-300" title="Waktu realisasi: kapan foto diambil">
+                                <Clock className="h-2.5 w-2.5" />
+                                {new Date(photo.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                              </span>
                               {(photo.jumlah_koli > 0 || photo.jumlah_ecer > 0 || photo.jumlah_high_value > 0) && (
                                 <span className="inline-flex items-center gap-0.5" title="Muatan">
                                   <Package className="h-2.5 w-2.5" />
