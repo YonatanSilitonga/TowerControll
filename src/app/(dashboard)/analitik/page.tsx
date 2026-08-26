@@ -342,13 +342,13 @@ export default function AnalitikPage() {
 
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-8">
             <KpiCard label="Total Ritase" value={kpi.ritase} icon={Truck} loading={loading} info="Jumlah ritase pada periode (tanggal jadwal)." sub={insight.days > 0 ? `${insight.rataHari.toFixed(1)}/hari` : undefined} />
-            <KpiCard label="Selesai" value={kpi.selesai} icon={CheckCircle2} tone="text-emerald-600 dark:text-emerald-400" loading={loading} info="Ritase berstatus selesai." sub={`${insight.pctSelesai}% dari total`} progress={insight.pctSelesai} />
-            <KpiCard label="Total AWB" value={kpi.awb} icon={Boxes} tone="text-blue-600 dark:text-blue-400" loading={loading} sub={kpi.ritase > 0 ? `${Math.round(kpi.awb / kpi.ritase)} AWB/ritase` : undefined} />
-            <KpiCard label="Total Koli" value={kpi.koli} icon={Package} tone="text-slate-600 dark:text-slate-400" loading={loading} sub={kpi.awb > 0 ? `${(kpi.koli / kpi.awb).toFixed(2)} koli/AWB` : undefined} />
-            <KpiCard label="High Value" value={kpi.hv} icon={Sparkles} tone="text-amber-600 dark:text-amber-400" loading={loading} sub={kpi.koli > 0 ? `${((kpi.hv / kpi.koli) * 100).toFixed(1)}% dari koli` : undefined} />
-            <KpiCard label="Eceran" value={kpi.ecer} icon={Gift} tone="text-violet-600 dark:text-violet-400" loading={loading} sub={kpi.koli > 0 ? `${((kpi.ecer / kpi.koli) * 100).toFixed(1)}% dari koli` : undefined} />
-            <KpiCard label="Outgoing" value={kpi.out} icon={TrendingUp} tone="text-slate-600 dark:text-slate-400" loading={loading} info="Ritase ke Gateway JKT (barang keluar)." sub={`${insight.outPct}% arah`} />
-            <KpiCard label="Incoming" value={kpi.inc} icon={TrendingDown} tone="text-slate-600 dark:text-slate-400" loading={loading} info="Ritase ke Gateway SEG (barang masuk)." sub={`${100 - insight.outPct}% arah`} />
+            <KpiCard label="Selesai" value={kpi.selesai} icon={CheckCircle2} loading={loading} info="Ritase berstatus selesai." sub={`${insight.pctSelesai}% dari total`} progress={insight.pctSelesai} />
+            <KpiCard label="Total AWB" value={kpi.awb} icon={Boxes} loading={loading} sub={kpi.ritase > 0 ? `${Math.round(kpi.awb / kpi.ritase)} AWB/ritase` : undefined} />
+            <KpiCard label="Total Koli" value={kpi.koli} icon={Package} loading={loading} sub={kpi.awb > 0 ? `${(kpi.koli / kpi.awb).toFixed(2)} koli/AWB` : undefined} />
+            <KpiCard label="High Value" value={kpi.hv} icon={Sparkles} loading={loading} sub={kpi.koli > 0 ? `${((kpi.hv / kpi.koli) * 100).toFixed(1)}% dari koli` : undefined} />
+            <KpiCard label="Eceran" value={kpi.ecer} icon={Gift} loading={loading} sub={kpi.koli > 0 ? `${((kpi.ecer / kpi.koli) * 100).toFixed(1)}% dari koli` : undefined} />
+            <KpiCard label="Outgoing" value={kpi.out} icon={TrendingUp} loading={loading} info="Ritase ke Gateway JKT (barang keluar)." sub={`${insight.outPct}% arah`} />
+            <KpiCard label="Incoming" value={kpi.inc} icon={TrendingDown} loading={loading} info="Ritase ke Gateway SEG (barang masuk)." sub={`${100 - insight.outPct}% arah`} />
           </div>
 
           {/* Strip insight — ringkasan operasional periode */}
