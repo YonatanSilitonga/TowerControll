@@ -192,7 +192,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <RuteStepper stops={data.stops ?? []} jamMulai={data.jam_mulai} jamSelesai={data.jam_selesai} />
+            <RuteStepper stops={data.stops ?? []} />
 
             {sum.total > 0 && (
               <div>
@@ -254,20 +254,53 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold">
                 Jadwal
-                <InfoTip text="Perbandingan jadwal rencana vs realisasi berangkat & tiba." />
+                <InfoTip text="Jadwal rencana berangkat & tiba dari ritase." />
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {realisasiRows.map((r) => (
-                <div key={r.label} className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{r.label}</p>
-                  <p className="mt-0.5 text-sm">
-                    <span className="text-slate-500">Jadwal {r.jadwal ?? "-"}</span>
-                    <span className="mx-1.5 text-slate-300">→</span>
-                    <span className="font-semibold text-slate-800">{r.realisasi ?? "-"}</span>
-                  </p>
+            <CardContent className="space-y-3">
+              {/* Berangkat */}
+              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Berangkat</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="text-xs text-slate-500">Jadwal</span>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-white">{data.jam_mulai ?? "-"}</span>
+                  <span className="text-slate-300">→</span>
+                  {data.jam_berangkat ? (
+                    <span className={cn(
+                      "text-sm font-semibold",
+                      data.jam_mulai && data.jam_berangkat <= data.jam_mulai
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-rose-600 dark:text-rose-400"
+                    )}>
+                      {data.jam_berangkat}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-slate-400">-</span>
+                  )}
                 </div>
-              ))}
+              </div>
+
+              {/* Tiba */}
+              <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tiba</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="text-xs text-slate-500">Jadwal</span>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-white">{data.jam_selesai ?? "-"}</span>
+                  <span className="text-slate-300">→</span>
+                  {data.jam_tiba ? (
+                    <span className={cn(
+                      "text-sm font-semibold",
+                      data.jam_selesai && data.jam_tiba <= data.jam_selesai
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-rose-600 dark:text-rose-400"
+                    )}>
+                      {data.jam_tiba}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-slate-400">-</span>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
