@@ -643,25 +643,21 @@ export default function JadwalPage() {
           label="Total Ritase"
           value={totalRitase}
           icon={Layers}
-          color="slate"
         />
         <KPICard
           label="Driver Ditugaskan"
           value={uniqueDrivers}
           icon={UserCheck}
-          color="blue"
         />
         <KPICard
           label="Dalam Perjalanan"
           value={inProgress}
           icon={Truck}
-          color="amber"
         />
         <KPICard
           label="Ritase Selesai"
           value={completed}
           icon={CheckCircle2}
-          color="green"
         />
       </div>
 

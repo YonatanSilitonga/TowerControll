@@ -237,35 +237,30 @@ export default function ManifestFotoPage() {
           label="Total Foto"
           value={stats.totalPhotos}
           icon={Camera}
-          color="slate"
           size="sm"
         />
         <KPICard
           label="Driver"
           value={stats.uniqueDrivers}
           icon={Truck}
-          color="blue"
           size="sm"
         />
         <KPICard
           label="Total Koli"
           value={stats.totalKoli}
           icon={Package}
-          color="green"
           size="sm"
         />
         <KPICard
           label="Eceran"
           value={stats.totalEcer}
           icon={Package}
-          color="amber"
           size="sm"
         />
         <KPICard
           label="High Value"
           value={stats.totalHV}
           icon={Package}
-          color="purple"
           size="sm"
         />
       </div>
