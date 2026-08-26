@@ -799,11 +799,23 @@ export default function JadwalPage() {
                       )}
                     </div>
                     {((r.total_koli ?? 0) > 0 || (r.total_eceran ?? 0) > 0 || (r.total_high_value ?? 0) > 0) && (
-                      <div className="mt-2 inline-flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500" title="Total muatan ritase ini">
-                        <Package className="h-3 w-3" />
-                        <span className="font-semibold text-slate-600 dark:text-slate-300">{r.total_koli ?? 0} Koli</span>
-                        {(r.total_eceran ?? 0) > 0 && <span>· <span className="font-semibold text-slate-600 dark:text-slate-300">{r.total_eceran} Ecer</span></span>}
-                        {(r.total_high_value ?? 0) > 0 && <span>· <span className="font-semibold text-amber-600 dark:text-amber-400">{r.total_high_value} HV</span></span>}
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5" title="Total muatan ritase ini">
+                        {(r.total_koli ?? 0) > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                            <Package className="h-3 w-3" />
+                            {r.total_koli} <span className="font-normal text-slate-400">Koli</span>
+                          </span>
+                        )}
+                        {(r.total_eceran ?? 0) > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                            {r.total_eceran} <span className="font-normal text-slate-400">Ecer</span>
+                          </span>
+                        )}
+                        {(r.total_high_value ?? 0) > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                            {r.total_high_value} <span className="font-normal text-amber-500">HV</span>
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>

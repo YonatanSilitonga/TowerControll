@@ -766,10 +766,11 @@ function ViewBtn({ active, onClick, icon: Icon, label }: { active: boolean; onCl
 function MuatanBadge({ koli, ecer, hv }: { koli: number; ecer: number; hv: number }) {
   return (
     <span className="inline-flex items-center gap-1 rounded bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950/40 dark:border-amber-700/50 dark:text-amber-300">
-      📦 {koli}
+      <Package className="h-3 w-3" />
+      {koli} <span className="font-normal">Koli</span>
       <span className="hidden sm:inline">
-        {ecer > 0 && <span>· {ecer}E</span>}
-        {hv > 0 && <span>· {hv}HV</span>}
+        {ecer > 0 && <span>· {ecer} <span className="font-normal">Ecer</span></span>}
+        {hv > 0 && <span>· {hv} <span className="font-normal">HV</span></span>}
       </span>
     </span>
   );

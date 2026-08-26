@@ -80,7 +80,7 @@ export default function ArmadaOverviewPage() {
       </div>
 
       {/* Breakdown status */}
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
+      <div className="mt-6 grid gap-4 items-stretch lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">

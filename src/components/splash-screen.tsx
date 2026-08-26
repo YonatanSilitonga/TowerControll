@@ -74,7 +74,7 @@ export function SplashScreen() {
   return (
     <div
       className={cn(
-        "fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-[#0c1e3a] transition-opacity duration-500",
+        "fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden bg-[#0c1e3a] transition-opacity duration-500",
         visible ? "opacity-100" : "pointer-events-none opacity-0"
       )}
       aria-hidden={!visible}

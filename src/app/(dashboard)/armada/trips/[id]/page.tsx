@@ -49,7 +49,17 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
       <div className="space-y-4">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-16" />
-        <Skeleton className="h-96" />
+        {/* Skeleton 2 kolom — match layout aktual (map + sidebar) */}
+        <div className="grid gap-5 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-4">
+            <Skeleton className="h-48" />
+            <Skeleton className="h-[300px] w-full" />
+          </div>
+          <div className="space-y-5">
+            <Skeleton className="h-32" />
+            <Skeleton className="h-40" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -90,18 +100,6 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
     { label: "Selesai", v: sum.selesai, color: "bg-[#5b82ab]" },
   ].filter((p) => p.v > 0);
 
-  const toMin = (t: string) => {
-    const [h, m] = t.split(":").map(Number);
-    return h * 60 + (m || 0);
-  };
-  const deltaMin = (jadwal?: string | null, realisasi?: string | null) => {
-    if (!jadwal || !realisasi) return null;
-    const d = toMin(realisasi) - toMin(jadwal);
-    return Number.isNaN(d) ? null : d;
-  };
-  const fmtDelta = (d: number) =>
-    d === 0 ? "Tepat waktu" : d > 0 ? `Telat ${d}m` : `Lebih awal ${-d}m`;
-
   // Derive realisasi dari events jika jam_berangkat/jam_tiba kosong
   const events = data.events ?? [];
   const fmtTime = (iso?: string | null) => {
@@ -123,19 +121,6 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
 
   const realisasiBerangkat = data.jam_berangkat || fmtTime(evBerangkat?.created_at) || fmtTime(firstEvent?.created_at);
   const realisasiTiba = data.jam_tiba || fmtTime(evTiba?.created_at) || fmtTime(lastEvent?.created_at);
-
-  const realisasiRows = [
-    {
-      label: "Berangkat",
-      jadwal: data.jam_mulai,
-      realisasi: realisasiBerangkat,
-    },
-    {
-      label: "Tiba",
-      jadwal: data.jam_selesai,
-      realisasi: realisasiTiba,
-    },
-  ];
 
   const isLive = vehicle ? hasActiveSession(vehicle.last_login) : false;
 
@@ -177,25 +162,6 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
             <VitalItem icon={<RadioTower className="h-4 w-4" />} label="Status" value={statusLabel(data.status)} />
           )}
           <VitalItem icon={<Timer className="h-4 w-4" />} label="Total Durasi" value={formatDur(sum.total)} />
-
-          {/* Badge telat/tepat waktu — ringkasan cepat dari blok jadwal di sidebar */}
-          <div className="flex flex-wrap items-center gap-2 pl-0 sm:pl-6">
-            {realisasiRows.map((r) => {
-              const d = deltaMin(r.jadwal, r.realisasi);
-              if (d === null) return null;
-              return (
-                <span
-                  key={r.label}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold",
-                    d === 0 ? "bg-emerald-50 text-emerald-700" : d > 0 ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-sky-700"
-                  )}
-                >
-                  {r.label}: {fmtDelta(d)}
-                </span>
-              );
-            })}
-          </div>
         </div>
       </div>
 
@@ -295,14 +261,14 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
                   <span className="text-xs text-slate-500">Jadwal</span>
                   <span className="text-sm font-semibold text-slate-800 dark:text-white">{data.jam_mulai ?? "-"}</span>
                   <span className="text-slate-300">→</span>
-                  {data.jam_berangkat ? (
+                  {realisasiBerangkat ? (
                     <span className={cn(
                       "text-sm font-semibold",
-                      data.jam_mulai && data.jam_berangkat <= data.jam_mulai
+                      data.jam_mulai && realisasiBerangkat <= data.jam_mulai
                         ? "text-emerald-600 dark:text-emerald-400"
                         : "text-rose-600 dark:text-rose-400"
                     )}>
-                      {data.jam_berangkat}
+                      {realisasiBerangkat}
                     </span>
                   ) : (
                     <span className="text-sm text-slate-400">-</span>
@@ -317,14 +283,14 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
                   <span className="text-xs text-slate-500">Jadwal</span>
                   <span className="text-sm font-semibold text-slate-800 dark:text-white">{data.jam_selesai ?? "-"}</span>
                   <span className="text-slate-300">→</span>
-                  {data.jam_tiba ? (
+                  {realisasiTiba ? (
                     <span className={cn(
                       "text-sm font-semibold",
-                      data.jam_selesai && data.jam_tiba <= data.jam_selesai
+                      data.jam_selesai && realisasiTiba <= data.jam_selesai
                         ? "text-emerald-600 dark:text-emerald-400"
                         : "text-rose-600 dark:text-rose-400"
                     )}>
-                      {data.jam_tiba}
+                      {realisasiTiba}
                     </span>
                   ) : (
                     <span className="text-sm text-slate-400">-</span>
