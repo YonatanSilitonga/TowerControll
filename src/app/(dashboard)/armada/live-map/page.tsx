@@ -144,12 +144,12 @@ function LiveMapBody() {
         </button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
-        {/* Peta — mobile: tab "peta" full tinggi; desktop: flex-1 mengikuti panel kanan */}
-        <div className={cn(mobileTab !== "peta" && "hidden lg:block")}>
-          <Card className="flex h-[calc(100vh-230px)] min-h-[420px] flex-col overflow-hidden">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
+        {/* Peta — mobile: tab "peta" full tinggi; desktop: flex-1 setara tinggi panel kanan */}
+        <div className={cn("flex-1 min-w-0", mobileTab !== "peta" && "hidden lg:block")}>
+          <Card className="flex h-[420px] lg:h-full min-h-[420px] flex-col overflow-hidden">
             <CardContent className="flex h-full flex-1 p-0">
-              <div className="h-full min-h-[420px] w-full flex-1">
+              <div className="h-full w-full flex-1">
                 {isLoading ? (
                   <Skeleton className="h-full w-full" />
                 ) : (
@@ -169,15 +169,15 @@ function LiveMapBody() {
         </div>
 
         {/* Panel samping — mobile: tab "armada" */}
-        <div className={cn("space-y-4", mobileTab !== "armada" && "hidden lg:block")}>
-          <Card>
-            <CardHeader className="pb-3">
+        <div className={cn("flex flex-col gap-4 lg:w-[340px] shrink-0", mobileTab !== "armada" && "hidden lg:block")}>
+          <Card className="flex flex-col flex-1 min-h-0">
+            <CardHeader className="pb-3 shrink-0">
               <CardTitle className="flex items-center gap-2 text-base">
                 <RadioTower className="h-4 w-4 text-[#0c1e3a]" />
                 Armada Aktif <InfoTip text="Posisi realtime armada. LIVE = app masih kirim posisi; layar HP mati tetap LIVE (service jalan). Klik marker untuk popup & riwayat di bawah." />
               </CardTitle>
             </CardHeader>
-            <CardContent className="max-h-[280px] space-y-2 overflow-y-auto">
+            <CardContent className="flex-1 min-h-0 space-y-2 overflow-y-auto">
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <Skeleton key={i} className="h-14 w-full" />
@@ -232,8 +232,8 @@ function LiveMapBody() {
           </Card>
 
           {selectedVehicle && (
-            <Card>
-              <CardHeader className="pb-3">
+            <Card className="flex flex-col flex-1 min-h-0">
+              <CardHeader className="pb-3 shrink-0">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <MapPin className="h-4 w-4 text-amber-600" />
                   Detail Armada · {selectedVehicle.plat_nomor || "-"}
@@ -255,7 +255,7 @@ function LiveMapBody() {
                   className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#0c1e3a] focus:outline-none focus:ring-2 focus:ring-[#0c1e3a]/20"
                 />
               </CardHeader>
-              <CardContent className="max-h-[420px] space-y-3 overflow-y-auto">
+              <CardContent className="flex-1 min-h-0 space-y-3 overflow-y-auto">
                 {(() => {
                   const selLive = isOnline(selectedVehicle);
                   const sesOnline = hasActiveSession(selectedVehicle.last_login);

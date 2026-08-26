@@ -231,91 +231,114 @@ export default function ManifestFotoPage() {
         crumbs={[{ label: "Foto Manifest" }]}
       />
 
-      {/* ── KPI Summary Cards ── */}
+      {/* ── KPI Summary Cards — tema konsisten ── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <KPICard label="Total Foto" value={stats.totalPhotos} icon={Camera} size="sm" />
-        <KPICard label="Driver" value={stats.uniqueDrivers} icon={Truck} size="sm" />
-        <KPICard label="Total Koli" value={stats.totalKoli} icon={Package} size="sm" />
-        <KPICard label="Eceran" value={stats.totalEcer} icon={Package} size="sm" />
-        <KPICard label="High Value" value={stats.totalHV} icon={Package} size="sm" />
+        <KPICard
+          label="Total Foto"
+          value={stats.totalPhotos}
+          icon={Camera}
+          size="sm"
+        />
+        <KPICard
+          label="Driver"
+          value={stats.uniqueDrivers}
+          icon={Truck}
+          size="sm"
+        />
+        <KPICard
+          label="Total Koli"
+          value={stats.totalKoli}
+          icon={Package}
+          size="sm"
+        />
+        <KPICard
+          label="Eceran"
+          value={stats.totalEcer}
+          icon={Package}
+          size="sm"
+        />
+        <KPICard
+          label="High Value"
+          value={stats.totalHV}
+          icon={Package}
+          size="sm"
+        />
       </div>
 
-      {/* ── Filter & Tampilan — dipisah jelas: kiri = saring data, kanan = cara lihat ── */}
-      <div className="rounded-lg border border-slate-200 bg-white p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          {/* Kiri: filter data */}
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-            <div className="flex items-center gap-1 sm:gap-1.5">
-              <DatePill label="Hari Ini" active={selectedDate === todayStr} onClick={() => setSelectedDate(todayStr)} />
-              <DatePill label="Kemarin" active={selectedDate === yesterdayStr} onClick={() => setSelectedDate(yesterdayStr)} />
-              <DatePill label="Semua" active={selectedDate === "all"} onClick={() => setSelectedDate("all")} />
-              <input
-                type="date"
-                value={selectedDate === "all" ? "" : selectedDate}
-                max={todayStr}
-                onChange={(e) => setSelectedDate(e.target.value || "all")}
-                className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-              />
-            </div>
-
-            <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
-
-            <select
-              value={selectedDriverId}
-              onChange={(e) => setSelectedDriverId(e.target.value)}
+      {/* ── Filter Toolbar — semua dalam 1 bar ── */}
+      <div className="flex flex-col gap-2.5 sm:gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-900">
+        {/* Baris 1: Date + Search + Refresh */}
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            <DatePill label="Hari Ini" active={selectedDate === todayStr} onClick={() => setSelectedDate(todayStr)} />
+            <DatePill label="Kemarin" active={selectedDate === yesterdayStr} onClick={() => setSelectedDate(yesterdayStr)} />
+            <DatePill label="Semua" active={selectedDate === "all"} onClick={() => setSelectedDate("all")} />
+            <input
+              type="date"
+              value={selectedDate === "all" ? "" : selectedDate}
+              max={todayStr}
+              onChange={(e) => setSelectedDate(e.target.value || "all")}
               className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            >
-              <option value="all">Semua Driver</option>
-              {drivers.map((d: DriverArmada) => (
-                <option key={d.id_driver} value={d.id_driver.toString()}>
-                  {d.nama_driver}
-                </option>
-              ))}
-            </select>
-
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Cari driver, nopol, lokasi..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-7 w-40 rounded-md border border-slate-200 bg-white pl-7 pr-2 text-[11px] focus:border-[#0c1e3a] focus:outline-none sm:w-52 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              />
-            </div>
-
-            <button
-              onClick={() => refetch()}
-              disabled={isLoading || isRefetching}
-              className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
-              title="Refresh"
-            >
-              <RefreshCw className={cn("h-3 w-3", (isLoading || isRefetching) && "animate-spin")} />
-            </button>
+            />
           </div>
 
-          {/* Kanan: cara tampilan */}
-          <div className="flex items-center gap-2 border-t border-slate-100 pt-3 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-4 dark:border-slate-800 overflow-x-auto">
-            <span className="hidden sm:inline text-[11px] font-medium text-slate-400 shrink-0">Tampilan:</span>
-            <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800 shrink-0">
-              <ViewBtn active={viewMode === "ritase"} onClick={() => setViewMode("ritase")} icon={Rows3} label="Per Ritase" />
-              <ViewBtn active={viewMode === "grid"} onClick={() => setViewMode("grid")} icon={LayoutGrid} label="Galeri" />
-              <ViewBtn active={viewMode === "timeline"} onClick={() => setViewMode("timeline")} icon={Images} label="Per Driver" />
-            </div>
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
 
-            {viewMode !== "grid" && (
-              <>
-                <div className="hidden sm:block h-4 w-px bg-slate-200 dark:bg-slate-700" />
-                <button onClick={expandAll} className="hidden sm:inline text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0">
-                  Buka Semua
-                </button>
-                <span className="hidden sm:inline text-slate-300 dark:text-slate-700">·</span>
-                <button onClick={collapseAll} className="hidden sm:inline text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0">
-                  Tutup Semua
-                </button>
-              </>
-            )}
+          <select
+            value={selectedDriverId}
+            onChange={(e) => setSelectedDriverId(e.target.value)}
+            className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          >
+            <option value="all">Semua Driver</option>
+            {drivers.map((d: DriverArmada) => (
+              <option key={d.id_driver} value={d.id_driver.toString()}>
+                {d.nama_driver}
+              </option>
+            ))}
+          </select>
+
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari driver, nopol, lokasi..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-7 w-40 rounded-md border border-slate-200 bg-white pl-7 pr-2 text-[11px] focus:border-[#0c1e3a] focus:outline-none sm:w-48 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            />
           </div>
+
+          <button
+            onClick={() => refetch()}
+            disabled={isLoading || isRefetching}
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
+            title="Refresh"
+          >
+            <RefreshCw className={cn("h-3 w-3", (isLoading || isRefetching) && "animate-spin")} />
+          </button>
+        </div>
+
+        {/* Baris 2: Tampilan toggle */}
+        <div className="flex items-center gap-2 border-t border-slate-100 pt-2.5 dark:border-slate-800 overflow-x-auto">
+          <span className="hidden sm:inline text-[11px] font-medium text-slate-400 shrink-0">Tampilan:</span>
+          <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800 shrink-0">
+            <ViewBtn active={viewMode === "ritase"} onClick={() => setViewMode("ritase")} icon={Rows3} label="Per Ritase" />
+            <ViewBtn active={viewMode === "grid"} onClick={() => setViewMode("grid")} icon={LayoutGrid} label="Galeri" />
+            <ViewBtn active={viewMode === "timeline"} onClick={() => setViewMode("timeline")} icon={Images} label="Per Driver" />
+          </div>
+
+          {viewMode !== "grid" && (
+            <>
+              <div className="hidden sm:block h-4 w-px bg-slate-200 dark:bg-slate-700" />
+              <button onClick={expandAll} className="hidden sm:inline text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0">
+                Buka Semua
+              </button>
+              <span className="hidden sm:inline text-slate-300 dark:text-slate-700">·</span>
+              <button onClick={collapseAll} className="hidden sm:inline text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0">
+                Tutup Semua
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -330,7 +353,7 @@ export default function ManifestFotoPage() {
         <EmptyState />
       ) : viewMode === "ritase" ? (
         /* ─── GROUPED BY RITASE ─── */
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {ritaseGroups.map((g) => {
             const isCollapsed = collapsedRitase.has(g.id_ritase);
             return (
@@ -338,7 +361,7 @@ export default function ManifestFotoPage() {
                 {/* Header */}
                 <button
                   onClick={() => toggleRitase(g.id_ritase)}
-                  className="flex w-full flex-col gap-2 px-3 py-2.5 text-left hover:bg-slate-50/80 transition-colors sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-3 dark:hover:bg-slate-800/50"
+                  className="flex w-full items-center justify-between gap-2 sm:gap-3 px-3 py-2.5 sm:px-4 sm:py-3 text-left hover:bg-slate-50/80 transition-colors dark:hover:bg-slate-800/50"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     {isCollapsed ? (
@@ -349,16 +372,18 @@ export default function ManifestFotoPage() {
                     <span className="shrink-0 rounded bg-[#0c1e3a] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">
                       {g.kode_ritase}
                     </span>
-                    <span className="text-sm font-bold text-slate-800 dark:text-white shrink-0">#{g.ritase_ke}</span>
-                    <div className="flex items-center gap-1.5 min-w-0 text-[11px] text-slate-500 dark:text-slate-400">
-                      <User className="h-3 w-3 shrink-0" />
-                      <span className="truncate font-semibold">{g.nama_driver}</span>
-                      <Truck className="h-3 w-3 shrink-0 ml-1" />
-                      <span className="font-mono shrink-0">{g.nopol}</span>
-                    </div>
+                    <span className="text-sm font-bold text-slate-800 dark:text-white">
+                      #{g.ritase_ke}
+                    </span>
                   </div>
 
-                  <div className="flex items-center gap-2 pl-6 sm:gap-3 sm:pl-0 shrink-0">
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="hidden md:flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                      <User className="h-3 w-3" />
+                      <span className="font-semibold">{g.nama_driver}</span>
+                      <Truck className="h-3 w-3 ml-1" />
+                      <span className="font-mono">{g.nopol}</span>
+                    </div>
                     <MuatanBadge koli={g.totalKoli} ecer={g.totalEcer} hv={g.totalHV} />
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                       {g.photos.length} foto
@@ -366,15 +391,15 @@ export default function ManifestFotoPage() {
                   </div>
                 </button>
 
-                {/* Thumbnails — grid, bukan scroll horizontal, biar semua foto langsung kelihatan */}
+                {/* Thumbnails */}
                 {!isCollapsed && (
                   <div className="border-t border-slate-100 px-4 py-3 dark:border-slate-800/80">
-                    <div className="grid grid-cols-4 gap-2 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10">
+                    <div className="flex gap-2 overflow-x-auto pb-1">
                       {g.photos.map((photo) => (
                         <button
                           key={photo.id_event}
                           onClick={() => handleOpenModal(photo)}
-                          className="group relative aspect-square overflow-hidden rounded-md border border-slate-200 bg-slate-100 transition-all hover:border-[#0c1e3a] hover:shadow-md dark:border-slate-700 dark:bg-slate-800"
+                          className="group relative h-24 w-24 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100 transition-all hover:border-[#0c1e3a] hover:shadow-md dark:border-slate-700 dark:bg-slate-800"
                         >
                           <img
                             src={getFullPhotoUrl(photo.foto_manifest_url)}
@@ -400,7 +425,7 @@ export default function ManifestFotoPage() {
         </div>
       ) : viewMode === "timeline" ? (
         /* ─── GROUPED BY DRIVER ─── */
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {driverGroups.map((g) => {
             const isCollapsed = collapsedDrivers.has(g.id_driver);
             return (
@@ -432,12 +457,12 @@ export default function ManifestFotoPage() {
                 </button>
                 {!isCollapsed && (
                   <div className="border-t border-slate-100 px-4 py-3 dark:border-slate-800/80">
-                    <div className="grid grid-cols-4 gap-2 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10">
+                    <div className="flex gap-2 overflow-x-auto pb-1">
                       {g.photos.map((photo) => (
                         <button
                           key={photo.id_event}
                           onClick={() => handleOpenModal(photo)}
-                          className="group relative aspect-square overflow-hidden rounded-md border border-slate-200 bg-slate-100 transition-all hover:border-[#0c1e3a] hover:shadow-md dark:border-slate-700 dark:bg-slate-800"
+                          className="group relative h-24 w-24 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100 transition-all hover:border-[#0c1e3a] hover:shadow-md dark:border-slate-700 dark:bg-slate-800"
                         >
                           <img
                             src={getFullPhotoUrl(photo.foto_manifest_url)}
