@@ -695,7 +695,7 @@ export default function JadwalPage() {
         <div className="flex flex-wrap items-center gap-2">
           {/* Tanggal Picker */}
           <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-800">
-            <CalendarIcon className="h-4 w-4 text-slate-400" />
+           
             <input
               type="date"
               value={selectedDate}
@@ -809,16 +809,16 @@ export default function JadwalPage() {
                       Plat: <span className="font-semibold text-slate-700 dark:text-slate-300">{r.nopol}</span>
                     </p>
                     {r.jam_mulai && (
-                      <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+                      <div className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
                         ⏱ {r.jam_mulai} – {r.jam_selesai ?? "?"}
-                      </span>
+                      </div>
                     )}
                     {((r.total_koli ?? 0) > 0 || (r.total_eceran ?? 0) > 0 || (r.total_high_value ?? 0) > 0) && (
-                      <span className="mt-2 inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300">
+                      <div className="mt-2 inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300">
                         📦 {r.total_koli ?? 0} Koli
                         {(r.total_eceran ?? 0) > 0 && ` • ${r.total_eceran} Ecer`}
                         {(r.total_high_value ?? 0) > 0 && ` • ${r.total_high_value} HV`}
-                      </span>
+                      </div>
                     )}
                   </div>
 
