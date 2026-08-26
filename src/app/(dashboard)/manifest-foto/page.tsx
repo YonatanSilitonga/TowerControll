@@ -21,6 +21,7 @@ import {
   LayoutGrid,
   Rows3,
   Images,
+  Timer,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { KPICard } from "@/components/ui/kpi-card";
@@ -354,6 +355,15 @@ export default function ManifestFotoPage() {
         <div className="space-y-2">
           {ritaseGroups.map((g) => {
             const isCollapsed = collapsedRitase.has(g.id_ritase);
+            // Hitung total durasi dari semua foto dalam ritase ini
+            const totalDurasi = g.photos.reduce((sum, p) => sum + (p.durasi_detik || 0), 0);
+            // Cari waktu pertama & terakhir dari created_at
+            const sortedPhotos = [...g.photos].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+            const waktuMulai = sortedPhotos.length > 0 ? new Date(sortedPhotos[0].created_at) : null;
+            const waktuSelesai = sortedPhotos.length > 0 ? new Date(sortedPhotos[sortedPhotos.length - 1].created_at) : null;
+            const fmtTime = (d: Date) => d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false });
+            const waktuRange = waktuMulai && waktuSelesai ? `${fmtTime(waktuMulai)} – ${fmtTime(waktuSelesai)}` : null;
+
             return (
               <div key={g.id_ritase} className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
                 {/* Header */}
@@ -375,44 +385,91 @@ export default function ManifestFotoPage() {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="hidden md:flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-                      <User className="h-3 w-3" />
-                      <span className="font-semibold">{g.nama_driver}</span>
-                      <Truck className="h-3 w-3 ml-1" />
-                      <span className="font-mono">{g.nopol}</span>
-                    </div>
+                  {/* Tengah: Info driver + kendaraan */}
+                  <div className="hidden md:flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 min-w-0">
+                    <User className="h-3 w-3 shrink-0" />
+                    <span className="font-semibold truncate">{g.nama_driver}</span>
+                    <span className="text-slate-300 dark:text-slate-600 mx-0.5">·</span>
+                    <Truck className="h-3 w-3 shrink-0" />
+                    <span className="font-mono">{g.nopol}</span>
+                    {waktuRange && (
+                      <>
+                        <span className="text-slate-300 dark:text-slate-600 mx-0.5">·</span>
+                        <Clock className="h-3 w-3 shrink-0" />
+                        <span className="font-mono">{waktuRange}</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Kanan: Muatan + Foto button */}
+                  <div className="flex items-center gap-2 shrink-0">
                     <MuatanBadge koli={g.totalKoli} ecer={g.totalEcer} hv={g.totalHV} />
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    {totalDurasi > 0 && (
+                      <span className="hidden lg:inline-flex items-center gap-1 text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                        <Timer className="h-3 w-3" />
+                        {formatDur(totalDurasi)}
+                      </span>
+                    )}
+                    <span
+                      className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 hover:border-[#0c1e3a] hover:text-[#0c1e3a] transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                      title={`${g.photos.length} foto bukti bongkar muat`}
+                    >
+                      <Camera className="h-3 w-3" />
                       {g.photos.length} foto
                     </span>
                   </div>
                 </button>
 
-                {/* Thumbnails */}
+                {/* Expanded: Stop details + foto per titik */}
                 {!isCollapsed && (
                   <div className="border-t border-slate-100 px-4 py-3 dark:border-slate-800/80">
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                      {g.photos.map((photo) => (
-                        <button
+                    <div className="space-y-2">
+                      {g.photos.map((photo, idx) => (
+                        <div
                           key={photo.id_event}
-                          onClick={() => handleOpenModal(photo)}
-                          className="group relative h-24 w-24 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100 transition-all hover:border-[#0c1e3a] hover:shadow-md dark:border-slate-700 dark:bg-slate-800"
+                          className="flex items-center gap-3 rounded-md border border-slate-100 bg-slate-50/50 px-3 py-2 dark:border-slate-800 dark:bg-slate-800/30"
                         >
-                          <img
-                            src={getFullPhotoUrl(photo.foto_manifest_url)}
-                            alt={photo.nama_lokasi}
-                            className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                            loading="lazy"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                          <span className="absolute bottom-1 left-1 right-1 truncate text-[8px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                            {photo.nama_lokasi}
+                          {/* Nomor urut */}
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                            {idx + 1}
                           </span>
-                          <span className="absolute top-1 right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Maximize2 className="h-2.5 w-2.5 text-white" />
-                          </span>
-                        </button>
+
+                          {/* Info: Lokasi + Muatan + Waktu */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
+                              {photo.nama_lokasi}
+                            </p>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-400 dark:text-slate-500">
+                              {(photo.jumlah_koli > 0 || photo.jumlah_ecer > 0 || photo.jumlah_high_value > 0) && (
+                                <span className="inline-flex items-center gap-0.5" title="Muatan: jumlah koli, ecer, dan high value di titik ini">
+                                  <Package className="h-2.5 w-2.5" />
+                                  {photo.jumlah_koli > 0 && <span>{photo.jumlah_koli} koli</span>}
+                                  {photo.jumlah_ecer > 0 && <span>· {photo.jumlah_ecer} ecer</span>}
+                                  {photo.jumlah_high_value > 0 && <span>· {photo.jumlah_high_value} HV</span>}
+                                </span>
+                              )}
+                              {photo.durasi_detik > 0 && (
+                                <span className="inline-flex items-center gap-0.5" title="Durasi: waktu yang dihabiskan di titik ini">
+                                  <Clock className="h-2.5 w-2.5" />
+                                  {formatDur(photo.durasi_detik)}
+                                </span>
+                              )}
+                              <span className="text-slate-300 dark:text-slate-600" title="Status: jenis kegiatan di titik ini">
+                                · {photo.status}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Foto button — clickable link */}
+                          <button
+                            onClick={() => handleOpenModal(photo)}
+                            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-[#0c1e3a] hover:text-white hover:border-[#0c1e3a] transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-[#0c1e3a]"
+                            title={`Lihat foto ${photo.nama_lokasi}`}
+                          >
+                            <Camera className="h-3 w-3" />
+                            Foto
+                          </button>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -426,6 +483,7 @@ export default function ManifestFotoPage() {
         <div className="space-y-2">
           {driverGroups.map((g) => {
             const isCollapsed = collapsedDrivers.has(g.id_driver);
+            const totalDurasi = g.photos.reduce((sum, p) => sum + (p.durasi_detik || 0), 0);
             return (
               <div key={g.id_driver} className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
                 <button
@@ -446,33 +504,64 @@ export default function ManifestFotoPage() {
                       <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400">{g.nopol}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2.5 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <MuatanBadge koli={g.totalKoli} ecer={g.totalEcer} hv={g.totalHV} />
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    {totalDurasi > 0 && (
+                      <span className="hidden lg:inline-flex items-center gap-1 text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                        <Timer className="h-3 w-3" />
+                        {formatDur(totalDurasi)}
+                      </span>
+                    )}
+                    <span
+                      className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 hover:border-[#0c1e3a] hover:text-[#0c1e3a] transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                      title={`${g.photos.length} foto bukti bongkar muat`}
+                    >
+                      <Camera className="h-3 w-3" />
                       {g.photos.length} foto
                     </span>
                   </div>
                 </button>
                 {!isCollapsed && (
                   <div className="border-t border-slate-100 px-4 py-3 dark:border-slate-800/80">
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                      {g.photos.map((photo) => (
-                        <button
+                    <div className="space-y-2">
+                      {g.photos.map((photo, idx) => (
+                        <div
                           key={photo.id_event}
-                          onClick={() => handleOpenModal(photo)}
-                          className="group relative h-24 w-24 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100 transition-all hover:border-[#0c1e3a] hover:shadow-md dark:border-slate-700 dark:bg-slate-800"
+                          className="flex items-center gap-3 rounded-md border border-slate-100 bg-slate-50/50 px-3 py-2 dark:border-slate-800 dark:bg-slate-800/30"
                         >
-                          <img
-                            src={getFullPhotoUrl(photo.foto_manifest_url)}
-                            alt={photo.nama_lokasi}
-                            className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                            loading="lazy"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                          <span className="absolute bottom-1 left-1 right-1 truncate text-[8px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                            {photo.nama_lokasi}
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                            {idx + 1}
                           </span>
-                        </button>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
+                              {photo.nama_lokasi}
+                            </p>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-400 dark:text-slate-500">
+                              {(photo.jumlah_koli > 0 || photo.jumlah_ecer > 0 || photo.jumlah_high_value > 0) && (
+                                <span className="inline-flex items-center gap-0.5" title="Muatan">
+                                  <Package className="h-2.5 w-2.5" />
+                                  {photo.jumlah_koli > 0 && <span>{photo.jumlah_koli} koli</span>}
+                                  {photo.jumlah_ecer > 0 && <span>· {photo.jumlah_ecer} ecer</span>}
+                                  {photo.jumlah_high_value > 0 && <span>· {photo.jumlah_high_value} HV</span>}
+                                </span>
+                              )}
+                              {photo.durasi_detik > 0 && (
+                                <span className="inline-flex items-center gap-0.5" title="Durasi">
+                                  <Clock className="h-2.5 w-2.5" />
+                                  {formatDur(photo.durasi_detik)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleOpenModal(photo)}
+                            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-[#0c1e3a] hover:text-white hover:border-[#0c1e3a] transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-[#0c1e3a]"
+                            title={`Lihat foto ${photo.nama_lokasi}`}
+                          >
+                            <Camera className="h-3 w-3" />
+                            Foto
+                          </button>
+                        </div>
                       ))}
                     </div>
                   </div>
