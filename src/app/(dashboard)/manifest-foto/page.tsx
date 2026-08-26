@@ -285,10 +285,10 @@ export default function ManifestFotoPage() {
       </div>
 
       {/* ── Filter Toolbar — semua dalam 1 bar ── */}
-      <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-col gap-2.5 sm:gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-900">
         {/* Baris 1: Date + Search + Refresh */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-1.5">
             <DatePill label="Hari Ini" active={selectedDate === todayStr} onClick={() => setSelectedDate(todayStr)} />
             <DatePill label="Kemarin" active={selectedDate === yesterdayStr} onClick={() => setSelectedDate(yesterdayStr)} />
             <DatePill label="Semua" active={selectedDate === "all"} onClick={() => setSelectedDate("all")} />
@@ -338,9 +338,9 @@ export default function ManifestFotoPage() {
         </div>
 
         {/* Baris 2: Tampilan toggle */}
-        <div className="flex items-center gap-2 border-t border-slate-100 pt-2.5 dark:border-slate-800">
-          <span className="text-[11px] font-medium text-slate-400 shrink-0">Tampilan:</span>
-          <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex items-center gap-2 border-t border-slate-100 pt-2.5 dark:border-slate-800 overflow-x-auto">
+          <span className="hidden sm:inline text-[11px] font-medium text-slate-400 shrink-0">Tampilan:</span>
+          <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800 shrink-0">
             <ViewBtn active={viewMode === "ritase"} onClick={() => setViewMode("ritase")} icon={Rows3} label="Per Ritase" />
             <ViewBtn active={viewMode === "grid"} onClick={() => setViewMode("grid")} icon={LayoutGrid} label="Galeri" />
             <ViewBtn active={viewMode === "timeline"} onClick={() => setViewMode("timeline")} icon={Images} label="Per Driver" />
@@ -348,12 +348,12 @@ export default function ManifestFotoPage() {
 
           {viewMode !== "grid" && (
             <>
-              <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
-              <button onClick={expandAll} className="text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+              <div className="hidden sm:block h-4 w-px bg-slate-200 dark:bg-slate-700" />
+              <button onClick={expandAll} className="hidden sm:inline text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0">
                 Buka Semua
               </button>
-              <span className="text-slate-300 dark:text-slate-700">·</span>
-              <button onClick={collapseAll} className="text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+              <span className="hidden sm:inline text-slate-300 dark:text-slate-700">·</span>
+              <button onClick={collapseAll} className="hidden sm:inline text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0">
                 Tutup Semua
               </button>
             </>
@@ -380,7 +380,7 @@ export default function ManifestFotoPage() {
                 {/* Header */}
                 <button
                   onClick={() => toggleRitase(g.id_ritase)}
-                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50/80 transition-colors dark:hover:bg-slate-800/50"
+                  className="flex w-full items-center justify-between gap-2 sm:gap-3 px-3 py-2.5 sm:px-4 sm:py-3 text-left hover:bg-slate-50/80 transition-colors dark:hover:bg-slate-800/50"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     {isCollapsed ? (
@@ -451,7 +451,7 @@ export default function ManifestFotoPage() {
               <div key={g.id_driver} className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
                 <button
                   onClick={() => toggleDriver(g.id_driver)}
-                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50/80 transition-colors dark:hover:bg-slate-800/50"
+                  className="flex w-full items-center justify-between gap-2 sm:gap-3 px-3 py-2.5 sm:px-4 sm:py-3 text-left hover:bg-slate-50/80 transition-colors dark:hover:bg-slate-800/50"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     {isCollapsed ? (
@@ -574,39 +574,42 @@ export default function ManifestFotoPage() {
       {/* ── Lightbox Modal ── */}
       {selectedPhoto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3 dark:border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                  <Camera className="h-3.5 w-3.5" />
+          <div className="relative flex max-h-[95vh] sm:max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl sm:rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-3 py-2.5 sm:px-5 sm:py-3 dark:border-slate-800">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                  <Camera className="h-3 w-3" />
                 </span>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">{selectedPhoto.nama_lokasi}</h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                <div className="min-w-0">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">{selectedPhoto.nama_lokasi}</h3>
+                  <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">
                     {selectedPhoto.nama_driver} ({selectedPhoto.nopol}) • {formatDateTime(selectedPhoto.created_at)}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => setZoomLevel((p) => Math.min(p + 0.25, 3))} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white" title="Zoom In">
+              <div className="flex items-center gap-0.5 sm:gap-1">
+                <button onClick={() => setZoomLevel((p) => Math.min(p + 0.25, 3))} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white" title="Zoom In">
                   <ZoomIn className="h-4 w-4" />
                 </button>
-                <button onClick={() => setZoomLevel((p) => Math.max(p - 0.25, 0.75))} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white" title="Zoom Out">
+                <button onClick={() => setZoomLevel((p) => Math.max(p - 0.25, 0.75))} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white" title="Zoom Out">
                   <ZoomOut className="h-4 w-4" />
                 </button>
-                <button onClick={() => setRotation((p) => (p + 90) % 360)} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white" title="Putar">
+                <button onClick={() => setRotation((p) => (p + 90) % 360)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white" title="Putar">
                   <RotateCw className="h-4 w-4" />
                 </button>
-                <button onClick={() => handleDownload(selectedPhoto)} className="ml-1 flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">
+                <button onClick={() => handleDownload(selectedPhoto)} className="hidden sm:flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">
                   <Download className="h-3.5 w-3.5" />
                   Unduh
                 </button>
-                <button onClick={handleCloseModal} className="ml-1 rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200">
+                <button onClick={() => handleDownload(selectedPhoto)} className="sm:hidden flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800" title="Unduh">
+                  <Download className="h-4 w-4" />
+                </button>
+                <button onClick={handleCloseModal} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200">
                   <X className="h-4 w-4" />
                 </button>
               </div>
             </div>
-            <div className="relative flex min-h-[350px] max-h-[60vh] flex-1 items-center justify-center overflow-auto bg-slate-950 p-4">
+            <div className="relative flex min-h-[250px] sm:min-h-[350px] max-h-[65vh] sm:max-h-[60vh] flex-1 items-center justify-center overflow-auto bg-slate-950 p-2 sm:p-4">
               <img
                 src={getFullPhotoUrl(selectedPhoto.foto_manifest_url)}
                 alt="Manifest Preview"
@@ -614,7 +617,7 @@ export default function ManifestFotoPage() {
                 style={{ transform: `scale(${zoomLevel}) rotate(${rotation}deg)` }}
               />
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50/80 px-5 py-2.5 text-xs dark:border-slate-800 dark:bg-slate-900/80">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50/80 px-3 py-2 sm:px-5 sm:py-2.5 text-xs dark:border-slate-800 dark:bg-slate-900/80">
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="rounded bg-[#0c1e3a] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">{selectedPhoto.kode_ritase}</span>
                 <span className="font-semibold text-slate-600 dark:text-slate-400">#{selectedPhoto.ritase_ke}</span>
@@ -677,10 +680,12 @@ function ViewBtn({ active, onClick, icon: Icon, label }: { active: boolean; onCl
 
 function MuatanBadge({ koli, ecer, hv }: { koli: number; ecer: number; hv: number }) {
   return (
-    <span className="hidden sm:inline-flex items-center gap-1 rounded bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950/40 dark:border-amber-700/50 dark:text-amber-300">
+    <span className="inline-flex items-center gap-1 rounded bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950/40 dark:border-amber-700/50 dark:text-amber-300">
       📦 {koli}
-      {ecer > 0 && <span>· {ecer}E</span>}
-      {hv > 0 && <span>· {hv}HV</span>}
+      <span className="hidden sm:inline">
+        {ecer > 0 && <span>· {ecer}E</span>}
+        {hv > 0 && <span>· {hv}HV</span>}
+      </span>
     </span>
   );
 }
