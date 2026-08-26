@@ -65,15 +65,9 @@ export function RuteStepper({
                 href={stop.foto_manifest_url.startsWith("http") ? stop.foto_manifest_url : `http://127.0.0.1:8080${stop.foto_manifest_url.startsWith("/") ? "" : "/"}${stop.foto_manifest_url}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ml-1 h-7 w-7 shrink-0 overflow-hidden rounded border border-slate-300 shadow-xs hover:shadow-md transition-shadow"
-                title="Foto Manifest"
+                className="ml-1 inline-flex items-center gap-0.5 rounded border border-violet-300 bg-violet-50 px-1.5 py-0.5 text-[10px] font-bold text-violet-700 hover:bg-violet-100 transition-colors"
               >
-                <img
-                  src={stop.foto_manifest_url.startsWith("http") ? stop.foto_manifest_url : `http://127.0.0.1:8080${stop.foto_manifest_url.startsWith("/") ? "" : "/"}${stop.foto_manifest_url}`}
-                  alt={`Foto ${stopTitle(stop)}`}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
+                📷 Foto
               </a>
             )}
           </div>

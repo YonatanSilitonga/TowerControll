@@ -888,18 +888,9 @@ export default function JadwalPage() {
                               href={stop.foto_manifest_url.startsWith("http") ? stop.foto_manifest_url : `http://127.0.0.1:8080${stop.foto_manifest_url.startsWith("/") ? "" : "/"}${stop.foto_manifest_url}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="group/photo relative h-6 w-6 shrink-0 overflow-hidden rounded-md border border-slate-200 dark:border-slate-700"
-                              title="Lihat Foto Manifest"
+                              className="inline-flex items-center gap-1 rounded-md bg-violet-50 border border-violet-200 px-1.5 py-0.5 text-[10px] font-bold text-violet-700 hover:bg-violet-100 transition-colors dark:bg-violet-950/40 dark:border-violet-700/50 dark:text-violet-300"
                             >
-                              <img
-                                src={stop.foto_manifest_url.startsWith("http") ? stop.foto_manifest_url : `http://127.0.0.1:8080${stop.foto_manifest_url.startsWith("/") ? "" : "/"}${stop.foto_manifest_url}`}
-                                alt={`Foto ${stop.nama_lokasi}`}
-                                className="h-full w-full object-cover"
-                                loading="lazy"
-                              />
-                              <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover/photo:opacity-100">
-                                <span className="text-[8px] font-bold text-white">📷</span>
-                              </span>
+                              📷 Foto
                             </a>
                           )}
                         </div>
