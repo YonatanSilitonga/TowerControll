@@ -786,9 +786,15 @@ export default function JadwalPage() {
                         <span className="font-semibold font-mono text-slate-700 dark:text-slate-300">{r.nopol}</span>
                       </span>
                       {r.jam_mulai && (
-                        <span className="inline-flex items-center gap-1" title="Waktu perjalanan ritase">
+                        <span className="inline-flex items-center gap-1" title="Jadwal berangkat → tiba">
                           <Clock className="h-3 w-3" />
                           {r.jam_mulai} – {r.jam_selesai ?? "?"}
+                          {r.jam_berangkat && (
+                            <span className="font-semibold text-slate-700 dark:text-slate-300"> → {r.jam_berangkat}</span>
+                          )}
+                          {r.jam_tiba && (
+                            <span className="font-semibold text-slate-700 dark:text-slate-300"> → {r.jam_tiba}</span>
+                          )}
                         </span>
                       )}
                     </div>

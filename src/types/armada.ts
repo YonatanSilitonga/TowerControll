@@ -97,6 +97,8 @@ export interface AdminRitaseItem {
   status: string;
   jam_mulai?: string | null;
   jam_selesai?: string | null;
+  jam_berangkat?: string | null;
+  jam_tiba?: string | null;
   total_koli?: number | null;
   total_eceran?: number | null;
   total_high_value?: number | null;
