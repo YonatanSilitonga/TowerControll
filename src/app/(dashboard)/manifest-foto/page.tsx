@@ -642,7 +642,7 @@ function DatePill({ label, active, onClick }: { label: string; active: boolean; 
       className={cn(
         "rounded-md px-2.5 py-1 text-[11px] font-bold transition-colors",
         active
-          ? "bg-[#0c1e3a] text-white dark:bg-amber-500 dark:text-slate-950"
+          ? "bg-[#0c1e3a] text-white"
           : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700",
       )}
     >
