@@ -2,17 +2,12 @@
 
 import { useParams } from "next/navigation";
 import {
-  BarChart3,
   Clock,
-  Flag,
-   ListChecks,
-   MapPin,
-   PackageCheck,
-   PackageSearch,
+  MapPin,
   RadioTower,
-   Timer,
-   Truck,
-   User,
+  Timer,
+  Truck,
+  User,
 } from "lucide-react";
 import {
   Card,
@@ -33,7 +28,6 @@ const TripMap = dynamic(() => import("@/components/armada/trip-map").then(m => m
   loading: () => <TripMapSkeleton />,
 });
 
-
 import { DriverSummary, summarizeEvents } from "@/components/armada/driver-summary";
 import { StatusTimeline } from "@/components/armada/status-timeline";
 import { InfoTip } from "@/components/ui/info-tip";
@@ -41,7 +35,6 @@ import { useRitaseDetail } from "@/hooks/use-armada";
 import { useTrackingMap } from "@/hooks/use-tracking";
 import { displayTrackingStatus, statusLabel } from "@/lib/constants";
 import { cn, formatDateDMY, formatDur, formatNumber, hasActiveSession } from "@/lib/utils";
-
 
 export default function RitaseDetailPage({ params }: { params?: { id?: string } }) {
   const routeParams = useParams();
@@ -55,8 +48,8 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-40" />
-        <Skeleton className="h-40" />
+        <Skeleton className="h-16" />
+        <Skeleton className="h-96" />
       </div>
     );
   }
@@ -76,10 +69,10 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
   }
 
   const muatan = [
-    { label: "Total AWB", value: data.total_awb ?? 0 },
-    { label: "Total Koli", value: data.total_koli ?? 0 },
-    { label: "High Value", value: data.total_high_value ?? 0 },
-    { label: "Eceran (pcs)", value: data.total_eceran ?? 0 },
+    { label: "Total AWB", value: data.total_awb ?? 0, accent: false },
+    { label: "Total Koli", value: data.total_koli ?? 0, accent: false },
+    { label: "High Value", value: data.total_high_value ?? 0, accent: true },
+    { label: "Eceran (pcs)", value: data.total_eceran ?? 0, accent: false },
   ];
 
   // ── Statistik ritase (client-side dari events + stops) ──
@@ -89,7 +82,6 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
   const nSeller = countStop("seller");
   const nDrop = countStop("drop_point");
   const nGudang = countStop("gudang");
-  const totalTitik = stops.length;
 
   const durasiParts = [
     { label: "Loading", v: sum.loading, color: "bg-[#0c1e3a]" },
@@ -108,15 +100,17 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
     return Number.isNaN(d) ? null : d;
   };
   const fmtDelta = (d: number) =>
-    d === 0 ? "Tepat waktu" : d > 0 ? `Telat ${d} m` : `Lebih awal ${-d} m`;
+    d === 0 ? "Tepat waktu" : d > 0 ? `Telat ${d}m` : `Lebih awal ${-d}m`;
 
   const realisasiRows = [
     { label: "Berangkat", jadwal: data.jam_mulai, realisasi: data.jam_berangkat },
     { label: "Tiba", jadwal: data.jam_selesai, realisasi: data.jam_tiba },
   ];
 
+  const isLive = vehicle ? hasActiveSession(vehicle.last_login) : false;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <PageHeader
         title={data.kode_ritase}
         description={`RIT ${data.ritase_ke ?? "-"} · ${formatDateDMY(data.tanggal)}`}
@@ -129,119 +123,142 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
       />
       <ArmadaTabs />
 
-      {/* Info ritase */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">
-            Informasi Ritase
-            <InfoTip text="Ringkasan penugasan: driver, kendaraan, jadwal RIT, dan status." />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          <Info icon={<User className="h-3.5 w-3.5" />} label="Driver" value={data.nama_driver} />
-           <Info icon={<Truck className="h-3.5 w-3.5" />} label="Kendaraan" value={data.plat_nomor} />
-          {vehicle && (
-            <Info
-              icon={<RadioTower className="h-3.5 w-3.5" />}
-              label="Status Live"
-              value={displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update, hasActiveSession(vehicle.last_login))}
-            />
-          )}
-           <Info
-             icon={<Clock className="h-3.5 w-3.5" />}
-             label="Jadwal RIT"
-             value={data.jam_mulai && data.jam_selesai ? `${data.jam_mulai} – ${data.jam_selesai}` : "-"}
-           />
-          <Info icon={<PackageSearch className="h-3.5 w-3.5" />} label="Status" value={statusLabel(data.status)} />
-         </CardContent>
-       </Card>
-
-      {/* Rute */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-            <MapPin className="h-4 w-4" /> Rute
-            <InfoTip text="Urutan perjalanan ritase: gudang → seller → gateway." />
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <RuteStepper stops={data.stops ?? []} />
-        </CardContent>
-      </Card>
-
-      {/* Peta Perjalanan */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-            <MapPin className="h-4 w-4" /> Peta Perjalanan
-            <InfoTip text="Visualisasi rute perjalanan antar titik." />
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <TripMap stops={data.stops ?? []} events={data.events ?? []} />
-        </CardContent>
-      </Card>
-
-
-      {/* Statistik Ritase */}
-      <Card className="overflow-hidden">
-        <CardHeader className="border-b pb-2">
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-            <BarChart3 className="h-4 w-4 text-[#0c1e3a]" /> Statistik Ritase
-            <InfoTip text="Ringkasan durasi, komposisi rute, dan perbandingan realisasi vs jadwal." />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 pt-4">
-          {/* Ringkasan angka */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
-            <StatTile icon={<Timer className="h-4 w-4" />} label="Total Durasi" value={formatDur(sum.total)} tip="Total waktu dari seluruh event status." />
-            <StatTile icon={<ListChecks className="h-4 w-4" />} label="Titik Rute" value={formatNumber(totalTitik)} tip="Total titik dalam rute: gudang + seller + gateway." />
-            <StatTile icon={<PackageCheck className="h-4 w-4" />} label="Seller" value={formatNumber(nSeller)} tip="Jumlah seller yang dikunjungi." />
-            <StatTile icon={<Flag className="h-4 w-4" />} label="Gateway" value={formatNumber(nDrop)} tip="Jumlah gateway tujuan." />
-            <StatTile icon={<Clock className="h-4 w-4" />} label="Event Status" value={formatNumber((data.events ?? []).length)} tip="Jumlah update status yang tercatat." />
-          </div>
-
-          {/* Komposisi durasi */}
-          {sum.total > 0 && (
-            <div>
-              <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                Komposisi Durasi
-              </p>
-              <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
-                {durasiParts.map((p) => (
-                  <div key={p.label} className={p.color} style={{ width: `${(p.v / sum.total) * 100}%` }} />
-                ))}
-              </div>
-              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400">
-                {durasiParts.map((p) => (
-                  <span key={p.label} className="inline-flex items-center gap-1">
-                    <i className={cn("h-2 w-2 rounded-full", p.color)} />
-                    {p.label} {Math.round((p.v / sum.total) * 100)}%
-                  </span>
-                ))}
+      {/* ── Vitals bar: semua yang perlu dilihat sekali pandang, tanpa scroll ── */}
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 divide-slate-100 sm:divide-x">
+          <VitalItem icon={<User className="h-4 w-4" />} label="Driver" value={data.nama_driver} first />
+          <VitalItem icon={<Truck className="h-4 w-4" />} label="Kendaraan" value={data.plat_nomor} />
+          {vehicle ? (
+            <div className="flex items-center gap-2 pl-0 sm:pl-6">
+              <span className="relative flex h-2 w-2 shrink-0">
+                {isLive && (
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                )}
+                <span className={cn("relative inline-flex h-2 w-2 rounded-full", isLive ? "bg-emerald-500" : "bg-slate-300")} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Status Live</p>
+                <p className="truncate text-sm font-bold text-slate-800">
+                  {displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update, isLive)}
+                </p>
               </div>
             </div>
+          ) : (
+            <VitalItem icon={<RadioTower className="h-4 w-4" />} label="Status" value={statusLabel(data.status)} />
           )}
+          <VitalItem icon={<Timer className="h-4 w-4" />} label="Total Durasi" value={formatDur(sum.total)} />
 
-          {/* Komposisi rute */}
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Rute:</p>
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
-              <i className="h-2 w-2 rounded-full bg-sky-500" /> Gudang {formatNumber(nGudang)}
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
-              <i className="h-2 w-2 rounded-full bg-emerald-500" /> Seller {formatNumber(nSeller)}
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
-              <i className="h-2 w-2 rounded-full bg-orange-500" /> Gateway {formatNumber(nDrop)}
-            </span>
-          </div>
-
-          {/* Realisasi vs jadwal */}
-          <div className="grid gap-2 sm:grid-cols-2">
+          {/* Badge telat/tepat waktu — ringkasan cepat dari blok jadwal di sidebar */}
+          <div className="flex flex-wrap items-center gap-2 pl-0 sm:pl-6">
             {realisasiRows.map((r) => {
               const d = deltaMin(r.jadwal, r.realisasi);
+              if (d === null) return null;
               return (
+                <span
+                  key={r.label}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold",
+                    d === 0 ? "bg-emerald-50 text-emerald-700" : d > 0 ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-sky-700"
+                  )}
+                >
+                  {r.label}: {fmtDelta(d)}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Main: Perjalanan (rute+peta digabung) di kiri, ringkasan di kanan ── */}
+      <div className="grid gap-5 lg:grid-cols-3 mt-2">
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between gap-2 text-sm font-semibold">
+              <span className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-[#0c1e3a]" /> Perjalanan
+                <InfoTip text="Rute, komposisi titik, dan posisi perjalanan ritase." />
+              </span>
+              <span className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold">
+                <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-slate-600">
+                  <i className="h-2 w-2 rounded-full bg-sky-500" /> Gudang {formatNumber(nGudang)}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-slate-600">
+                  <i className="h-2 w-2 rounded-full bg-emerald-500" /> Seller {formatNumber(nSeller)}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-slate-600">
+                  <i className="h-2 w-2 rounded-full bg-orange-500" /> Gateway {formatNumber(nDrop)}
+                </span>
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <RuteStepper stops={data.stops ?? []} />
+
+            {sum.total > 0 && (
+              <div>
+                <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Komposisi Durasi
+                </p>
+                <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                  {durasiParts.map((p) => (
+                    <div key={p.label} className={p.color} style={{ width: `${(p.v / sum.total) * 100}%` }} />
+                  ))}
+                </div>
+                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400">
+                  {durasiParts.map((p) => (
+                    <span key={p.label} className="inline-flex items-center gap-1">
+                      <i className={cn("h-2 w-2 rounded-full", p.color)} />
+                      {p.label} {Math.round((p.v / sum.total) * 100)}%
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="overflow-hidden rounded-lg border border-slate-100">
+              <TripMap stops={data.stops ?? []} events={data.events ?? []} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Sidebar: data referensi cepat */}
+        <div className="space-y-5">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">
+                Muatan
+                <InfoTip text="Jumlah AWB, koli, high value, dan eceran (pcs) yang tercatat." />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-2">
+                {muatan.map((m) => (
+                  <div
+                    key={m.label}
+                    className={cn(
+                      "rounded-lg border px-3 py-2.5",
+                      m.accent ? "border-amber-200 bg-amber-50/60" : "border-slate-100"
+                    )}
+                  >
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{m.label}</p>
+                    <p className={cn("mt-0.5 text-lg font-bold tabular-nums", m.accent ? "text-amber-700" : "text-slate-800")}>
+                      {formatNumber(m.value)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">
+                Jadwal
+                <InfoTip text="Perbandingan jadwal rencana vs realisasi berangkat & tiba." />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {realisasiRows.map((r) => (
                 <div key={r.label} className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{r.label}</p>
                   <p className="mt-0.5 text-sm">
@@ -249,110 +266,64 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
                     <span className="mx-1.5 text-slate-300">→</span>
                     <span className="font-semibold text-slate-800">{r.realisasi ?? "-"}</span>
                   </p>
-                  {d !== null && (
-                    <span
-                      className={cn(
-                        "mt-1 inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold",
-                        d === 0
-                          ? "bg-emerald-50 text-emerald-700"
-                          : d > 0
-                          ? "bg-rose-50 text-rose-700"
-                          : "bg-sky-50 text-sky-700"
-                      )}
-                    >
-                      {fmtDelta(d)}
-                    </span>
-                  )}
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* ── Timeline: paling padat isinya, layak dapat lebar penuh ── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between gap-2 text-sm font-semibold">
+            <span className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-[#0c1e3a]" /> Timeline Status & Durasi
+              <InfoTip text="Riwayat status & durasi proses (loading, perjalanan, tiba) selama ritase." />
+            </span>
+            <span className="text-[11px] font-semibold text-slate-400">
+              {formatNumber((data.events ?? []).length)} event
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(data.events ?? []).length === 0 ? (
+            <p className="py-3 text-center text-sm text-slate-400">Belum ada event status</p>
+          ) : (
+            <div className="grid gap-5 lg:grid-cols-2">
+              <DriverSummary events={data.events ?? []} stops={data.stops ?? []} />
+              <div className="border-t pt-3 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+                <StatusTimeline events={data.events ?? []} stops={data.stops ?? []} limit={15} />
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {/* Muatan + Timeline */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold">
-              Muatan
-              <InfoTip text="Jumlah AWB, koli, high value, dan eceran (pcs) yang tercatat." />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {muatan.map((m) => (
-              <div
-                key={m.label}
-                className="flex items-center justify-between border-b border-slate-100 py-2 last:border-0"
-              >
-                <span className="text-sm text-slate-600">{m.label}</span>
-                <span className="text-sm font-bold tabular-nums">{formatNumber(m.value)}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold">
-              Timeline Status & Durasi
-              <InfoTip text="Riwayat status & durasi proses (loading, perjalanan, tiba) selama ritase." />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {(data.events ?? []).length === 0 ? (
-              <p className="py-3 text-center text-sm text-slate-400">Belum ada event status</p>
-            ) : (
-              <>
-                <DriverSummary events={data.events ?? []} stops={data.stops ?? []} />
-                <div className="mt-4 border-t pt-3">
-                  <StatusTimeline events={data.events ?? []} stops={data.stops ?? []} limit={15} />
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
 
-function Info({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="flex items-center gap-2 rounded-md bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
-      <span className="shrink-0 text-slate-400">{icon}</span>
-      <div className="min-w-0">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">{label}</p>
-        <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-200">{value || "-"}</p>
-      </div>
-    </div>
-  );
-}
-
-/** Tile angka kecil untuk Statistik Ritase. */
-function StatTile({
+/** Satu segmen pada vitals bar (baris ringkasan paling atas). */
+function VitalItem({
   icon,
   label,
   value,
-  tip,
+  first = false,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
-  tip: string;
+  first?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-slate-100 px-3 py-2.5">
-      <div className="flex items-center gap-2">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500">
-          {icon}
-        </span>
-        <span className="min-w-0">
-          <span className="block truncate text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</span>
-          <span className="block text-base font-bold tabular-nums text-slate-800">{value}</span>
-        </span>
+    <div className={cn("flex items-center gap-2", !first && "pl-0 sm:pl-6")}>
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0c1e3a]/8 text-[#0c1e3a]">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+        <p className="truncate text-sm font-bold text-slate-800">{value || "-"}</p>
       </div>
-      <p className="mt-1 text-[10px] leading-snug text-slate-400">{tip}</p>
     </div>
   );
 }

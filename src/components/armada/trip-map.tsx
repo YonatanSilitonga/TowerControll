@@ -75,14 +75,14 @@ export function TripMap({ stops, events }: { stops: RitaseStop[]; events?: Ritas
 
   if (!bounds) {
     return (
-      <div className="h-[350px] w-full flex items-center justify-center bg-slate-50 rounded-md">
+      <div className="h-[300px] w-full flex items-center justify-center bg-slate-50 rounded-md">
         <p className="text-sm text-slate-500">Tidak ada data lokasi untuk ditampilkan di peta.</p>
       </div>
     );
   }
 
   return (
-    <div className="relative h-[350px] w-full rounded-lg overflow-hidden border">
+    <div className="relative h-[300px] w-full rounded-lg overflow-hidden border">
       <MapContainer
         bounds={bounds}
         minZoom={11}
@@ -148,5 +148,5 @@ export function TripMap({ stops, events }: { stops: RitaseStop[]; events?: Ritas
 }
 
 export function TripMapSkeleton() {
-    return <Skeleton className="h-[350px] w-full" />;
+    return <Skeleton className="h-[300px] w-full" />;
 }
