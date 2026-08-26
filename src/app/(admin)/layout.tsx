@@ -2,10 +2,9 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
-import { ALLOWED_WEB_ROLES } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth-store";
 
 function BootLoader() {
@@ -21,14 +20,16 @@ function BootLoader() {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
   const token = useAuthStore((s) => s.token);
   const [ready, setReady] = useState(false);
 
-  const isLoginPage = typeof window !== "undefined" && window.location.pathname === "/admin/login";
+  const isLoginPage = pathname === "/admin/login";
 
   useEffect(() => {
-    if (window.location.pathname === "/admin/login") {
+    // Login page — no guard needed
+    if (pathname === "/admin/login") {
       setReady(true);
       return;
     }
@@ -50,17 +51,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [pathname]);
 
-  // Login page — no sidebar/header, plain
-  if (typeof window !== "undefined" && window.location.pathname === "/admin/login") {
-    return <>{children}</>;
-  }
+  // Login page — plain, no sidebar/header
+  if (isLoginPage) return <>{children}</>;
 
+  // Boot guard
   if (!hasHydrated || !ready) return <BootLoader />;
   if (!token) return <BootLoader />;
 
-  // Admin pages — reuse exact same Sidebar + Header from dashboard
+  // Admin pages — same Sidebar + Header as dashboard
   return (
     <div className="flex min-h-screen">
       <Sidebar />
