@@ -104,28 +104,36 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
 
   // Derive realisasi dari events jika jam_berangkat/jam_tiba kosong
   const events = data.events ?? [];
-  const evBerangkat = events.find((e) => e.status === "berangkat_gudang");
-  const evTiba = [...events].reverse().find((e) => e.status === "tiba" || e.status === "selesai");
   const fmtTime = (iso?: string | null) => {
     if (!iso) return null;
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return null;
-    // Pakai format manual (bukan toLocaleTimeString) biar gak hydration mismatch
     const h = String(d.getUTCHours() + 7).padStart(2, "0"); // WIB = UTC+7
     const m = String(d.getUTCMinutes()).padStart(2, "0");
     return `${h}:${m}`;
   };
 
+  // Cari realisasi: event pertama = berangkat, event terakhir = tiba
+  const evSorted = [...events].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  const evBerangkat = evSorted.find((e) => e.status?.includes("berangkat") || e.status?.includes("mulai_loading"));
+  const evTiba = [...evSorted].reverse().find((e) => e.status?.includes("tiba") || e.status?.includes("selesai") || e.status?.includes("sampai"));
+  // Fallback: kalau gak ketemu status spesifik, pakai event pertama & terakhir
+  const firstEvent = evSorted[0];
+  const lastEvent = evSorted[evSorted.length - 1];
+
+  const realisasiBerangkat = data.jam_berangkat || fmtTime(evBerangkat?.created_at) || fmtTime(firstEvent?.created_at);
+  const realisasiTiba = data.jam_tiba || fmtTime(evTiba?.created_at) || fmtTime(lastEvent?.created_at);
+
   const realisasiRows = [
     {
       label: "Berangkat",
       jadwal: data.jam_mulai,
-      realisasi: data.jam_berangkat || fmtTime(evBerangkat?.created_at),
+      realisasi: realisasiBerangkat,
     },
     {
       label: "Tiba",
       jadwal: data.jam_selesai,
-      realisasi: data.jam_tiba || fmtTime(evTiba?.created_at),
+      realisasi: realisasiTiba,
     },
   ];
 
