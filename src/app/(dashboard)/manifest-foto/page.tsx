@@ -265,82 +265,79 @@ export default function ManifestFotoPage() {
         />
       </div>
 
-      {/* ── Filter Toolbar — semua dalam 1 bar ── */}
-      <div className="flex flex-col gap-3 sm:gap-4 rounded-lg border border-slate-200 bg-white p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-900">
-        {/* Baris 1: Filter — Date + Driver + Search + Refresh */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-          <span className="hidden sm:inline text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0 mr-1">Filter</span>
-          <div className="flex items-center gap-1 sm:gap-1.5">
-            <DatePill label="Hari Ini" active={selectedDate === todayStr} onClick={() => setSelectedDate(todayStr)} />
-            <DatePill label="Kemarin" active={selectedDate === yesterdayStr} onClick={() => setSelectedDate(yesterdayStr)} />
-            <DatePill label="Semua" active={selectedDate === "all"} onClick={() => setSelectedDate("all")} />
-            <input
-              type="date"
-              value={selectedDate === "all" ? "" : selectedDate}
-              max={todayStr}
-              onChange={(e) => setSelectedDate(e.target.value || "all")}
-              className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            />
-          </div>
-
-          <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
-
-          <select
-            value={selectedDriverId}
-            onChange={(e) => setSelectedDriverId(e.target.value)}
+      {/* ── Filter Bar: Date + Driver + Search + Refresh ── */}
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900">
+        <span className="hidden sm:inline text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0 mr-1">Filter</span>
+        <div className="flex items-center gap-1 sm:gap-1.5">
+          <DatePill label="Hari Ini" active={selectedDate === todayStr} onClick={() => setSelectedDate(todayStr)} />
+          <DatePill label="Kemarin" active={selectedDate === yesterdayStr} onClick={() => setSelectedDate(yesterdayStr)} />
+          <DatePill label="Semua" active={selectedDate === "all"} onClick={() => setSelectedDate("all")} />
+          <input
+            type="date"
+            value={selectedDate === "all" ? "" : selectedDate}
+            max={todayStr}
+            onChange={(e) => setSelectedDate(e.target.value || "all")}
             className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-          >
-            <option value="all">Semua Driver</option>
-            {drivers.map((d: DriverArmada) => (
-              <option key={d.id_driver} value={d.id_driver.toString()}>
-                {d.nama_driver}
-              </option>
-            ))}
-          </select>
-
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Cari driver, nopol, lokasi..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-7 w-40 rounded-md border border-slate-200 bg-white pl-7 pr-2 text-[11px] focus:border-[#0c1e3a] focus:outline-none sm:w-48 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-            />
-          </div>
-
-          <button
-            onClick={() => refetch()}
-            disabled={isLoading || isRefetching}
-            className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
-            title="Refresh"
-          >
-            <RefreshCw className={cn("h-3 w-3", (isLoading || isRefetching) && "animate-spin")} />
-          </button>
+          />
         </div>
 
-        {/* Baris 2: Tampilan toggle */}
-        <div className="flex items-center gap-2 overflow-x-auto">
-          <span className="hidden sm:inline text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0">Tampilan</span>
-          <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800 shrink-0">
-            <ViewBtn active={viewMode === "ritase"} onClick={() => setViewMode("ritase")} icon={Rows3} label="Per Ritase" />
-            <ViewBtn active={viewMode === "grid"} onClick={() => setViewMode("grid")} icon={LayoutGrid} label="Galeri" />
-            <ViewBtn active={viewMode === "timeline"} onClick={() => setViewMode("timeline")} icon={Images} label="Per Driver" />
-          </div>
+        <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
 
-          {viewMode !== "grid" && (
-            <>
-              <div className="hidden sm:block h-4 w-px bg-slate-200 dark:bg-slate-700" />
-              <button onClick={expandAll} className="hidden sm:inline text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0">
-                Buka Semua
-              </button>
-              <span className="hidden sm:inline text-slate-300 dark:text-slate-700">·</span>
-              <button onClick={collapseAll} className="hidden sm:inline text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0">
-                Tutup Semua
-              </button>
-            </>
-          )}
+        <select
+          value={selectedDriverId}
+          onChange={(e) => setSelectedDriverId(e.target.value)}
+          className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+        >
+          <option value="all">Semua Driver</option>
+          {drivers.map((d: DriverArmada) => (
+            <option key={d.id_driver} value={d.id_driver.toString()}>
+              {d.nama_driver}
+            </option>
+          ))}
+        </select>
+
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Cari driver, nopol, lokasi..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-7 w-40 rounded-md border border-slate-200 bg-white pl-7 pr-2 text-[11px] focus:border-[#0c1e3a] focus:outline-none sm:w-48 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+          />
         </div>
+
+        <button
+          onClick={() => refetch()}
+          disabled={isLoading || isRefetching}
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
+          title="Refresh"
+        >
+          <RefreshCw className={cn("h-3 w-3", (isLoading || isRefetching) && "animate-spin")} />
+        </button>
+      </div>
+
+      {/* ── View Mode Bar: Tampilan + Expand/Collapse ── */}
+      <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900">
+        <span className="hidden sm:inline text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0">Tampilan</span>
+        <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800 shrink-0">
+          <ViewBtn active={viewMode === "ritase"} onClick={() => setViewMode("ritase")} icon={Rows3} label="Per Ritase" />
+          <ViewBtn active={viewMode === "grid"} onClick={() => setViewMode("grid")} icon={LayoutGrid} label="Galeri" />
+          <ViewBtn active={viewMode === "timeline"} onClick={() => setViewMode("timeline")} icon={Images} label="Per Driver" />
+        </div>
+
+        {viewMode !== "grid" && (
+          <>
+            <div className="hidden sm:block h-4 w-px bg-slate-200 dark:bg-slate-700" />
+            <button onClick={expandAll} className="hidden sm:inline text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0">
+              Buka Semua
+            </button>
+            <span className="hidden sm:inline text-slate-300 dark:text-slate-700">·</span>
+            <button onClick={collapseAll} className="hidden sm:inline text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0">
+              Tutup Semua
+            </button>
+          </>
+        )}
       </div>
 
       {/* ── Content ── */}
