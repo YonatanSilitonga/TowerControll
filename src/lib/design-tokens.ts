@@ -55,6 +55,27 @@ export const BUTTON_HEIGHTS = {
   lg: "h-10",           // 40px (mobile accessible)
 } as const;
 
+// ========== INPUT FIELDS (Standard) ==========
+export const INPUT_STYLES = {
+  base: "h-8 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100",
+  focus: "focus:ring-2 focus:ring-[#FEA103] focus:border-transparent dark:focus:border-transparent",
+  compact: "h-7 px-2 py-1.5 rounded-md border border-slate-200 bg-white text-xs dark:border-slate-700 dark:bg-slate-800",
+} as const;
+
+// ========== FORM LABELS & HELPERS ==========
+export const FORM_STYLES = {
+  label: "text-sm font-medium text-slate-700 dark:text-slate-300",
+  helper: "text-xs text-slate-500 dark:text-slate-400 mt-1",
+  error: "text-xs text-rose-600 dark:text-rose-400 mt-1",
+} as const;
+
+// ========== BADGES ==========
+export const BADGE_STYLES = {
+  default: "px-2 py-1 rounded-md text-xs font-medium",
+  sm: "px-1.5 py-0.5 rounded-md text-[10px] font-semibold",
+  lg: "px-2.5 py-1.5 rounded-lg text-sm font-medium",
+} as const;
+
 // ========== BORDER RADIUS ==========
 export const BORDER_RADIUS = {
   sm: "rounded-md",
@@ -98,4 +119,22 @@ export const PATTERNS = {
   
   // Sidebar
   sidebarBase: "border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900",
+  
+  // Data table header row
+  tableHeader: "border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50",
+  
+  // Data table body row
+  tableRow: "border-b border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900/50 transition-colors",
+  
+  // Empty state
+  emptyState: "py-12 text-center",
+} as const;
+
+// ========== MODAL / DIALOG ==========
+export const MODAL_STYLES = {
+  backdrop: "fixed inset-0 bg-black/50 z-40",
+  overlay: "fixed inset-0 z-50 flex items-center justify-center",
+  content: "rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900 max-w-md w-full mx-4",
+  header: "border-b border-slate-200 px-6 py-4 dark:border-slate-800",
+  footer: "border-t border-slate-200 px-6 py-4 flex items-center justify-end gap-3 dark:border-slate-800",
 } as const;
