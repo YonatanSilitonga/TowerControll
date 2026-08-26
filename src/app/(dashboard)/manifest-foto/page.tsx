@@ -266,9 +266,10 @@ export default function ManifestFotoPage() {
       </div>
 
       {/* ── Filter Toolbar — semua dalam 1 bar ── */}
-      <div className="flex flex-col gap-2.5 sm:gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-900">
-        {/* Baris 1: Date + Search + Refresh */}
+      <div className="flex flex-col gap-3 sm:gap-4 rounded-lg border border-slate-200 bg-white p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-900">
+        {/* Baris 1: Filter — Date + Driver + Search + Refresh */}
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <span className="hidden sm:inline text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0 mr-1">Filter</span>
           <div className="flex items-center gap-1 sm:gap-1.5">
             <DatePill label="Hari Ini" active={selectedDate === todayStr} onClick={() => setSelectedDate(todayStr)} />
             <DatePill label="Kemarin" active={selectedDate === yesterdayStr} onClick={() => setSelectedDate(yesterdayStr)} />
@@ -319,8 +320,8 @@ export default function ManifestFotoPage() {
         </div>
 
         {/* Baris 2: Tampilan toggle */}
-        <div className="flex items-center gap-2 border-t border-slate-100 pt-2.5 dark:border-slate-800 overflow-x-auto">
-          <span className="hidden sm:inline text-[11px] font-medium text-slate-400 shrink-0">Tampilan:</span>
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <span className="hidden sm:inline text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0">Tampilan</span>
           <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800 shrink-0">
             <ViewBtn active={viewMode === "ritase"} onClick={() => setViewMode("ritase")} icon={Rows3} label="Per Ritase" />
             <ViewBtn active={viewMode === "grid"} onClick={() => setViewMode("grid")} icon={LayoutGrid} label="Galeri" />
