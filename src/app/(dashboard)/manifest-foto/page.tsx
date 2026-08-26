@@ -3,7 +3,6 @@
 import { useState, useMemo, useCallback } from "react";
 import {
   Camera,
-  Calendar as CalendarIcon,
   Search,
   Download,
   X,
@@ -102,7 +101,8 @@ export default function ManifestFotoPage() {
     const uniqueDrivers = new Set(photos.map((p) => p.id_driver)).size;
     const totalKoli = photos.reduce((a, p) => a + (p.jumlah_koli || 0), 0);
     const totalEcer = photos.reduce((a, p) => a + (p.jumlah_ecer || 0), 0);
-    return { totalPhotos, uniqueDrivers, totalKoli, totalEcer };
+    const totalHV = photos.reduce((a, p) => a + (p.jumlah_high_value || 0), 0);
+    return { totalPhotos, uniqueDrivers, totalKoli, totalEcer, totalHV };
   }, [photos]);
 
   const todayStr = useMemo(
@@ -231,7 +231,7 @@ export default function ManifestFotoPage() {
       />
 
       {/* ── KPI Summary Cards — tema konsisten ── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <div className="rounded-lg border border-slate-200 bg-white p-4 transition-colors dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Foto</span>
@@ -264,13 +264,23 @@ export default function ManifestFotoPage() {
         </div>
         <div className="rounded-lg border border-slate-200 bg-white p-4 transition-colors dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Ecer / HV</span>
+            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Eceran</span>
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-              <Clock className="h-4 w-4" />
+              <Package className="h-4 w-4" />
             </div>
           </div>
           <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{stats.totalEcer}</p>
           <p className="mt-0.5 text-[11px] text-slate-500">pcs eceran</p>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-white p-4 transition-colors dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">High Value</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+              <Package className="h-4 w-4" />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{stats.totalHV}</p>
+          <p className="mt-0.5 text-[11px] text-slate-500">barang high value</p>
         </div>
       </div>
 
@@ -282,16 +292,13 @@ export default function ManifestFotoPage() {
             <DatePill label="Hari Ini" active={selectedDate === todayStr} onClick={() => setSelectedDate(todayStr)} />
             <DatePill label="Kemarin" active={selectedDate === yesterdayStr} onClick={() => setSelectedDate(yesterdayStr)} />
             <DatePill label="Semua" active={selectedDate === "all"} onClick={() => setSelectedDate("all")} />
-            <div className="relative">
-              <CalendarIcon className="pointer-events-none absolute left-2 h-3 w-3 text-slate-400" />
-              <input
-                type="date"
-                value={selectedDate === "all" ? "" : selectedDate}
-                max={todayStr}
-                onChange={(e) => setSelectedDate(e.target.value || "all")}
-                className="h-7 rounded-md border border-slate-200 bg-white pl-7 pr-2 text-[11px] font-medium text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-              />
-            </div>
+            <input
+              type="date"
+              value={selectedDate === "all" ? "" : selectedDate}
+              max={todayStr}
+              onChange={(e) => setSelectedDate(e.target.value || "all")}
+              className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            />
           </div>
 
           <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
