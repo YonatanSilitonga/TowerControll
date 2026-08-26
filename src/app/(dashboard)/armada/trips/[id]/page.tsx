@@ -102,9 +102,27 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
   const fmtDelta = (d: number) =>
     d === 0 ? "Tepat waktu" : d > 0 ? `Telat ${d}m` : `Lebih awal ${-d}m`;
 
+  // Derive realisasi dari events jika jam_berangkat/jam_tiba kosong
+  const events = data.events ?? [];
+  const evBerangkat = events.find((e) => e.status === "berangkat_gudang");
+  const evTiba = [...events].reverse().find((e) => e.status === "tiba" || e.status === "selesai");
+  const fmtTime = (iso?: string | null) => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? null : d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false });
+  };
+
   const realisasiRows = [
-    { label: "Berangkat", jadwal: data.jam_mulai, realisasi: data.jam_berangkat },
-    { label: "Tiba", jadwal: data.jam_selesai, realisasi: data.jam_tiba },
+    {
+      label: "Berangkat",
+      jadwal: data.jam_mulai,
+      realisasi: data.jam_berangkat || fmtTime(evBerangkat?.created_at),
+    },
+    {
+      label: "Tiba",
+      jadwal: data.jam_selesai,
+      realisasi: data.jam_tiba || fmtTime(evTiba?.created_at),
+    },
   ];
 
   const isLive = vehicle ? hasActiveSession(vehicle.last_login) : false;
