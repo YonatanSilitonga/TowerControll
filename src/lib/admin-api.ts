@@ -82,3 +82,12 @@ export const adminUser = {
   resetPassword: (id: number, newPassword: string) => adminFetch<any>(`/admin/users/${id}/reset-password`, { method: "POST", body: JSON.stringify({ new_password: newPassword }) }),
   delete: (id: number) => adminFetch<any>(`/admin/users/${id}`, { method: "DELETE" }),
 };
+
+// ── DropPoint ──
+export type DropPointAdmin = { id_drop_point: number; nama_drop_point: string; alamat?: string; latitude?: number; longitude?: number; status: string };
+export const adminDropPoint = {
+  list: () => adminFetch<DropPointAdmin[]>("/admin/drop-points"),
+  create: (data: Partial<DropPointAdmin>) => adminFetch<{ id_drop_point: number }>("/admin/drop-points", { method: "POST", body: JSON.stringify(data) }),
+  update: (id: number, data: Partial<DropPointAdmin>) => adminFetch<any>(`/admin/drop-points/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  delete: (id: number) => adminFetch<any>(`/admin/drop-points/${id}`, { method: "DELETE" }),
+};

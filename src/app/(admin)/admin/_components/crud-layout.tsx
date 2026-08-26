@@ -39,6 +39,7 @@ export type FieldConfig = {
   options?: { value: string; label: string }[];
   placeholder?: string;
   colSpan?: number;
+  createOnly?: boolean; // only show in create form, not edit
 };
 
 /* ─────────── MAIN CRUD COMPONENT ─────────── */
@@ -177,7 +178,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
       {/* Modal Form */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? `Edit ${title}` : `Tambah ${title}`}>
         <div className="space-y-4">
-          {fields.map((f) => (
+          {fields.filter(f => !f.createOnly || !editing).map((f) => (
             <div key={f.key} className={cn(f.colSpan === 2 && "col-span-2")}>
               <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
                 {f.label}{f.required && <span className="ml-0.5 text-rose-500">*</span>}
