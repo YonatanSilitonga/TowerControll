@@ -137,22 +137,22 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
             <InfoTip text="Ringkasan penugasan: driver, kendaraan, jadwal RIT, dan status." />
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Info icon={<User className="h-4 w-4" />} label="Driver" value={data.nama_driver} />
-           <Info icon={<Truck className="h-4 w-4" />} label="Kendaraan" value={data.plat_nomor} />
+        <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <Info icon={<User className="h-3.5 w-3.5" />} label="Driver" value={data.nama_driver} />
+           <Info icon={<Truck className="h-3.5 w-3.5" />} label="Kendaraan" value={data.plat_nomor} />
           {vehicle && (
             <Info
-              icon={<RadioTower className="h-4 w-4" />}
+              icon={<RadioTower className="h-3.5 w-3.5" />}
               label="Status Live"
               value={displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update, hasActiveSession(vehicle.last_login))}
             />
           )}
            <Info
-             icon={<Clock className="h-4 w-4" />}
+             icon={<Clock className="h-3.5 w-3.5" />}
              label="Jadwal RIT"
              value={data.jam_mulai && data.jam_selesai ? `${data.jam_mulai} – ${data.jam_selesai}` : "-"}
            />
-          <Info icon={<PackageSearch className="h-4 w-4" />} label="Status Ritase" value={statusLabel(data.status)} />
+          <Info icon={<PackageSearch className="h-3.5 w-3.5" />} label="Status" value={statusLabel(data.status)} />
          </CardContent>
        </Card>
 
@@ -319,11 +319,11 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
 
 function Info({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-start gap-2">
-      <span className="mt-0.5 text-slate-400">{icon}</span>
-      <div>
-        <p className="text-xs text-slate-400">{label}</p>
-        <p className="text-sm font-semibold text-slate-800">{value || "-"}</p>
+    <div className="flex items-center gap-2 rounded-md bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
+      <span className="shrink-0 text-slate-400">{icon}</span>
+      <div className="min-w-0">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">{label}</p>
+        <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-200">{value || "-"}</p>
       </div>
     </div>
   );
