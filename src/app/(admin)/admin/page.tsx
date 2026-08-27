@@ -76,23 +76,23 @@ export default function AdminDashboardPage() {
   }, []);
 
   const summaryCards = [
-    { label: "Driver", count: counts.drivers, sub: `${counts.activeDrivers} aktif`, href: "/admin/drivers", icon: Users, color: "text-blue-600 bg-blue-50 dark:bg-blue-500/10 dark:text-blue-400" },
-    { label: "Kendaraan", count: counts.vehicles, sub: `${counts.activeVehicles} siap`, href: "/admin/vehicles", icon: Car, color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400" },
-    { label: "Seller", count: counts.sellers, sub: `${counts.activeSellers} aktif`, href: "/admin/sellers", icon: Store, color: "text-purple-600 bg-purple-50 dark:bg-purple-500/10 dark:text-purple-400" },
-    { label: "Gateway", count: counts.dropPoints, sub: `${counts.activeDropPoints} aktif`, href: "/admin/drop-points", icon: Navigation, color: "text-cyan-600 bg-cyan-50 dark:bg-cyan-500/10 dark:text-cyan-400" },
-    { label: "Ritase", count: counts.ritase, sub: `${counts.activeRitase} berjalan`, href: "/admin/ritase", icon: Clock, color: "text-amber-600 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-400" },
-    { label: "Users", count: counts.users, sub: "Akun sistem", href: "/admin/users", icon: Shield, color: "text-rose-600 bg-rose-50 dark:bg-rose-500/10 dark:text-rose-400" },
+    { label: "Driver", count: counts.drivers, sub: `${counts.activeDrivers} aktif`, href: "/admin/drivers", icon: Users },
+    { label: "Kendaraan", count: counts.vehicles, sub: `${counts.activeVehicles} siap`, href: "/admin/vehicles", icon: Car },
+    { label: "Seller", count: counts.sellers, sub: `${counts.activeSellers} aktif`, href: "/admin/sellers", icon: Store },
+    { label: "Gateway", count: counts.dropPoints, sub: `${counts.activeDropPoints} aktif`, href: "/admin/drop-points", icon: Navigation },
+    { label: "Ritase", count: counts.ritase, sub: `${counts.activeRitase} berjalan`, href: "/admin/ritase", icon: Clock },
+    { label: "Users", count: counts.users, sub: "Akun sistem", href: "/admin/users", icon: Shield },
   ];
 
   const quickActions = [
-    { label: "Tambah Driver", href: "/admin/drivers", icon: Users, color: "text-blue-600" },
-    { label: "Tambah Kendaraan", href: "/admin/vehicles", icon: Car, color: "text-emerald-600" },
-    { label: "Tambah Seller", href: "/admin/sellers", icon: Store, color: "text-purple-600" },
-    { label: "Generate Ritase", href: "/jadwal", icon: Zap, color: "text-amber-600" },
+    { label: "Tambah Driver", href: "/admin/drivers", icon: Users, color: "text-slate-500" },
+    { label: "Tambah Kendaraan", href: "/admin/vehicles", icon: Car, color: "text-slate-500" },
+    { label: "Tambah Seller", href: "/admin/sellers", icon: Store, color: "text-slate-500" },
+    { label: "Generate Ritase", href: "/jadwal", icon: Zap, color: "text-amber-500" },
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PageHeader
         title="Admin Dashboard"
         description="Pusat kontrol data master operasional logistik."
@@ -104,31 +104,33 @@ export default function AdminDashboardPage() {
         }
       />
 
-      {/* ── KPI Summary Cards ── */}
+      {/* ── KPI Cards — clean, no colored bg ── */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {summaryCards.map((c) => (
           <Link
             key={c.href}
             href={c.href}
-            className="group flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-4 transition-all hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900"
+            className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white p-4 transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900"
           >
-            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${c.color}`}>
-              <c.icon className="h-5 w-5" />
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  {c.label}
+                </p>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
+                  {loading ? "—" : c.count.toLocaleString("id-ID")}
+                </p>
+                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{c.sub}</p>
+              </div>
+              <c.icon className="h-5 w-5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300" />
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{c.label}</p>
-              <p className="text-xl font-bold tabular-nums text-slate-900 dark:text-white">
-                {loading ? "—" : c.count.toLocaleString("id-ID")}
-              </p>
-              <p className="text-[11px] text-slate-400">{c.sub}</p>
-            </div>
-            <ArrowUpRight className="h-4 w-4 shrink-0 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 dark:text-slate-600" />
+            <ArrowUpRight className="absolute right-3 top-3 h-4 w-4 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 dark:text-slate-600" />
           </Link>
         ))}
       </div>
 
-      {/* ── Bottom Row: Quick Actions + System Info ── */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* ── Quick Actions + System Status ── */}
+      <div className="grid gap-3 sm:grid-cols-2">
         {/* Quick Actions */}
         <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
           <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Aksi Cepat</h3>
@@ -149,24 +151,24 @@ export default function AdminDashboardPage() {
         {/* System Status */}
         <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
           <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Status Sistem</h3>
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
               <div className="flex items-center gap-2">
-                <Server className="h-4 w-4 text-blue-500" />
+                <Server className="h-4 w-4 text-slate-500" />
                 <span className="text-xs text-slate-600 dark:text-slate-400">Backend API</span>
               </div>
               <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">Connected</span>
             </div>
             <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
               <div className="flex items-center gap-2">
-                <Database className="h-4 w-4 text-purple-500" />
+                <Database className="h-4 w-4 text-slate-500" />
                 <span className="text-xs text-slate-600 dark:text-slate-400">Database</span>
               </div>
               <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">Supabase PG</span>
             </div>
             <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
               <div className="flex items-center gap-2">
-                <RefreshCw className="h-4 w-4 text-amber-500" />
+                <RefreshCw className="h-4 w-4 text-slate-500" />
                 <span className="text-xs text-slate-600 dark:text-slate-400">Total Data Master</span>
               </div>
               <span className="text-xs font-bold tabular-nums text-slate-900 dark:text-white">

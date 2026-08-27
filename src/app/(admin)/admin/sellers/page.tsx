@@ -75,8 +75,7 @@ const fields: FieldConfig[] = [
   { key: "pic", label: "Nama PIC", placeholder: "Nama penanggung jawab" },
   { key: "no_hp", label: "No HP PIC", placeholder: "081234567890" },
   { key: "forecast_harian", label: "Estimasi Forecast Harian (koli)", type: "number", placeholder: "cth: 1500" },
-  { key: "latitude", label: "Latitude", type: "coordinate", placeholder: "-6.2402" },
-  { key: "longitude", label: "Longitude", type: "coordinate", placeholder: "106.5856" },
+  { key: "lokasi", label: "Lokasi di Peta", type: "coordinates", latKey: "latitude", lngKey: "longitude", colSpan: 2 },
   {
     key: "status",
     label: "Status Seller",

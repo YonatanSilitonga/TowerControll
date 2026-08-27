@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import {
   Plus,
@@ -20,6 +21,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MapPickerModal } from "./map-picker-modal";
 import { PageHeader } from "@/components/layout/page-header";
+
+// Dynamic mini map for coordinate preview
+const MiniMapPreview = dynamic(() => import("./map-picker-inner"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-32 w-full items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-[11px] text-slate-400 dark:border-slate-700 dark:bg-slate-800">
+      Memuat peta…
+    </div>
+  ),
+});
 
 /* ─────────── TOAST NOTIFICATION ─────────── */
 type ToastState = { show: boolean; title: string; message?: string; type: "success" | "error" | "info" };
@@ -114,7 +125,7 @@ export type Column<T> = {
 export type FieldConfig = {
   key: string;
   label: string;
-  type?: "text" | "select" | "number" | "textarea" | "time" | "date" | "coordinate";
+  type?: "text" | "select" | "number" | "textarea" | "time" | "date" | "coordinate" | "coordinates";
   required?: boolean;
   options?: { value: string; label: string }[];
   placeholder?: string;
@@ -122,6 +133,9 @@ export type FieldConfig = {
   createOnly?: boolean;
   validationRegex?: RegExp;
   validationErrorMsg?: string;
+  /** For type="coordinates": keys for lat/lng in form state */
+  latKey?: string;
+  lngKey?: string;
 };
 
 /* ─────────── MAIN CRUD COMPONENT (Identical to Armada DataTable) ─────────── */
@@ -599,6 +613,63 @@ export function AdminCrudPage<T extends Record<string, any>>({
                       <MapPin className="mr-1 h-3.5 w-3.5 text-amber-500" />
                       Peta
                     </Button>
+                  </div>
+                ) : f.type === "coordinates" ? (
+                  <div className="space-y-2">
+                    {/* Combined lat/lng inputs */}
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="mb-1 block text-[10px] font-medium text-slate-400">Latitude</label>
+                        <Input
+                          type="number"
+                          step="any"
+                          value={form[f.latKey || "latitude"] ?? ""}
+                          onChange={(e) => setField(f.latKey || "latitude", e.target.value === "" ? null : Number(e.target.value))}
+                          placeholder="-6.2100"
+                          className="h-8 text-xs font-mono"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="mb-1 block text-[10px] font-medium text-slate-400">Longitude</label>
+                        <Input
+                          type="number"
+                          step="any"
+                          value={form[f.lngKey || "longitude"] ?? ""}
+                          onChange={(e) => setField(f.lngKey || "longitude", e.target.value === "" ? null : Number(e.target.value))}
+                          placeholder="106.5500"
+                          className="h-8 text-xs font-mono"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setActiveLatKey(f.latKey || "latitude");
+                          setActiveLngKey(f.lngKey || "longitude");
+                          setMapOpen(true);
+                        }}
+                        className="mt-5 shrink-0 text-xs font-semibold"
+                      >
+                        <MapPin className="mr-1 h-3.5 w-3.5 text-amber-500" />
+                        Peta
+                      </Button>
+                    </div>
+                    {/* Mini map preview */}
+                    {form[f.latKey || "latitude"] && form[f.lngKey || "longitude"] && (
+                      <div className="overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
+                        <MiniMapPreview
+                          lat={form[f.latKey || "latitude"]}
+                          lng={form[f.lngKey || "longitude"]}
+                          onChange={(newLat, newLng) => {
+                            setForm((prev) => ({
+                              ...prev,
+                              [f.latKey || "latitude"]: newLat,
+                              [f.lngKey || "longitude"]: newLng,
+                            }));
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <Input

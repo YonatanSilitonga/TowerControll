@@ -38,7 +38,7 @@ const ADMIN_NAV: { label: string; href: string; icon: React.ComponentType<{ clas
   { label: "Driver", href: "/admin/drivers", icon: Users, key: "admin-drivers" },
   { label: "Kendaraan", href: "/admin/vehicles", icon: Car, key: "admin-vehicles" },
   { label: "Seller", href: "/admin/sellers", icon: Store, key: "admin-sellers" },
-  { label: "Drop Point", href: "/admin/drop-points", icon: MapPin, key: "admin-drop-points" },
+  { label: "Gateway", href: "/admin/drop-points", icon: MapPin, key: "admin-drop-points" },
   { label: "Ritase & Jam", href: "/admin/ritase", icon: Clock, key: "admin-ritase" },
   { label: "Users & Role", href: "/admin/users", icon: Users, key: "admin-users" },
 ];

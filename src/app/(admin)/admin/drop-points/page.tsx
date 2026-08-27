@@ -3,7 +3,7 @@
 import { AdminCrudPage, Column, FieldConfig } from "../_components/crud-layout";
 import { adminDropPoint, DropPointAdmin } from "@/lib/admin-api";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { MapPin, Navigation } from "lucide-react";
+import { Navigation } from "lucide-react";
 
 const columns: Column<DropPointAdmin>[] = [
   {
@@ -28,23 +28,6 @@ const columns: Column<DropPointAdmin>[] = [
     ),
   },
   {
-    header: "Koordinat Lokasi",
-    render: (r) =>
-      r.latitude && r.longitude ? (
-        <a
-          href={`https://www.google.com/maps?q=${r.latitude},${r.longitude}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 font-mono text-xs text-blue-600 hover:underline dark:text-blue-400"
-        >
-          <MapPin className="h-3 w-3 text-rose-500" />
-          {r.latitude.toFixed(4)}, {r.longitude.toFixed(4)}
-        </a>
-      ) : (
-        <span className="text-slate-400">—</span>
-      ),
-  },
-  {
     header: "Status",
     accessorKey: "status",
     render: (r) => <StatusBadge status={r.status} />,
@@ -54,8 +37,7 @@ const columns: Column<DropPointAdmin>[] = [
 const fields: FieldConfig[] = [
   { key: "nama_drop_point", label: "Nama Gateway", required: true, placeholder: "Contoh: TITIP AJA Gateway Tangerang" },
   { key: "alamat", label: "Alamat Lengkap", type: "textarea", colSpan: 2, placeholder: "Alamat lengkap lokasi gateway" },
-  { key: "latitude", label: "Latitude", type: "coordinate", placeholder: "-6.2100" },
-  { key: "longitude", label: "Longitude", type: "coordinate", placeholder: "106.5500" },
+  { key: "lokasi", label: "Lokasi di Peta", type: "coordinates", latKey: "latitude", lngKey: "longitude", colSpan: 2 },
   {
     key: "status",
     label: "Status Gateway",
