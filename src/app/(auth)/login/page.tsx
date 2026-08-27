@@ -82,7 +82,12 @@ function LoginForm() {
 
     try {
       await login(username, password);
-      router.replace(next);
+      const role = useAuthStore.getState().user?.role;
+      if (role === "admin") {
+        router.replace("/admin");
+      } else {
+        router.replace(next);
+      }
     } catch (err) {
       setError(
         err instanceof ApiError

@@ -62,6 +62,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         router.replace("/login");
         return;
       }
+      // Admin harus pakai /admin, bukan dashboard biasa
+      if (after.user && after.user.role === "admin") {
+        router.replace("/admin");
+        return;
+      }
       // Role tidak diizinkan untuk web → keluar
       if (after.user && !ALLOWED_WEB_ROLES.includes(after.user.role)) {
         after.clear();
