@@ -1,41 +1,125 @@
 "use client";
-import { AdminCrudPage, Column } from "../_components/crud-layout";
+
+import { AdminCrudPage, Column, FieldConfig } from "../_components/crud-layout";
 import { adminSeller, SellerAdmin } from "@/lib/admin-api";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Store, UserCheck, Phone } from "lucide-react";
 
 const columns: Column<SellerAdmin>[] = [
-  { header: "Kode", render: (r) => <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">{r.kode_seller}</span> },
-  { header: "Nama Seller", render: (r) => r.nama_seller },
-  { header: "Kota", render: (r) => r.kota || "—" },
-  { header: "Area", render: (r) => r.area || "—" },
-  { header: "PIC", render: (r) => r.pic || "—" },
-  { header: "No HP", render: (r) => r.no_hp || "—" },
-  { header: "Forecast", className: "text-right", render: (r) => <span className="tabular-nums">{r.forecast_harian ?? "—"}</span> },
-  { header: "Status", className: "w-24", render: (r) => (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${
-      r.status === "aktif" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-    }`}>{r.status}</span>
-  )},
+  {
+    header: "Kode",
+    accessorKey: "kode_seller",
+    render: (r) => <span className="font-mono text-xs font-bold text-[#0c1e3a] dark:text-amber-400">{r.kode_seller}</span>,
+  },
+  {
+    header: "Nama Seller / Toko",
+    accessorKey: "nama_seller",
+    render: (r) => (
+      <div className="flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded bg-purple-50 text-purple-600 dark:bg-purple-500/10">
+          <Store className="h-3.5 w-3.5" />
+        </div>
+        <div>
+          <p className="font-semibold text-slate-800 dark:text-white">{r.nama_seller}</p>
+          <p className="text-[11px] text-slate-500">{r.alamat || r.kota || "—"}</p>
+        </div>
+      </div>
+    ),
+  },
+  {
+    header: "Kota & Area",
+    accessorKey: "kota",
+    render: (r) => (
+      <span className="text-slate-700 dark:text-slate-300">
+        {r.kota ? `${r.kota}${r.area ? `, ${r.area}` : ""}` : "—"}
+      </span>
+    ),
+  },
+  {
+    header: "PIC & Kontak",
+    accessorKey: "pic",
+    render: (r) => (
+      <div className="text-xs">
+        <div className="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200">
+          <UserCheck className="h-3 w-3 text-slate-400" />
+          <span>{r.pic || "—"}</span>
+        </div>
+        {r.no_hp && (
+          <div className="flex items-center gap-1 text-[11px] text-slate-500 font-mono">
+            <Phone className="h-3 w-3 text-slate-400" />
+            <span>{r.no_hp}</span>
+          </div>
+        )}
+      </div>
+    ),
+  },
+  {
+    header: "Forecast (koli/hari)",
+    accessorKey: "forecast_harian",
+    className: "text-right tabular-nums font-mono text-xs font-semibold",
+    render: (r) => (r.forecast_harian ? `${r.forecast_harian.toLocaleString("id-ID")}` : "—"),
+  },
+  {
+    header: "Status",
+    accessorKey: "status",
+    render: (r) => <StatusBadge status={r.status} />,
+  },
 ];
 
-const fields = [
-  { key: "kode_seller", label: "Kode Seller", required: true, placeholder: "S001" },
-  { key: "nama_seller", label: "Nama Seller", required: true, placeholder: "Nama toko" },
-  { key: "alamat", label: "Alamat", type: "textarea" as const, placeholder: "Alamat lengkap" },
-  { key: "kota", label: "Kota", placeholder: "Kota/Kabupaten" },
-  { key: "area", label: "Area", placeholder: "Nama area" },
-  { key: "pic", label: "PIC", placeholder: "Nama PIC" },
-  { key: "no_hp", label: "No HP", placeholder: "08123456789" },
-  { key: "forecast_harian", label: "Forecast Harian", type: "number" as const, placeholder: "Estimasi koli/hari" },
-  { key: "latitude", label: "Latitude", type: "number" as const, placeholder: "-6.xxxx" },
-  { key: "longitude", label: "Longitude", type: "number" as const, placeholder: "106.xxxx" },
-  { key: "status", label: "Status", type: "select" as const, required: true, options: [{ value: "aktif", label: "Aktif" }, { value: "nonaktif", label: "Nonaktif" }] },
+const fields: FieldConfig[] = [
+  { key: "kode_seller", label: "Kode Seller (Opsional - Auto Generate)", placeholder: "cth: SLR-001 (Kosongkan untuk otomatis)" },
+  { key: "nama_seller", label: "Nama Seller / Toko", required: true, placeholder: "Nama toko pengirim" },
+  { key: "alamat", label: "Alamat Lengkap", type: "textarea", colSpan: 2, placeholder: "Alamat gudang/toko seller" },
+  { key: "kota", label: "Kota", placeholder: "Tangerang / Jakarta" },
+  { key: "area", label: "Area", placeholder: "Cikupa / Balaraja / Kebon Jeruk" },
+  { key: "pic", label: "Nama PIC", placeholder: "Nama penanggung jawab" },
+  { key: "no_hp", label: "No HP PIC", placeholder: "081234567890" },
+  { key: "forecast_harian", label: "Estimasi Forecast Harian (koli)", type: "number", placeholder: "cth: 1500" },
+  { key: "latitude", label: "Latitude", type: "coordinate", placeholder: "-6.2402" },
+  { key: "longitude", label: "Longitude", type: "coordinate", placeholder: "106.5856" },
+  {
+    key: "status",
+    label: "Status Seller",
+    type: "select",
+    required: true,
+    options: [
+      { value: "aktif", label: "Aktif (Menerima Pickup)" },
+      { value: "nonaktif", label: "Nonaktif" },
+    ],
+  },
 ];
 
 export default function AdminSellersPage() {
   return (
-    <AdminCrudPage title="Seller" subtitle="Kelola data seller/toko" columns={columns} fields={fields}
-      emptyText="Belum ada seller" idKey="id_seller" listFn={adminSeller.list}
-      createFn={adminSeller.create} updateFn={adminSeller.update} deleteFn={adminSeller.delete}
-      initialForm={{ kode_seller: "", nama_seller: "", alamat: "", kota: "", area: "", pic: "", no_hp: "", forecast_harian: null, latitude: null, longitude: null, status: "aktif" }} />
+    <AdminCrudPage
+      title="Seller"
+      subtitle="Kelola data seller pengirim & lokasi pickup paket"
+      columns={columns}
+      fields={fields}
+      emptyText="Belum ada data seller"
+      idKey="id_seller"
+      listFn={adminSeller.list}
+      createFn={adminSeller.create}
+      updateFn={adminSeller.update}
+      deleteFn={adminSeller.delete}
+      initialForm={{
+        kode_seller: "",
+        nama_seller: "",
+        alamat: "",
+        kota: "Tangerang",
+        area: "Banten",
+        pic: "",
+        no_hp: "",
+        forecast_harian: 1000,
+        latitude: -6.2402,
+        longitude: 106.5856,
+        status: "aktif",
+      }}
+      statusFilterKey="status"
+      statusFilterOptions={[
+        { label: "Aktif", value: "aktif" },
+        { label: "Nonaktif", value: "nonaktif" },
+      ]}
+    />
   );
 }

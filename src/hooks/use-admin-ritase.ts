@@ -12,7 +12,7 @@ export function useAdminRitase(tanggal?: string) {
   const token = useAuthStore(tokenSelector);
   return useQuery({
     queryKey: ["admin-ritases", tanggal],
-    queryFn: () => get<AdminRitaseItem[]>("/admin/ritases", { token, query: { tanggal } }),
+    queryFn: () => get<AdminRitaseItem[]>("/ritases", { token, query: { tanggal } }),
     enabled: true,
   });
 }
@@ -30,7 +30,7 @@ export function useAdminMasterOptions() {
   const token = useAuthStore(tokenSelector);
   return useQuery({
     queryKey: ["admin-master-options"],
-    queryFn: () => get<MasterOptions>("/admin/master-options", { token }),
+    queryFn: () => get<MasterOptions>("/master-options", { token }),
   });
 }
 
@@ -67,7 +67,7 @@ export function usePreviewDailyRitase() {
   const token = useAuthStore(tokenSelector);
   return useQuery({
     queryKey: ["admin-ritase-preview"],
-    queryFn: () => get<PreviewGenerateResponse>("/admin/ritase/generate/preview", { token }),
+    queryFn: () => get<PreviewGenerateResponse>("/ritase/generate/preview", { token }),
     enabled: false, // fetch on demand when modal opens
   });
 }

@@ -1,33 +1,103 @@
 "use client";
-import { AdminCrudPage, Column } from "../_components/crud-layout";
+
+import { AdminCrudPage, Column, FieldConfig } from "../_components/crud-layout";
 import { adminKendaraan, KendaraanAdmin } from "@/lib/admin-api";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Truck, Weight } from "lucide-react";
 
 const columns: Column<KendaraanAdmin>[] = [
-  { header: "ID", className: "w-12", render: (r) => <span className="tabular-nums text-slate-400">{r.id_kendaraan}</span> },
-  { header: "Plat Nomor", render: (r) => <span className="font-mono font-bold text-slate-900 dark:text-white">{r.plat_nomor}</span> },
-  { header: "Jenis", render: (r) => r.jenis_kendaraan || "—" },
-  { header: "Kapasitas (kg)", className: "text-right", render: (r) => <span className="tabular-nums">{r.kapasitas_kg ? r.kapasitas_kg.toLocaleString("id-ID") : "—"}</span> },
-  { header: "Status", className: "w-28", render: (r) => (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${
-      r.status_kendaraan === "aktif" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
-        : r.status_kendaraan === "perlu_perbaikan" ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
-        : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-    }`}>{r.status_kendaraan}</span>
-  )},
+  {
+    header: "ID",
+    accessorKey: "id_kendaraan",
+    className: "w-16 tabular-nums text-slate-400 font-mono text-xs",
+    render: (r) => <span>#{r.id_kendaraan}</span>,
+  },
+  {
+    header: "Plat Nomor",
+    accessorKey: "plat_nomor",
+    render: (r) => (
+      <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-[#0c1e3a] dark:text-white">
+        <Truck className="h-4 w-4 text-slate-400" />
+        <span>{r.plat_nomor}</span>
+      </div>
+    ),
+  },
+  {
+    header: "Jenis Kendaraan",
+    accessorKey: "jenis_kendaraan",
+    render: (r) => (
+      <span className="font-semibold text-slate-800 dark:text-slate-200">
+        {r.jenis_kendaraan || "—"}
+      </span>
+    ),
+  },
+  {
+    header: "Kapasitas (kg)",
+    accessorKey: "kapasitas_kg",
+    className: "tabular-nums",
+    render: (r) => (
+      <div className="flex items-center gap-1 font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">
+        <Weight className="h-3.5 w-3.5 text-slate-400" />
+        <span>{r.kapasitas_kg ? `${r.kapasitas_kg.toLocaleString("id-ID")} kg` : "—"}</span>
+      </div>
+    ),
+  },
+  {
+    header: "Status Armada",
+    accessorKey: "status_kendaraan",
+    render: (r) => <StatusBadge status={r.status_kendaraan === "aktif" ? "available" : r.status_kendaraan} />,
+  },
 ];
 
-const fields = [
-  { key: "plat_nomor", label: "Plat Nomor", required: true, placeholder: "B 1234 ABC" },
-  { key: "jenis_kendaraan", label: "Jenis Kendaraan", type: "select" as const, options: [{ value: "Box", label: "Box" }, { value: "CDD", label: "CDD" }, { value: "CDE", label: "CDE" }, { value: "Tronton", label: "Tronton" }, { value: "Fuso", label: "Fuso" }, { value: "Pickup", label: "Pickup" }, { value: "Blind Van", label: "Blind Van" }] },
-  { key: "kapasitas_kg", label: "Kapasitas (kg)", type: "number" as const, placeholder: "Contoh: 5000" },
-  { key: "status_kendaraan", label: "Status", type: "select" as const, required: true, options: [{ value: "aktif", label: "Aktif" }, { value: "tidak_aktif", label: "Tidak Aktif" }, { value: "perlu_perbaikan", label: "Perlu Perbaikan" }] },
+const fields: FieldConfig[] = [
+  { key: "plat_nomor", label: "Plat Nomor", required: true, placeholder: "B 1234 SLB" },
+  {
+    key: "jenis_kendaraan",
+    label: "Jenis Kendaraan",
+    type: "select",
+    required: true,
+    options: [
+      { value: "Truk Box 6m", label: "Truk Box 6m" },
+      { value: "Truk Wingbox 8m", label: "Truk Wingbox 8m" },
+      { value: "Truk Tronton", label: "Truk Tronton" },
+      { value: "Pickup Double", label: "Pickup Double" },
+      { value: "Blind Van", label: "Blind Van" },
+    ],
+  },
+  { key: "kapasitas_kg", label: "Kapasitas Maksimal (kg)", type: "number", required: true, placeholder: "Contoh: 8000" },
+  {
+    key: "status_kendaraan",
+    label: "Status Kendaraan",
+    type: "select",
+    required: true,
+    options: [
+      { value: "aktif", label: "Aktif / Ready Jalan" },
+      { value: "maintenance", label: "Maintenance / Bengkel" },
+      { value: "nonaktif", label: "Nonaktif" },
+    ],
+  },
 ];
 
 export default function AdminVehiclesPage() {
   return (
-    <AdminCrudPage title="Kendaraan" subtitle="Kelola data kendaraan" columns={columns} fields={fields}
-      emptyText="Belum ada kendaraan" idKey="id_kendaraan" listFn={adminKendaraan.list}
-      createFn={adminKendaraan.create} updateFn={adminKendaraan.update} deleteFn={adminKendaraan.delete}
-      initialForm={{ plat_nomor: "", jenis_kendaraan: "", kapasitas_kg: null, status_kendaraan: "aktif" }} />
+    <AdminCrudPage
+      title="Kendaraan"
+      subtitle="Kelola master data armada kendaraan operasional"
+      columns={columns}
+      fields={fields}
+      emptyText="Belum ada data kendaraan"
+      idKey="id_kendaraan"
+      listFn={adminKendaraan.list}
+      createFn={adminKendaraan.create}
+      updateFn={adminKendaraan.update}
+      deleteFn={adminKendaraan.delete}
+      initialForm={{ plat_nomor: "", jenis_kendaraan: "Truk Box 6m", kapasitas_kg: 8000, status_kendaraan: "aktif" }}
+      statusFilterKey="status_kendaraan"
+      statusFilterOptions={[
+        { label: "Aktif", value: "aktif" },
+        { label: "Maintenance", value: "maintenance" },
+        { label: "Nonaktif", value: "nonaktif" },
+      ]}
+    />
   );
 }

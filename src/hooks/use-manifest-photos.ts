@@ -19,7 +19,7 @@ export function useManifestPhotos(filter?: ManifestPhotoFilter) {
   return useQuery({
     queryKey: ["manifest-photos", filter?.tanggal, filter?.driver_id, filter?.search],
     queryFn: () =>
-      get<ManifestPhotoItem[]>("/admin/manifest-photos", {
+      get<ManifestPhotoItem[]>("/manifest-photos", {
         token,
         query: {
           tanggal: filter?.tanggal || undefined,

@@ -16,7 +16,7 @@ import { displayTrackingStatus } from "@/lib/constants";
 import { cn, hasActiveSession } from "@/lib/utils";
 
 // Tile CARTO (gratis & lebih cepat dari OSM publik) — render area baru jauh lebih responsif.
-const TILE_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>';
 

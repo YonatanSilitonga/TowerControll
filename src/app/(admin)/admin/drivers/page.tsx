@@ -1,33 +1,91 @@
 "use client";
-import { AdminCrudPage, Column } from "../_components/crud-layout";
+
+import { AdminCrudPage, Column, FieldConfig } from "../_components/crud-layout";
 import { adminDriver, DriverAdmin } from "@/lib/admin-api";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Phone } from "lucide-react";
 
 const columns: Column<DriverAdmin>[] = [
-  { header: "ID", className: "w-12", render: (r) => <span className="tabular-nums text-slate-400">{r.id_driver}</span> },
-  { header: "Nama Driver", render: (r) => <span className="font-medium text-slate-900 dark:text-white">{r.nama_driver}</span> },
-  { header: "No HP", render: (r) => r.no_hp || "—" },
-  { header: "No SIM", render: (r) => r.no_sim || "—" },
-  { header: "Jenis SIM", render: (r) => r.jenis_sim || "—" },
-  { header: "Status", className: "w-24", render: (r) => (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${
-      r.status_driver === "aktif" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-    }`}>{r.status_driver}</span>
-  )},
+  {
+    header: "ID",
+    accessorKey: "id_driver",
+    className: "w-16 tabular-nums text-slate-400 font-mono text-xs",
+    render: (r) => <span>#{r.id_driver}</span>,
+  },
+  {
+    header: "Nama Driver",
+    accessorKey: "nama_driver",
+    render: (r) => (
+      <div>
+        <p className="font-semibold text-slate-800 dark:text-white">{r.nama_driver}</p>
+      </div>
+    ),
+  },
+  {
+    header: "No HP / Telepon",
+    accessorKey: "no_hp",
+    render: (r) => (
+      <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+        <Phone className="h-3.5 w-3.5 text-slate-400" />
+        <span className="font-mono text-xs">{r.no_hp || "—"}</span>
+      </div>
+    ),
+  },
+  {
+    header: "Status Driver",
+    accessorKey: "status_driver",
+    render: (r) => <StatusBadge status={r.status_driver === "aktif" ? "aktif" : "off"} />,
+  },
 ];
 
-const fields = [
-  { key: "nama_driver", label: "Nama Driver", required: true, placeholder: "Nama lengkap" },
-  { key: "no_hp", label: "No HP", placeholder: "08123456789" },
-  { key: "no_sim", label: "No SIM", placeholder: "Nomor SIM" },
-  { key: "jenis_sim", label: "Jenis SIM", type: "select" as const, options: [{ value: "A", label: "A" }, { value: "B1", label: "B1" }, { value: "B2", label: "B2" }, { value: "C", label: "C" }, { value: "D", label: "D" }] },
-  { key: "status_driver", label: "Status", type: "select" as const, required: true, options: [{ value: "aktif", label: "Aktif" }, { value: "nonaktif", label: "Nonaktif" }] },
+const fields: FieldConfig[] = [
+  { key: "nama_driver", label: "Nama Driver", required: true, placeholder: "Nama lengkap pengemudi" },
+  { key: "no_hp", label: "No HP", required: true, placeholder: "081234567890" },
+  { key: "no_sim", label: "No SIM", required: true, placeholder: "Nomor Lisensi SIM", createOnly: true },
+  {
+    key: "jenis_sim",
+    label: "Jenis SIM",
+    type: "select",
+    required: true,
+    options: [
+      { value: "A", label: "SIM A (Mobil Pribadi/Pickup)" },
+      { value: "B1", label: "SIM B1 (Truk Box & Engkel)" },
+      { value: "B2", label: "SIM B2 (Truk Tronton & Container)" },
+      { value: "C", label: "SIM C (Motor Fleksibel)" },
+    ],
+    createOnly: true,
+  },
+  {
+    key: "status_driver",
+    label: "Status Driver",
+    type: "select",
+    required: true,
+    options: [
+      { value: "aktif", label: "Aktif Bertugas" },
+      { value: "nonaktif", label: "Nonaktif / Libur" },
+    ],
+  },
 ];
 
 export default function AdminDriversPage() {
   return (
-    <AdminCrudPage title="Driver" subtitle="Kelola data driver" columns={columns} fields={fields}
-      emptyText="Belum ada driver" idKey="id_driver" listFn={adminDriver.list}
-      createFn={adminDriver.create} updateFn={adminDriver.update} deleteFn={adminDriver.delete}
-      initialForm={{ nama_driver: "", no_hp: "", no_sim: "", jenis_sim: "", status_driver: "aktif" }} />
+    <AdminCrudPage
+      title="Driver"
+      subtitle="Kelola master data pengemudi armada logistik"
+      columns={columns}
+      fields={fields}
+      emptyText="Belum ada data driver"
+      idKey="id_driver"
+      listFn={adminDriver.list}
+      createFn={adminDriver.create}
+      updateFn={adminDriver.update}
+      deleteFn={adminDriver.delete}
+      initialForm={{ nama_driver: "", no_hp: "", no_sim: "", jenis_sim: "B1", status_driver: "aktif" }}
+      statusFilterKey="status_driver"
+      statusFilterOptions={[
+        { label: "Aktif", value: "aktif" },
+        { label: "Nonaktif", value: "nonaktif" },
+      ]}
+    />
   );
 }

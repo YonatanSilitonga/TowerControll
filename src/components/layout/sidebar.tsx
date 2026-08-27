@@ -8,6 +8,7 @@ import {
   Calendar,
   Camera,
   Car,
+  Clock,
   ClipboardCheck,
   LayoutDashboard,
   MapPin,
@@ -37,8 +38,8 @@ const ADMIN_NAV: { label: string; href: string; icon: React.ComponentType<{ clas
   { label: "Driver", href: "/admin/drivers", icon: Users, key: "admin-drivers" },
   { label: "Kendaraan", href: "/admin/vehicles", icon: Car, key: "admin-vehicles" },
   { label: "Seller", href: "/admin/sellers", icon: Store, key: "admin-sellers" },
-  { label: "Gudang", href: "/admin/gudang", icon: Warehouse, key: "admin-gudang" },
   { label: "Drop Point", href: "/admin/drop-points", icon: MapPin, key: "admin-drop-points" },
+  { label: "Ritase & Jam", href: "/admin/ritase", icon: Clock, key: "admin-ritase" },
   { label: "Users & Role", href: "/admin/users", icon: Users, key: "admin-users" },
 ];
 
@@ -84,8 +85,8 @@ export function Sidebar() {
         </p>
         {nav.map((item) => {
           const active =
-            item.href === "/"
-              ? pathname === "/"
+            item.href === "/" || item.href === "/admin"
+              ? pathname === item.href
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
           return (
