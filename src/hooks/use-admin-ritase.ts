@@ -42,6 +42,7 @@ export interface PreviewRoute {
   ritase_ke: number;
   jenis_ritase?: string;
   jam_mulai?: string;
+  jam_selesai?: string;
   tanggal?: string;
   tanggal_label?: string;
   stops: PreviewStop[];
@@ -79,7 +80,7 @@ export function useGenerateDailyRitase() {
 
   return useMutation({
     mutationFn: (payload?: { tanggal?: string; routes: unknown[] }) =>
-      post<{ total_generated: number; message: string }>("/admin/ritase/generate", payload ?? {}, { token }),
+      post<{ total_generated: number; message: string }>("/ritase/generate", payload ?? {}, { token }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-ritases"] });
     },
@@ -98,8 +99,10 @@ export function useCreateRitase() {
       id_kendaraan: number;
       id_drop_point: number;
       ritase_ke: number;
+      jam_mulai?: string;
+      jam_selesai?: string;
       stops: any[];
-    }) => post<{ id_ritase: number; message: string }>("/admin/ritase", data, { token }),
+    }) => post<{ id_ritase: number; message: string }>("/ritase", data, { token }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-ritases"] });
     },
@@ -112,8 +115,8 @@ export function useUpdateRitase() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ idRitase, data }: { idRitase: number; data: Partial<AdminRitaseItem> }) =>
-      put<{ message: string }>(`/admin/ritase/${idRitase}`, data, { token }),
+    mutationFn: ({ idRitase, data }: { idRitase: number; data: Partial<AdminRitaseItem> & { jam_mulai?: string; jam_selesai?: string } }) =>
+      put<{ message: string }>(`/ritase/${idRitase}`, data, { token }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-ritases"] });
     },
@@ -126,7 +129,7 @@ export function useDeleteRitase() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (idRitase: number) => del<{ message: string }>(`/admin/ritase/${idRitase}`, { token }),
+    mutationFn: (idRitase: number) => del<{ message: string }>(`/ritase/${idRitase}`, { token }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-ritases"] });
     },

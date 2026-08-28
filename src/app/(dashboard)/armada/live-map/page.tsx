@@ -59,7 +59,7 @@ function LiveMapBody() {
 
   const { data, isLoading } = useTrackingMap();
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<string>(todayLocal());
   // Mobile (< lg): switch antara tampilan Peta dan daftar Armada.
   const [mobileTab, setMobileTab] = useState<"peta" | "armada">("peta");
   const { data: history, isLoading: loadingHistory } = useTrackingHistory(selectedId, selectedDate);

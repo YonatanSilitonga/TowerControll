@@ -95,6 +95,33 @@ export function statusLabel(status: string | undefined | null): string {
   return STATUS_LABELS[status] ?? status.replace(/_/g, " ");
 }
 
+/** Label untuk status ritase di dashboard (GPS mati tapi ritase sudah ada).
+ *  Cek juga waktu: kalau direncanakan tapi jam_selesai sudah lewat → return null (sembunyikan). */
+export function ritaseStatusLabel(
+  status?: string | null,
+  jamSelesai?: string | null,
+): string | null {
+  if (status === "berjalan") return "Sedang Berjalan";
+  if (status === "selesai") return "Selesai";
+
+  // direncanakan — cek apakah waktu selesai sudah lewat (WIB)
+  if (status === "direncanakan" && jamSelesai) {
+    const now = new Date();
+    // Konversi ke WIB (UTC+7)
+    const wibMs = now.getTime() + 7 * 60 * 60 * 1000;
+    const wibDate = new Date(wibMs);
+    const nowMin = wibDate.getUTCHours() * 60 + wibDate.getUTCMinutes();
+
+    const parts = jamSelesai.split(":");
+    const selesaiMin = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+
+    if (nowMin > selesaiMin) return null; // lewat jadwal → sembunyikan
+  }
+
+  if (status === "direncanakan") return "Siap Berangkat";
+  return null;
+}
+
 /** Ambil label untuk jenis stop. */
 export function stopTypeLabel(jenis?: string): string {
   if (jenis === "drop_point" || jenis === "gateway") return "Gateway";

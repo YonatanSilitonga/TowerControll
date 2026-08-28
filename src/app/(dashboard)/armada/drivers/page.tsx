@@ -76,7 +76,7 @@ export default function DriversPage() {
       />
       <ArmadaTabs />
 
-      <div className="grid items-start gap-4 lg:grid-cols-[1fr_380px]">
+      <div className="grid items-stretch gap-4 lg:grid-cols-[1fr_380px]">
         <DataTable<DriverArmada>
           loading={isLoading}
           rows={data ?? []}
@@ -143,30 +143,27 @@ export default function DriversPage() {
                   </span>
                 ),
             },
+            { header: "Status Karyawan", render: (d) => <StatusBadge status={d.status_driver} /> },
             {
-              header: "Kontak",
+              header: "No HP",
               render: (d) =>
                 d.no_hp ? (
-                  <span className="tabular-nums text-slate-600">{d.no_hp}</span>
+                  <a
+                    href={`tel:${d.no_hp.replace(/[^+\d]/g, "")}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex min-h-[44px] items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 sm:min-h-[32px]"
+                  >
+                    <Phone className="h-3 w-3" /> Telepon
+                  </a>
                 ) : (
                   <span className="text-xs text-slate-300">-</span>
                 ),
             },
-            { header: "Status Karyawan", render: (d) => <StatusBadge status={d.status_driver} /> },
             {
               header: "Aksi",
               className: "text-right",
               render: (d) => (
                 <div className="flex items-center justify-end gap-1.5">
-                  {d.no_hp ? (
-                    <a
-                      href={`tel:${d.no_hp.replace(/[^+\d]/g, "")}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex min-h-[44px] items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 sm:min-h-[32px]"
-                    >
-                      <Phone className="h-3 w-3" /> Telepon
-                    </a>
-                  ) : null}
                   {d.id_kendaraan && (
                     <button
                       type="button"

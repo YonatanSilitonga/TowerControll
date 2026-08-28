@@ -1,7 +1,7 @@
 "use client";
 
 import { cn, hasActiveSession } from "@/lib/utils";
-import { displayTrackingStatus } from "@/lib/constants";
+import { displayTrackingStatus, ritaseStatusLabel } from "@/lib/constants";
 import type { TrackingVehicle } from "@/types/armada";
 
 function minutesAgo(iso?: string | null): string {
@@ -38,17 +38,24 @@ export function VehicleItem({ vehicle, selected, onSelect, durasi }: VehicleItem
         const t = new Date(vehicle.last_update).getTime();
         return Number.isNaN(t) ? true : Date.now() - t > 3 * 60 * 1000;
       })());
-  // Hitung session dari last_login langsung (backend session_online computed field unreliable)
   const loggedOut = !hasActiveSession(vehicle.last_login);
+  const hasRitase = !!vehicle.id_ritase && !!vehicle.status_ritase;
+  const ritaseLabel = hasRitase
+    ? ritaseStatusLabel(vehicle.status_ritase, vehicle.jam_selesai)
+    : null;
   const atBeranda = !loggedOut && !live;               
 
   const dot = loggedOut
     ? "bg-slate-300"
+    : atBeranda && ritaseLabel
+    ? "bg-amber-400"
     : atBeranda
     ? "bg-amber-400"                                       
     : "bg-emerald-500 animate-pulse";
   const statusText = loggedOut
     ? "Logout"
+    : atBeranda && ritaseLabel
+    ? ritaseLabel
     : atBeranda
     ? "Belum memulai"                                          
     : displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update);

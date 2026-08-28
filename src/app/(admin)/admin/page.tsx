@@ -8,24 +8,17 @@ import {
   adminSeller,
   adminDropPoint,
   adminUser,
-  adminRitase,
 } from "@/lib/admin-api";
 import {
   Car,
   Shield,
   Store,
   Users,
-  MapPin,
-  Clock,
-  ArrowUpRight,
-  Plus,
-  Zap,
-  Database,
-  Server,
-  RefreshCw,
   Navigation,
+  ArrowUpRight,
 } from "lucide-react";
-import { PageHeader } from "@/components/layout/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 export default function AdminDashboardPage() {
   const [counts, setCounts] = useState({
@@ -38,21 +31,24 @@ export default function AdminDashboardPage() {
     dropPoints: 0,
     activeDropPoints: 0,
     users: 0,
-    ritase: 0,
-    activeRitase: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     (async () => {
       try {
-        const [d, v, s, dp, u, r] = await Promise.all([
+        const [d, v, s, dp, u] = await Promise.all([
           adminDriver.list(),
           adminKendaraan.list(),
           adminSeller.list(),
           adminDropPoint.list(),
           adminUser.list(),
-          adminRitase.list(),
         ]);
 
         setCounts({
@@ -65,8 +61,6 @@ export default function AdminDashboardPage() {
           dropPoints: dp.length,
           activeDropPoints: dp.filter((item) => item.status === "aktif").length,
           users: u.length,
-          ritase: r.length,
-          activeRitase: r.filter((item) => item.status === "Berjalan").length,
         });
       } catch {
         /* ignore */
@@ -75,109 +69,160 @@ export default function AdminDashboardPage() {
     })();
   }, []);
 
-  const summaryCards = [
-    { label: "Driver", count: counts.drivers, sub: `${counts.activeDrivers} aktif`, href: "/admin/drivers", icon: Users },
-    { label: "Kendaraan", count: counts.vehicles, sub: `${counts.activeVehicles} siap`, href: "/admin/vehicles", icon: Car },
-    { label: "Seller", count: counts.sellers, sub: `${counts.activeSellers} aktif`, href: "/admin/sellers", icon: Store },
-    { label: "Gateway", count: counts.dropPoints, sub: `${counts.activeDropPoints} aktif`, href: "/admin/drop-points", icon: Navigation },
-    { label: "Ritase", count: counts.ritase, sub: `${counts.activeRitase} berjalan`, href: "/admin/ritase", icon: Clock },
-    { label: "Users", count: counts.users, sub: "Akun sistem", href: "/admin/users", icon: Shield },
+  const today = new Intl.DateTimeFormat("id-ID", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    timeZone: "Asia/Jakarta",
+  }).format(now);
+  const jamWIB = new Intl.DateTimeFormat("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZone: "Asia/Jakarta",
+  }).format(now);
+
+  const kpiCards = [
+    { label: "Driver", value: counts.drivers, sub: `${counts.activeDrivers} aktif`, icon: Users, href: "/admin/drivers" },
+    { label: "Kendaraan", value: counts.vehicles, sub: `${counts.activeVehicles} siap`, icon: Car, href: "/admin/vehicles" },
+    { label: "Seller", value: counts.sellers, sub: `${counts.activeSellers} aktif`, icon: Store, href: "/admin/sellers" },
+    { label: "Gateway", value: counts.dropPoints, sub: `${counts.activeDropPoints} aktif`, icon: Navigation, href: "/admin/drop-points" },
   ];
 
-  const quickActions = [
-    { label: "Tambah Driver", href: "/admin/drivers", icon: Users, color: "text-slate-500" },
-    { label: "Tambah Kendaraan", href: "/admin/vehicles", icon: Car, color: "text-slate-500" },
-    { label: "Tambah Seller", href: "/admin/sellers", icon: Store, color: "text-slate-500" },
-    { label: "Generate Ritase", href: "/jadwal", icon: Zap, color: "text-amber-500" },
+  const masterDataCards = [
+    {
+      title: "Driver",
+      total: counts.drivers,
+      active: counts.activeDrivers,
+      href: "/admin/drivers",
+      detail: `${counts.drivers - counts.activeDrivers} nonaktif`,
+    },
+    {
+      title: "Kendaraan",
+      total: counts.vehicles,
+      active: counts.activeVehicles,
+      href: "/admin/vehicles",
+      detail: `${counts.vehicles - counts.activeVehicles} maintenance`,
+    },
+    {
+      title: "Seller",
+      total: counts.sellers,
+      active: counts.activeSellers,
+      href: "/admin/sellers",
+      detail: `${counts.sellers - counts.activeSellers} nonaktif`,
+    },
+    {
+      title: "Gateway",
+      total: counts.dropPoints,
+      active: counts.activeDropPoints,
+      href: "/admin/drop-points",
+      detail: `${counts.dropPoints - counts.activeDropPoints} nonaktif`,
+    },
   ];
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Admin Dashboard"
-        description="Pusat kontrol data master operasional logistik."
-        actions={
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+      {/* HERO */}
+      <div className="relative overflow-hidden rounded-lg bg-[#0c1e3a] p-5 text-white">
+        <div className="pointer-events-none absolute -right-10 -top-16 h-52 w-52 rounded-full bg-white/5" />
+        <div className="pointer-events-none absolute right-40 -bottom-14 h-36 w-36 rounded-full bg-amber-400/10" />
+        <div className="relative flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">Admin Dashboard</h1>
+            <p className="mt-1 text-xs tabular-nums text-slate-400">
+              {today} · <span className="font-semibold text-slate-200">{jamWIB} WIB</span>
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
             System Online
           </span>
-        }
-      />
+        </div>
+      </div>
 
-      {/* ── KPI Cards — clean, no colored bg ── */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {summaryCards.map((c) => (
+      {/* KPI */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        {kpiCards.map((c) => (
           <Link
             key={c.href}
             href={c.href}
             className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white p-4 transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900"
           >
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  {c.label}
-                </p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
-                  {loading ? "—" : c.count.toLocaleString("id-ID")}
-                </p>
-                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{c.sub}</p>
-              </div>
-              <c.icon className="h-5 w-5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300" />
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                {c.label}
+              </p>
+              <c.icon className="h-4 w-4 text-slate-300 group-hover:text-slate-500 dark:group-hover:text-slate-400" />
             </div>
+            <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white">
+              {loading ? "—" : c.value.toLocaleString("id-ID")}
+            </p>
+            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{c.sub}</p>
             <ArrowUpRight className="absolute right-3 top-3 h-4 w-4 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 dark:text-slate-600" />
           </Link>
         ))}
       </div>
 
-      {/* ── Quick Actions + System Status ── */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {/* Quick Actions */}
-        <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-          <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Aksi Cepat</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {quickActions.map((a) => (
+      {/* MASTER DATA — full width */}
+      <Card className="rounded-lg border-slate-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <CheckCircle2 className="h-4 w-4 text-slate-400" /> Master Data Overview
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {masterDataCards.map((item) => (
               <Link
-                key={a.href}
-                href={a.href}
-                className="flex items-center gap-2 rounded-md border border-slate-100 bg-slate-50 px-3 py-2.5 text-xs font-medium text-slate-700 transition-colors hover:border-slate-200 hover:bg-white dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:bg-slate-800"
+                key={item.href}
+                href={item.href}
+                className="group rounded-lg border border-slate-100 bg-slate-50 p-3 transition-colors hover:border-slate-200 hover:bg-white dark:border-slate-800 dark:bg-slate-800/50 dark:hover:border-slate-700 dark:hover:bg-slate-800"
               >
-                <a.icon className={`h-4 w-4 ${a.color}`} />
-                {a.label}
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">{item.title}</p>
+                  <ArrowUpRight className="h-3.5 w-3.5 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 dark:text-slate-600" />
+                </div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-xl font-bold tabular-nums text-slate-900 dark:text-white">
+                    {loading ? "—" : item.total}
+                  </span>
+                  <span className="text-[11px] text-slate-500">{item.detail}</span>
+                </div>
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                    {loading ? "—" : item.active} aktif
+                  </span>
+                </div>
               </Link>
             ))}
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* System Status */}
-        <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-          <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Status Sistem</h3>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
-              <div className="flex items-center gap-2">
-                <Server className="h-4 w-4 text-slate-500" />
-                <span className="text-xs text-slate-600 dark:text-slate-400">Backend API</span>
-              </div>
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">Connected</span>
+      {/* USERS */}
+      <Card className="rounded-lg border-slate-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <Shield className="h-4 w-4 text-slate-400" /> Users & Role
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Link
+            href="/admin/users"
+            className="group flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-3 transition-colors hover:border-slate-200 hover:bg-white dark:border-slate-800 dark:bg-slate-800/50"
+          >
+            <div>
+              <p className="text-xs text-slate-500">Total Akun</p>
+              <p className="text-xl font-bold tabular-nums text-slate-900 dark:text-white">
+                {loading ? "—" : counts.users}
+              </p>
             </div>
-            <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
-              <div className="flex items-center gap-2">
-                <Database className="h-4 w-4 text-slate-500" />
-                <span className="text-xs text-slate-600 dark:text-slate-400">Database</span>
-              </div>
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">Supabase PG</span>
-            </div>
-            <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
-              <div className="flex items-center gap-2">
-                <RefreshCw className="h-4 w-4 text-slate-500" />
-                <span className="text-xs text-slate-600 dark:text-slate-400">Total Data Master</span>
-              </div>
-              <span className="text-xs font-bold tabular-nums text-slate-900 dark:text-white">
-                {loading ? "—" : (counts.drivers + counts.vehicles + counts.sellers + counts.dropPoints).toLocaleString("id-ID")}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+            <ArrowUpRight className="h-4 w-4 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100" />
+          </Link>
+        </CardContent>
+      </Card>
     </div>
   );
 }

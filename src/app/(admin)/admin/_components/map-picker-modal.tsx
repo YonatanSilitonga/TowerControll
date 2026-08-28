@@ -75,30 +75,31 @@ export function MapPickerModal({
       onClick={onClose}
     >
       <div
-        className="flex w-full max-w-2xl flex-col rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+        className="flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-              <MapPin className="h-4 w-4" />
+        {/* Header accent bar */}
+        <div className="h-1 w-full bg-gradient-to-r from-emerald-500 to-emerald-400" />
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+              <MapPin className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">Pilih Titik Lokasi</h3>
-              <p className="text-xs text-slate-500">Klik di peta untuk memperbarui koordinat</p>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Pilih Titik Lokasi</h3>
+              <p className="text-xs text-slate-500">Klik di peta atau geser marker untuk memilih lokasi</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
+            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Search bar */}
-        <div className="border-b border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/50">
+        <div className="border-b border-slate-100 bg-slate-50 px-6 py-3 dark:border-slate-800 dark:bg-slate-900/50">
           <form onSubmit={handleSearchAddress} className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -106,11 +107,11 @@ export function MapPickerModal({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari nama area/kota (misal: Cikupa Tangerang)..."
-                className="pl-9"
+                className="h-9 pl-9 text-xs"
               />
             </div>
-            <Button type="submit" disabled={searching} variant="outline" className="text-xs">
-              {searching ? "Mencari…" : "Cari Lokasi"}
+            <Button type="submit" disabled={searching} variant="outline" className="h-9 px-3 text-xs font-semibold">
+              {searching ? "Mencari…" : "Cari"}
             </Button>
           </form>
         </div>
@@ -124,22 +125,24 @@ export function MapPickerModal({
         </div>
 
         {/* Coordinates readout & footer */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-5 py-4 dark:border-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-4 dark:border-slate-800">
           <div className="flex items-center gap-4 text-xs font-mono text-slate-600 dark:text-slate-300">
-            <div>
-              <span className="font-semibold text-slate-400">Lat:</span> {lat.toFixed(6)}
+            <div className="rounded-md bg-slate-100 px-2.5 py-1.5 dark:bg-slate-800">
+              <span className="font-semibold text-slate-400">Lat:</span>{" "}
+              <span className="font-bold">{lat.toFixed(6)}</span>
             </div>
-            <div>
-              <span className="font-semibold text-slate-400">Lng:</span> {lng.toFixed(6)}
+            <div className="rounded-md bg-slate-100 px-2.5 py-1.5 dark:bg-slate-800">
+              <span className="font-semibold text-slate-400">Lng:</span>{" "}
+              <span className="font-bold">{lng.toFixed(6)}</span>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} className="text-xs">
+          <div className="flex gap-2.5">
+            <Button variant="outline" onClick={onClose} className="px-4 text-xs font-semibold">
               Batal
             </Button>
-            <Button onClick={handleConfirm} className="bg-[#FEA103] text-xs text-white hover:bg-[#E09102]">
-              <Check className="mr-1 h-3.5 w-3.5 text-white" />
-              Gunakan Koordinat Ini
+            <Button onClick={handleConfirm} className="bg-[#FEA103] px-4 text-xs font-semibold text-white hover:bg-[#E09102]">
+              <Check className="mr-1.5 h-3.5 w-3.5 text-white" />
+              Gunakan Lokasi Ini
             </Button>
           </div>
         </div>

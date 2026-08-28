@@ -109,7 +109,7 @@ export default function DashboardPage() {
   // Pencarian armada di panel kanan (plat / driver).
   const [armadaQ, setArmadaQ] = useState("");
   // "" = semua tanggal; kalau diisi → filter riwayat per hari.
-  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<string>(todayLocal());
   // Jam WIB live (update tiap detik).
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {

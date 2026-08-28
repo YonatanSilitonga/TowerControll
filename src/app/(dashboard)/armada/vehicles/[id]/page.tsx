@@ -47,7 +47,7 @@ export default function VehicleDetailPage({ params }: { params?: { id?: string }
   const vehicle = Number.isFinite(id)
     ? (kendaraan ?? []).find((k) => k.id_kendaraan === id)
     : null;
-  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<string>(todayLocal());
   const { data: history, isLoading: lHist } = useTrackingHistory(
     Number.isFinite(id) ? id : null, selectedDate || undefined
   );

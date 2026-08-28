@@ -33,7 +33,7 @@ export default function DriverDetailPage({ params }: { params?: { id?: string } 
   const driver = Number.isFinite(id)
     ? (drivers ?? []).find((d) => d.id_driver === id)
     : null;
-  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<string>(todayLocal());
   const { data: history, isLoading: lHist } = useTrackingHistory(
     driver?.id_kendaraan ?? null, selectedDate || undefined
   );

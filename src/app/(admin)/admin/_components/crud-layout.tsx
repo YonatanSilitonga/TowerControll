@@ -76,20 +76,28 @@ function ConfirmModal({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm" onClick={onCancel}>
-      <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-800 dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 mb-3">
-          <AlertTriangle className="h-5 w-5" />
-        </div>
-        <h3 className="text-base font-bold text-slate-900 dark:text-white">{title}</h3>
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{message}</p>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={onCancel} className="text-xs">
-            Batal
-          </Button>
-          <Button size="sm" onClick={onConfirm} disabled={loading} className="bg-amber-600 text-xs text-white hover:bg-amber-700">
-            {loading && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
-            Konfirmasi
-          </Button>
+      <div className="w-full max-w-md overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
+        {/* Header accent bar */}
+        <div className="h-1 w-full bg-gradient-to-r from-rose-500 to-rose-400" />
+        <div className="px-6 pt-5 pb-6">
+          <div className="flex items-start gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">{title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{message}</p>
+            </div>
+          </div>
+          <div className="mt-6 flex justify-end gap-2.5">
+            <Button variant="outline" size="sm" onClick={onCancel} className="px-4 text-xs font-semibold">
+              Batal
+            </Button>
+            <Button size="sm" onClick={onConfirm} disabled={loading} className="bg-rose-600 px-4 text-xs font-semibold text-white hover:bg-rose-700">
+              {loading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              Ya, Nonaktifkan
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -101,14 +109,18 @@ function Modal({ open, onClose, title, children }: { open: boolean; onClose: () 
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-xl rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
-          <h3 className="text-base font-bold text-[#0c1e3a] dark:text-white">{title}</h3>
-          <button onClick={onClose} className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800">
+      <div className="w-full max-w-xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
+        {/* Header accent bar */}
+        <div className="h-1 w-full bg-gradient-to-r from-[#0c1e3a] to-[#1a3a5c]" />
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
+          <div>
+            <h3 className="text-base font-bold text-[#0c1e3a] dark:text-white">{title}</h3>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="max-h-[75vh] overflow-y-auto px-5 py-4">{children}</div>
+        <div className="max-h-[75vh] overflow-y-auto px-6 py-5">{children}</div>
       </div>
     </div>
   );
@@ -559,7 +571,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
 
       {/* Dynamic Form Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? `Edit ${title}` : `Tambah ${title}`}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           {fields
             .filter((f) => !f.createOnly || !editing)
             .map((f) => (
@@ -573,7 +585,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                   <select
                     value={form[f.key] ?? ""}
                     onChange={(e) => setField(f.key, e.target.value)}
-                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-[#FEA103] focus:ring-2 focus:ring-[#FEA103]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3.5 text-sm text-slate-700 outline-none transition-colors focus:border-[#FEA103] focus:ring-2 focus:ring-[#FEA103]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-[#FEA103]"
                   >
                     <option value="">Pilih {f.label}…</option>
                     {f.options?.map((o) => (
@@ -588,7 +600,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                     onChange={(e) => setField(f.key, e.target.value)}
                     rows={3}
                     placeholder={f.placeholder}
-                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-[#FEA103] focus:ring-2 focus:ring-[#FEA103]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 outline-none transition-colors focus:border-[#FEA103] focus:ring-2 focus:ring-[#FEA103]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-[#FEA103]"
                   />
                 ) : f.type === "coordinate" ? (
                   <div className="flex gap-2">
@@ -598,7 +610,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                       value={form[f.key] ?? ""}
                       onChange={(e) => setField(f.key, e.target.value === "" ? null : Number(e.target.value))}
                       placeholder={f.placeholder || "Koordinat"}
-                      className="text-xs font-mono"
+                      className="h-10 rounded-lg text-sm font-mono"
                     />
                     <Button
                       type="button"
@@ -626,7 +638,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                           value={form[f.latKey || "latitude"] ?? ""}
                           onChange={(e) => setField(f.latKey || "latitude", e.target.value === "" ? null : Number(e.target.value))}
                           placeholder="-6.2100"
-                          className="h-8 text-xs font-mono"
+                          className="h-10 rounded-lg text-sm font-mono"
                         />
                       </div>
                       <div className="flex-1">
@@ -637,7 +649,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                           value={form[f.lngKey || "longitude"] ?? ""}
                           onChange={(e) => setField(f.lngKey || "longitude", e.target.value === "" ? null : Number(e.target.value))}
                           placeholder="106.5500"
-                          className="h-8 text-xs font-mono"
+                          className="h-10 rounded-lg text-sm font-mono"
                         />
                       </div>
                       <Button
@@ -656,7 +668,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                     </div>
                     {/* Mini map preview */}
                     {form[f.latKey || "latitude"] && form[f.lngKey || "longitude"] && (
-                      <div className="overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
+                      <div className="overflow-hidden rounded-lg border border-slate-200 shadow-sm dark:border-slate-700">
                         <MiniMapPreview
                           lat={form[f.latKey || "latitude"]}
                           lng={form[f.lngKey || "longitude"]}
@@ -688,7 +700,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                       )
                     }
                     placeholder={f.placeholder}
-                    className="text-xs"
+                    className="h-10 rounded-lg text-sm"
                   />
                 )}
 
@@ -697,11 +709,11 @@ export function AdminCrudPage<T extends Record<string, any>>({
             ))}
         </div>
 
-        <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
-          <Button variant="outline" onClick={() => setModalOpen(false)} className="text-xs">
+        <div className="flex items-center justify-end gap-2.5 border-t border-slate-100 px-6 py-4 dark:border-slate-800">
+          <Button variant="outline" onClick={() => setModalOpen(false)} className="px-4 text-xs font-semibold">
             Batal
           </Button>
-          <Button onClick={handleSave} disabled={saving} className="bg-[#FEA103] text-xs font-semibold text-white hover:bg-[#E09102]">
+          <Button onClick={handleSave} disabled={saving} className="bg-[#FEA103] px-5 text-xs font-semibold text-white hover:bg-[#E09102]">
             {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
             {editing ? "Simpan Perubahan" : "Tambah Data"}
           </Button>

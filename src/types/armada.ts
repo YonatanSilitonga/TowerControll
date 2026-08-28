@@ -120,6 +120,11 @@ export interface TrackingVehicle {
   nama_lokasi?: string | null;
   /** Ritase yang sedang berjalan (kalau ada) — buat rute live armada. */
   id_ritase?: number | null;
+  /** Status ritase dari tabel ritase (direncanakan/berjalan/selesai). */
+  status_ritase?: string | null;
+  /** Jam mulai & selesai ritase (HH:MM:SS) dari backend. */
+  jam_mulai?: string | null;
+  jam_selesai?: string | null;
   /** Kode & muatan ritase aktif (kalau ada) — dari backend tracking live. */
   kode_ritase?: string;
   total_awb?: number | null;

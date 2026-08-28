@@ -13,14 +13,15 @@ function Modal({ open, onClose, title, children }: { open: boolean; onClose: () 
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
-          <h3 className="text-base font-semibold text-slate-900 dark:text-white">{title}</h3>
-          <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800">
+      <div className="w-full max-w-lg overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
+        <div className="h-1 w-full bg-gradient-to-r from-[#0c1e3a] to-[#1a3a5c]" />
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
+          <h3 className="text-base font-bold text-[#0c1e3a] dark:text-white">{title}</h3>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>
+        <div className="max-h-[75vh] overflow-y-auto px-6 py-5">{children}</div>
       </div>
     </div>
   );
@@ -142,6 +143,9 @@ export default function AdminUsersPage() {
     }
     setDeletingId(null);
   };
+
+  const inputClass = "h-10 rounded-lg border border-slate-200 bg-white px-3.5 text-sm text-slate-700 outline-none transition-colors focus:border-[#FEA103] focus:ring-2 focus:ring-[#FEA103]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-[#FEA103]";
+  const selectClass = "h-10 w-full rounded-lg border border-slate-200 bg-white px-3.5 text-sm text-slate-700 outline-none transition-colors focus:border-[#FEA103] focus:ring-2 focus:ring-[#FEA103]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-[#FEA103]";
 
   return (
     <>
@@ -276,6 +280,7 @@ export default function AdminUsersPage() {
               value={form.username}
               onChange={(e) => setForm({ ...form, username: e.target.value })}
               placeholder="Username untuk login"
+              className={inputClass}
             />
           </div>
           <div>
@@ -287,6 +292,7 @@ export default function AdminUsersPage() {
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               placeholder="Minimal 6 karakter"
+              className={inputClass}
             />
           </div>
           <div>
@@ -297,6 +303,7 @@ export default function AdminUsersPage() {
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="Nama lengkap pengoperasi"
+              className={inputClass}
             />
           </div>
           <div>
@@ -306,7 +313,7 @@ export default function AdminUsersPage() {
             <select
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
-              className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-[#FEA103] focus:ring-2 focus:ring-[#FEA103]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              className={selectClass}
             >
               {ROLE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -322,14 +329,15 @@ export default function AdminUsersPage() {
               value={form.karyawan_id}
               onChange={(e) => setForm({ ...form, karyawan_id: e.target.value })}
               placeholder="Opsional (cth: 101)"
+              className={inputClass}
             />
           </div>
         </div>
-        <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
-          <Button variant="outline" onClick={() => setCreateOpen(false)} className="text-xs">
+        <div className="flex items-center justify-end gap-2.5 border-t border-slate-100 px-6 py-4 dark:border-slate-800">
+          <Button variant="outline" onClick={() => setCreateOpen(false)} className="px-4 text-xs font-semibold">
             Batal
           </Button>
-          <Button onClick={handleCreate} disabled={saving} className="bg-[#FEA103] text-xs text-white hover:bg-[#E09102]">
+          <Button onClick={handleCreate} disabled={saving} className="bg-[#FEA103] px-5 text-xs font-semibold text-white hover:bg-[#E09102]">
             {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />} Tambah User
           </Button>
         </div>
@@ -338,8 +346,8 @@ export default function AdminUsersPage() {
       {/* Reset Password Modal */}
       <Modal open={resetOpen} onClose={() => setResetOpen(false)} title={`Reset Password — ${resetTarget?.username ?? ""}`}>
         <div className="space-y-4">
-          <p className="text-xs text-slate-500">
-            Masukkan password baru untuk user <strong>{resetTarget?.username}</strong> ({resetTarget?.name}).
+          <p className="text-sm text-slate-500">
+            Masukkan password baru untuk user <strong className="text-slate-700 dark:text-slate-300">{resetTarget?.username}</strong> ({resetTarget?.name}).
           </p>
           <div>
             <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -350,17 +358,18 @@ export default function AdminUsersPage() {
               value={newPw}
               onChange={(e) => setNewPw(e.target.value)}
               placeholder="Minimal 6 karakter"
+              className={inputClass}
             />
           </div>
         </div>
-        <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
-          <Button variant="outline" onClick={() => setResetOpen(false)} className="text-xs">
+        <div className="flex items-center justify-end gap-2.5 border-t border-slate-100 px-6 py-4 dark:border-slate-800">
+          <Button variant="outline" onClick={() => setResetOpen(false)} className="px-4 text-xs font-semibold">
             Batal
           </Button>
           <Button
             onClick={handleResetPassword}
             disabled={saving || !newPw}
-            className="bg-[#FEA103] text-xs text-white hover:bg-[#E09102]"
+            className="bg-[#FEA103] px-5 text-xs font-semibold text-white hover:bg-[#E09102]"
           >
             {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />} Reset Password
           </Button>

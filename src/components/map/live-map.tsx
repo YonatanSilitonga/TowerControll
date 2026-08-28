@@ -12,7 +12,7 @@ import type {
   TrackingVehicle,
 } from "@/types/armada";
 import { useRitaseDetail } from "@/hooks/use-armada";
-import { displayTrackingStatus } from "@/lib/constants";
+import { displayTrackingStatus, ritaseStatusLabel } from "@/lib/constants";
 import { cn, hasActiveSession } from "@/lib/utils";
 
 // Tile CARTO (gratis & lebih cepat dari OSM publik) — render area baru jauh lebih responsif.
@@ -292,8 +292,10 @@ function VehicleMarker({
             <p className="text-xs">
               Status: {
                 !hasActiveSession(v.last_login) ? "Driver logout"
-                  : v.offline ? "Belum memulai"
-                    : displayTrackingStatus(v.status, v.kecepatan, v.last_update)
+                  : v.offline && v.id_ritase && v.status_ritase
+                    ? (ritaseStatusLabel(v.status_ritase, v.jam_selesai) ?? "Belum memulai")
+                    : v.offline ? "Belum memulai"
+                      : displayTrackingStatus(v.status, v.kecepatan, v.last_update)
               }
             </p>
           )}
@@ -324,6 +326,15 @@ function VehicleMarker({
           )}
           {!hasActiveSession(v.last_login) ? (
             <p className="text-xs font-medium text-rose-600">Driver sudah logout dari aplikasi</p>
+          ) : v.offline && v.id_ritase && v.status_ritase ? (
+            (() => {
+              const rl = ritaseStatusLabel(v.status_ritase, v.jam_selesai);
+              return rl ? (
+                <p className="text-xs font-medium text-amber-600">{rl}</p>
+              ) : (
+                <p className="text-xs font-medium text-amber-600">Belum memulai</p>
+              );
+            })()
           ) : v.offline ? (
             <p className="text-xs font-medium text-amber-600">Belum memulai</p>
           ) : (
