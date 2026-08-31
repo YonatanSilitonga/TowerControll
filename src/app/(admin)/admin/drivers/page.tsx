@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import {
   Plus, Pencil, Trash2, Search, X, Loader2, Phone,
   UserCog, CheckCircle2, AlertTriangle, ChevronDown, Check,
-  Eye, EyeOff, ArrowUpDown, Filter, UserPlus, ToggleLeft, ToggleRight,
+  Eye, EyeOff, ArrowUpDown, Filter, UserPlus, ToggleLeft, ToggleRight, FileSpreadsheet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -306,6 +306,20 @@ export default function AdminDriversPage() {
     else { setSortKey(key); setSortOrder("asc"); }
   };
 
+  // ── Export Excel ──
+  const handleExportExcel = () => {
+    if (processed.length === 0) { showToast("Tidak ada data", "Tidak ada data untuk diekspor.", "error"); return; }
+    const headers = ["ID", "Nama Driver", "No HP", "Jenis SIM", "Status"];
+    const rows = processed.map((r) => [r.id_driver, r.nama_driver, r.no_hp ?? "-", r.jenis_sim ?? "-", r.status_driver ?? "-"]);
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"/><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Driver</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table border="1"><thead><tr>${headers.map((h) => `<th style="font-weight:bold;background:#0c1e3a;color:#fff;padding:6px 12px">${h}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td style="padding:4px 10px">${c}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
+    const blob = new Blob(["\uFEFF" + html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url;
+    a.download = `Data_Driver_${new Date().toISOString().slice(0, 10)}.xls`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    showToast("Export berhasil", `${processed.length} data driver berhasil diekspor.`);
+  };
+
   // ── Open/Close ──
   const openCreate = () => {
     setEditing(null);
@@ -440,10 +454,16 @@ export default function AdminDriversPage() {
         title={`Driver (${data.length})`}
         description="Kelola master data pengemudi armada logistik"
         actions={
-          <Button onClick={openCreate} className="bg-[#FEA103] text-xs font-semibold text-white shadow-sm hover:bg-[#E09102]">
-            <Plus className="mr-1.5 h-4 w-4 text-white" />
-            Tambah Driver
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleExportExcel} className="border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800">
+              <FileSpreadsheet className="mr-1.5 h-4 w-4 text-emerald-600" />
+              Ekspor Excel
+            </Button>
+            <Button onClick={openCreate} className="bg-[#FEA103] text-xs font-semibold text-white shadow-sm hover:bg-[#E09102]">
+              <Plus className="mr-1.5 h-4 w-4 text-white" />
+              Tambah Driver
+            </Button>
+          </div>
         }
       />
 
