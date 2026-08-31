@@ -16,25 +16,30 @@ const TABS = [
 export function ArmadaTabs() {
   const pathname = usePathname();
   return (
-    <div className="mb-4 flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
-      {TABS.map((t) => {
-        const active =
-          t.href === "/armada" ? pathname === "/armada" : pathname.startsWith(t.href);
-        return (
-          <Link
-            key={t.href}
-            href={t.href}
-            className={cn(
-              "rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors",
-              active
-                ? "bg-[#FEA103] text-white shadow-sm"
-                : "text-slate-600 hover:bg-white hover:text-[#FEA103]"
-            )}
-          >
-            {t.label}
-          </Link>
-        );
-      })}
+    // Mobile: scroll horizontal dengan snap, Desktop: flex wrap seperti biasa
+    <div className="mb-4 -mx-4 overflow-x-auto px-4 md:mx-0 md:overflow-x-visible md:px-0">
+      <div className="inline-flex min-w-fit gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 md:flex md:min-w-0 md:flex-wrap">
+        {TABS.map((t) => {
+          const active =
+            t.href === "/armada" ? pathname === "/armada" : pathname.startsWith(t.href);
+          return (
+            <Link
+              key={t.href}
+              href={t.href}
+              className={cn(
+                "flex items-center whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-medium transition-colors",
+                // Mobile: touch target 44px min, Desktop: normal size
+                "min-h-[44px] md:min-h-0 md:py-1.5",
+                active
+                  ? "bg-[#FEA103] text-white shadow-sm"
+                  : "text-slate-600 hover:bg-white hover:text-[#FEA103]"
+              )}
+            >
+              {t.label}
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

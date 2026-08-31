@@ -35,9 +35,38 @@ const columns: Column<DropPointAdmin>[] = [
 ];
 
 const fields: FieldConfig[] = [
-  { key: "nama_drop_point", label: "Nama Gateway", required: true, placeholder: "Contoh: TITIP AJA Gateway Tangerang" },
-  { key: "alamat", label: "Alamat Lengkap", type: "textarea", colSpan: 2, placeholder: "Alamat lengkap lokasi gateway" },
-  { key: "lokasi", label: "Lokasi di Peta", type: "coordinates", latKey: "latitude", lngKey: "longitude", colSpan: 2 },
+  // ── Section: Info Gateway ──
+  { key: "sec_info", type: "section-divider", label: "Info Gateway" },
+  {
+    key: "nama_drop_point",
+    label: "Nama Gateway",
+    required: true,
+    placeholder: "cth: TITIP AJA Gateway Tangerang",
+    colSpan: 2,
+    hint: "Nama ini akan tampil di aplikasi driver sebagai titik akhir pengiriman",
+  },
+  {
+    key: "alamat",
+    label: "Alamat Lengkap",
+    type: "textarea",
+    colSpan: 2,
+    placeholder: "Alamat lengkap lokasi gateway / titik bongkar",
+  },
+
+  // ── Section: Koordinat ──
+  { key: "sec_koordinat", type: "section-divider", label: "Koordinat Lokasi Peta" },
+  {
+    key: "lokasi",
+    label: "Titik Lokasi di Peta",
+    type: "coordinates",
+    latKey: "latitude",
+    lngKey: "longitude",
+    colSpan: 2,
+    hint: "Koordinat digunakan untuk navigasi otomatis di aplikasi driver",
+  },
+
+  // ── Section: Status ──
+  { key: "sec_status", type: "section-divider", label: "Status" },
   {
     key: "status",
     label: "Status Gateway",
@@ -55,6 +84,8 @@ export default function AdminDropPointsPage() {
     <AdminCrudPage
       title="Gateway"
       subtitle="Kelola master data titik bongkar paket / gateway"
+      modalIcon={<Navigation className="h-5 w-5" />}
+      modalSize="md"
       columns={columns}
       fields={fields}
       emptyText="Belum ada data gateway"
@@ -63,7 +94,13 @@ export default function AdminDropPointsPage() {
       createFn={adminDropPoint.create}
       updateFn={adminDropPoint.update}
       deleteFn={adminDropPoint.delete}
-      initialForm={{ nama_drop_point: "", alamat: "", latitude: -6.21, longitude: 106.55, status: "aktif" }}
+      initialForm={{
+        nama_drop_point: "",
+        alamat: "",
+        latitude: -6.21,
+        longitude: 106.55,
+        status: "aktif",
+      }}
       statusFilterKey="status"
       statusFilterOptions={[
         { label: "Aktif", value: "aktif" },

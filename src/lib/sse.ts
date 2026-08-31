@@ -1,7 +1,5 @@
 "use client";
 
-import { API_URL } from "@/lib/constants";
-
 /**
  * Client SSE ringan via fetch + ReadableStream (browser modern).
  * `fetch` bisa set header Authorization (EventSource bawaan tidak bisa),
@@ -52,7 +50,7 @@ class RealtimeConnection {
     this.lastEventAt = Date.now();
     this.watchdog = window.setInterval(() => {
       if (Date.now() - this.lastEventAt > 30_000) {
-        console.warn("[SSE] watchdog: tidak ada event >30s, paksa reconnect");
+        console.debug("[SSE] watchdog: reconnect (no event >30s)");
         this.forceReconnect = true;
         this.controller?.abort();
       }
@@ -151,6 +149,21 @@ let active: RealtimeConnection | null = null;
 let currentToken: string | null = null;
 
 /**
+ * Tentukan URL SSE yang bypass Next.js proxy buffering.
+ * Next.js rewrite proxy buffer SSE stream → event gak sampai ke browser.
+ * Solusi: connect langsung ke backend (localhost:8080 / NEXT_PUBLIC_SSE_URL).
+ */
+function getSSEUrl(): string {
+  // Override via env (untuk production / ngrok)
+  if (process.env.NEXT_PUBLIC_SSE_URL) return process.env.NEXT_PUBLIC_SSE_URL;
+  // Kalau backend jalan di host yang sama, connect langsung ke port 8080
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.hostname}:8080/api/v1/realtime/live`;
+  }
+  return "/api/v1/realtime/live"; // fallback SSR
+}
+
+/**
  * Hubungkan SSE ke /realtime/live. Satu koneksi per token.
  * Kalau token berubah (login/logout), koneksi lama di-stop & diganti.
  */
@@ -168,7 +181,7 @@ export function connectRealtime(options: {
 
   currentToken = options.token;
   const conn = new RealtimeConnection({
-    url: `${API_URL}/realtime/live`,
+    url: getSSEUrl(),
     headers: {
       Authorization: `Bearer ${options.token}`,
       "ngrok-skip-browser-warning": "true",

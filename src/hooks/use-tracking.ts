@@ -8,8 +8,8 @@ import type { TrackingCheckpoint, TrackingMap } from "@/types/armada";
 const tokenSelector = (s: { token: string | null }) => s.token;
 
 /** Interval polling peta live (fallback). Data utama datang via SSE — polling
- *  cuma jaring pengaman kalau koneksi realtime putus. */
-export const LIVE_MAP_POLL_INTERVAL = 60_000;
+ *  cuma jaring pengaman kalau koneksi realtime putus. 5 detik supaya gak stale. */
+export const LIVE_MAP_POLL_INTERVAL = 5_000;
 
 /** Data peta live: posisi terbaru setiap kendaraan + lokasi seller. */
 export function useTrackingMap() {
@@ -22,7 +22,7 @@ export function useTrackingMap() {
     staleTime: 15_000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    // Polling 60s SELALU aktif — jaring pengaman (lihat use-dashboard.ts).
+    // Polling 5s SELALU aktif — jaring pengaman (lihat use-dashboard.ts).
     refetchInterval: LIVE_MAP_POLL_INTERVAL,
   });
 }

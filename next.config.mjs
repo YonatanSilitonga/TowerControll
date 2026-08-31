@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
+  allowedDevOrigins: ["humble-pretext-crock.ngrok-free.dev", "127.0.0.1", "localhost"],
   images: {
     remotePatterns: [
       {

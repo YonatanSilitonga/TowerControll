@@ -293,7 +293,7 @@ function VehicleMarker({
               Status: {
                 !hasActiveSession(v.last_login) ? "Driver logout"
                   : v.offline && v.id_ritase && v.status_ritase
-                    ? (ritaseStatusLabel(v.status_ritase, v.jam_selesai) ?? "Belum memulai")
+                    ? (ritaseStatusLabel(v.status_ritase, v.jam_selesai, v.tanggal) ?? "Belum memulai")
                     : v.offline ? "Belum memulai"
                       : displayTrackingStatus(v.status, v.kecepatan, v.last_update)
               }
@@ -328,7 +328,7 @@ function VehicleMarker({
             <p className="text-xs font-medium text-rose-600">Driver sudah logout dari aplikasi</p>
           ) : v.offline && v.id_ritase && v.status_ritase ? (
             (() => {
-              const rl = ritaseStatusLabel(v.status_ritase, v.jam_selesai);
+              const rl = ritaseStatusLabel(v.status_ritase, v.jam_selesai, v.tanggal);
               return rl ? (
                 <p className="text-xs font-medium text-amber-600">{rl}</p>
               ) : (
@@ -1298,3 +1298,4 @@ function liveMapPropsEqual(prev: LiveMapProps, next: LiveMapProps): boolean {
 }
 
 export const LiveMap = memo(LiveMapView, liveMapPropsEqual);
+

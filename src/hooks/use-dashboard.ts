@@ -8,11 +8,11 @@ import type { DashboardAnalisis, DashboardSummary } from "@/types/dashboard";
 
 /**
  * Dashboard Keseluruhan — data utama datang via SSE (RealtimeSync).
- * REST polling 60s SELALU aktif sebagai jaring pengaman — pernah kejadian
+ * REST polling 5s SELALU aktif sebagai jaring pengaman — pernah kejadian
  * status SSE "connected" palsu (proxy buffering) bikin polling mati → data
- * beku total. Sekarang: SSE sehat → update ~3 detik; SSE mati → ganti ≤60 detik.
+ * beku total. Sekarang: SSE sehat → update ~3 detik; SSE mati → ganti ≤5 detik.
  */
-export const FALLBACK_POLL_MS = 60_000;
+export const FALLBACK_POLL_MS = 5_000;
 
 export function useDashboardSummary() {
   const token = useAuthStore((s) => s.token);

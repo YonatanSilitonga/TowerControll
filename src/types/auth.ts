@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "kapten" | "direktur" | "driver";
+export type UserRole = "admin" | "tower_control" | "direktur" | "driver";
 
 export interface User {
   id_user: number;

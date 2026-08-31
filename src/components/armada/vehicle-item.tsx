@@ -27,45 +27,88 @@ interface VehicleItemProps {
 
 /**
  * Item armada — gaya list flat (garis pemisah tipis), bukan kartu ber-border.
- * Dipakai di dashboard (panel kanan) & halaman Live Map.
- * Model status 2-state: LIVE (GPS ≤ ambang, app mengirim posisi) / Offline.
- * Info sesi login & buka app (last_login/last_open) tampil di panel detail, bukan di sini.
+ *
+ * Status logic (4 state):
+ *  1. LIVE       — GPS fresh, app aktif mengirim posisi → dot hijau berkedip
+ *  2. atBeranda  — driver login, GPS tidak fresh, ada ritase aktif → dot amber
+ *  3. Logout     — session habis / belum pernah login → dot abu
+ *  4. Tidak ada jadwal / Selesai Bertugas → dot abu tipis, label berbeda
+ *
+ * Bug 7: session_online dari backend dipakai sebagai primary.
+ *   hasActiveSession(last_login) hanya sebagai fallback kalau backend
+ *   belum kirim field session_online (null/undefined).
  */
 export function VehicleItem({ vehicle, selected, onSelect, durasi }: VehicleItemProps) {
+  // LIVE: pakai field `offline` dari backend (computed di query SQL).
+  // Fallback ke perhitungan 3 menit hanya kalau field offline null/undefined.
   const live =
     !(vehicle.offline ??
       (() => {
         const t = new Date(vehicle.last_update).getTime();
         return Number.isNaN(t) ? true : Date.now() - t > 3 * 60 * 1000;
       })());
-  const loggedOut = !hasActiveSession(vehicle.last_login);
+
+  // Bug 7: pakai session_online backend sebagai primary, hasActiveSession sebagai fallback.
+  const isSessionActive =
+    vehicle.session_online !== undefined && vehicle.session_online !== null
+      ? vehicle.session_online
+      : hasActiveSession(vehicle.last_login);
+
+  const loggedOut = !isSessionActive;
+
   const hasRitase = !!vehicle.id_ritase && !!vehicle.status_ritase;
+  
+  // Pass tanggal ke ritaseStatusLabel — kalau backend belum kirim (null), fallback cek jam saja
   const ritaseLabel = hasRitase
-    ? ritaseStatusLabel(vehicle.status_ritase, vehicle.jam_selesai)
+    ? ritaseStatusLabel(vehicle.status_ritase, vehicle.jam_selesai, vehicle.tanggal)
     : null;
-  const atBeranda = !loggedOut && !live;               
+
+  // atBeranda: driver login tapi GPS tidak fresh (layar mati, belum mulai, atau
+  // sudah pulang tapi session masih aktif).
+  const atBeranda = !loggedOut && !live;
+
+  // Bug 2: tentukan label status lebih akurat saat atBeranda.
+  // Logika:
+  //   - Ada ritase berjalan     → label dari ritaseStatusLabel ("Sedang Berjalan", dll.)
+  //   - Ritase status "selesai" → "Selesai Bertugas" (semua jadwal hari ini selesai)
+  //   - Ritase ada tapi lewat jam jadwal → ritaseStatusLabel return null → "Tidak ada jadwal"
+  //   - Tidak ada ritase sama sekali → tidak ada jadwal hari ini → "Tidak ada jadwal"
+  //   - Ada ritase "direncanakan" & masih dalam window → "Siap Berangkat" (dari ritaseStatusLabel)
+  const atBerandaStatusText = (() => {
+    if (ritaseLabel) return ritaseLabel; // "Sedang Berjalan", "Siap Berangkat", dll.
+    // Cek apakah ritase ada tapi sudah selesai
+    if (vehicle.status_ritase === "selesai") return "Selesai Bertugas";
+    // Tidak ada ritase sama sekali, atau ritase "direncanakan" tapi sudah lewat jam/tanggal
+    return "Tidak ada jadwal";
+  })();
 
   const dot = loggedOut
     ? "bg-slate-300"
     : atBeranda && ritaseLabel
     ? "bg-amber-400"
+    : atBeranda && vehicle.status_ritase === "selesai"
+    ? "bg-slate-300"
     : atBeranda
-    ? "bg-amber-400"                                       
+    ? "bg-slate-200"
     : "bg-emerald-500 animate-pulse";
+
   const statusText = loggedOut
     ? "Logout"
-    : atBeranda && ritaseLabel
-    ? ritaseLabel
     : atBeranda
-    ? "Belum memulai"                                          
+    ? atBerandaStatusText
     : displayTrackingStatus(vehicle.status, vehicle.kecepatan, vehicle.last_update);
+
   const statusTone = loggedOut
     ? "text-slate-400"
+    : atBeranda && ritaseLabel
+    ? "text-amber-600"
+    : atBeranda && vehicle.status_ritase === "selesai"
+    ? "text-emerald-600"
     : atBeranda
-    ? "text-amber-600"                                      
+    ? "text-slate-400"
     : "text-emerald-700";
 
- return (
+  return (
     <button
       type="button"
       onClick={onSelect}
@@ -100,7 +143,8 @@ export function VehicleItem({ vehicle, selected, onSelect, durasi }: VehicleItem
           <span className="text-[11px] text-slate-400" />
         )}
         <span className="shrink-0 text-[11px] tabular-nums text-slate-400">
-          {loggedOut || atBeranda ? "" : minutesAgo(vehicle.last_update)}  {/* ⬅️ kosongkan untuk keduanya */}
+          {/* Tampilkan "X menit lalu" hanya saat LIVE — saat atBeranda/logout tidak relevan */}
+          {live ? minutesAgo(vehicle.last_update) : ""}
         </span>
       </div>
     </button>

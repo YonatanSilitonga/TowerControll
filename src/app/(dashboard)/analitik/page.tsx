@@ -99,6 +99,12 @@ const PRESETS = [
   { label: "90 hari", days: 90 },
 ];
 
+/** Format durasi dari backend ("40 menit 5 detik") jadi tampilan rapi, atau placeholder. */
+function fmtDurStr(val?: string | null): string {
+  if (!val || val === "belum ada data") return "—";
+  return val;
+}
+
 /* ---------- komponen kecil ---------- */
 
 function KpiCard({
@@ -110,15 +116,17 @@ function KpiCard({
   info,
   sub,
   progress,
+  isText,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   icon: React.ComponentType<{ className?: string }>;
   tone?: string;
   loading?: boolean;
   info?: string;
   sub?: string;
   progress?: number;
+  isText?: boolean;
 }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4">
@@ -133,7 +141,7 @@ function KpiCard({
         <Skeleton className="mt-2 h-7 w-16" />
       ) : (
         <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-slate-900">
-          {formatNumber(value)}
+          {isText ? value : formatNumber(value as number)}
         </p>
       )}
       {!loading && sub && <p className="mt-1 text-[11px] text-slate-400">{sub}</p>}
@@ -263,48 +271,50 @@ export default function AnalitikPage() {
     <div className="space-y-4">
       <PageHeader
         title="Analitik"
-        description="Analisis data operasional — periode berdasarkan tanggal jadwal ritase. Outgoing = Gateway JKT, Incoming = Gateway SEG."
+        description="Analisis data operasional berdasarkan tanggal jadwal ritase."
         crumbs={[{ label: "Analitik" }]}
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 rounded-md bg-slate-100 p-0.5">
-              {PRESETS.map((p) => (
-                <button
-                  key={p.days}
-                  type="button"
-                  onClick={() => setPreset(p.days)}
-                  className={cn(
-                    "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                    to === todayLocal() && from === daysAgo(p.days - 1)
-                      ? "bg-[#FEA103] text-white shadow-sm"
-                      : "text-slate-500 hover:text-slate-700"
-                  )}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-1.5 text-xs">
-              <input
-                type="date"
-                value={from}
-                max={to}
-                onChange={(e) => setFrom(e.target.value)}
-                className="rounded-md border border-slate-200 bg-white px-2 py-1.5 focus:border-[#0c1e3a] focus:outline-none focus:ring-2 focus:ring-[#0c1e3a]/20"
-              />
-              <span className="text-slate-400">s/d</span>
-              <input
-                type="date"
-                value={to}
-                min={from}
-                max={todayLocal()}
-                onChange={(e) => setTo(e.target.value)}
-                className="rounded-md border border-slate-200 bg-white px-2 py-1.5 focus:border-[#0c1e3a] focus:outline-none focus:ring-2 focus:ring-[#0c1e3a]/20"
-              />
-            </div>
-          </div>
-        }
       />
+
+      {/* Filter bar compact — di bawah header, bukan di dalam header */}
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+        {/* Preset buttons */}
+        <div className="flex items-center gap-0.5 rounded-md bg-slate-100 p-0.5">
+          {PRESETS.map((p) => (
+            <button
+              key={p.days}
+              type="button"
+              onClick={() => setPreset(p.days)}
+              className={cn(
+                "rounded px-2 py-1 text-xs font-medium transition-colors",
+                to === todayLocal() && from === daysAgo(p.days - 1)
+                  ? "bg-[#FEA103] text-white shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {/* Date range */}
+        <div className="flex items-center gap-1 text-xs">
+          <input
+            type="date"
+            value={from}
+            max={to}
+            onChange={(e) => setFrom(e.target.value)}
+            className="rounded border border-slate-200 bg-white px-2 py-1 text-xs focus:border-[#0c1e3a] focus:outline-none"
+          />
+          <span className="text-slate-400">–</span>
+          <input
+            type="date"
+            value={to}
+            min={from}
+            max={todayLocal()}
+            onChange={(e) => setTo(e.target.value)}
+            className="rounded border border-slate-200 bg-white px-2 py-1 text-xs focus:border-[#0c1e3a] focus:outline-none"
+          />
+        </div>
+      </div>
 
       {errorMsg && <ErrorBanner msg={errorMsg} />}
 
@@ -317,30 +327,24 @@ export default function AnalitikPage() {
 
         {/* ===== RINGKASAN ===== */}
         <TabsContent value="ringkasan" className="space-y-4">
-          {/* Label periode eksplisit — biar jelas data ini untuk rentang kapan */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-500">
-            <span className="flex items-center gap-1.5 font-medium text-slate-700">
+          {/* Label periode — compact single line */}
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
+            <span className="flex items-center gap-1 font-medium text-slate-700">
               <CalendarDays className="h-3.5 w-3.5 text-[#0c1e3a]" />
-              Periode:{" "}
-              <b className="tabular-nums">
-                {fmtFullDate(from)} – {fmtFullDate(to)}
-              </b>
+              <b className="tabular-nums">{fmtFullDate(from)}</b>
+              <span className="text-slate-400">–</span>
+              <b className="tabular-nums">{fmtFullDate(to)}</b>
             </span>
-            <span className="flex items-center gap-1.5">
-              <CalendarDays className="h-3.5 w-3.5 text-slate-400" />
-              {insight.days} hari berdata
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5 text-slate-400" />
-              Diupdate pukul{" "}
-              <b className="tabular-nums">
-                {now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
-              </b>{" "}
-              WIB
+            <span className="text-slate-300">·</span>
+            <span className="tabular-nums text-slate-400">{insight.days} hari berdata</span>
+            <span className="text-slate-300">·</span>
+            <span className="tabular-nums text-slate-400">
+              Update{" "}
+              {now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-8">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <KpiCard label="Total Ritase" value={kpi.ritase} icon={Truck} loading={loading} info="Jumlah ritase pada periode (tanggal jadwal)." sub={insight.days > 0 ? `${insight.rataHari.toFixed(1)}/hari` : undefined} />
             <KpiCard label="Selesai" value={kpi.selesai} icon={CheckCircle2} loading={loading} info="Ritase berstatus selesai." sub={`${insight.pctSelesai}% dari total`} progress={insight.pctSelesai} />
             <KpiCard label="Total AWB" value={kpi.awb} icon={Boxes} loading={loading} sub={kpi.ritase > 0 ? `${Math.round(kpi.awb / kpi.ritase)} AWB/ritase` : undefined} />
@@ -349,6 +353,8 @@ export default function AnalitikPage() {
             <KpiCard label="Eceran" value={kpi.ecer} icon={Gift} loading={loading} sub={kpi.koli > 0 ? `${((kpi.ecer / kpi.koli) * 100).toFixed(1)}% dari koli` : undefined} />
             <KpiCard label="Outgoing" value={kpi.out} icon={TrendingUp} loading={loading} info="Ritase ke Gateway JKT (barang keluar)." sub={`${insight.outPct}% arah`} />
             <KpiCard label="Incoming" value={kpi.inc} icon={TrendingDown} loading={loading} info="Ritase ke Gateway SEG (barang masuk)." sub={`${100 - insight.outPct}% arah`} />
+            <KpiCard label="Rata² Loading (Total)" value={fmtDurStr(analisis.data?.durasi?.rata_rata_loading)} icon={PackageCheck} loading={analisis.isLoading} info="Rata-rata durasi bongkar muat dari seluruh data ritase." isText />
+            <KpiCard label="Rata² Perjalanan (Total)" value={fmtDurStr(analisis.data?.durasi?.rata_rata_perjalanan)} icon={RouteIcon} loading={analisis.isLoading} info="Rata-rata durasi perjalanan dari seluruh data ritase." isText />
           </div>
 
           {/* Strip insight — ringkasan operasional periode */}

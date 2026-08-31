@@ -1,10 +1,10 @@
 import type { UserRole } from "@/types/auth";
 import type { DriverStatus, FleetStatus, TripStatus, VehicleStatus } from "@/types/armada";
 
-/** Base URL API backend. Default: backend lokal (localhost:8080).
+/** Base URL API backend. Default: relative path (lewat Next.js rewrites proxy).
  *  Bisa dioverride via env NEXT_PUBLIC_API_URL (mis. di .env.local). */
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
+  process.env.NEXT_PUBLIC_API_URL ?? "/api/v1";
 
 /** Interval polling summary dashboard (ms). */
 export const POLL_INTERVAL = Number(
@@ -21,7 +21,7 @@ export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 export const ROLE_LABEL: Record<UserRole, string> = {
   admin: "Admin",
-  kapten: "Kapten",
+  tower_control: "Tower Control",
   direktur: "Direktur",
   driver: "Driver",
 };
@@ -29,13 +29,13 @@ export const ROLE_LABEL: Record<UserRole, string> = {
 /** Mapping role -> modul yang boleh diakses (untuk menu & guard). */
 export const ROLE_MENU: Record<UserRole, string[]> = {
   admin: ["dashboard", "armada", "jadwal", "manifest-foto", "analitik", "gudang", "absensi"],
-  kapten: ["dashboard", "armada", "jadwal", "manifest-foto", "analitik"],
+  tower_control: ["dashboard", "armada", "jadwal", "manifest-foto", "analitik"],
   direktur: ["dashboard", "armada", "jadwal", "manifest-foto", "analitik"],
   driver: ["dashboard", "armada"],
 };
 
-/** Role yang boleh masuk dashboard WEB (admin, direktur & kapten). Driver = mobile. */
-export const ALLOWED_WEB_ROLES: UserRole[] = ["admin", "direktur", "kapten"];
+/** Role yang boleh masuk dashboard WEB (admin, direktur & tower_control). Driver = mobile. */
+export const ALLOWED_WEB_ROLES: UserRole[] = ["admin", "direktur", "tower_control"];
 
 export const DELIVERY_STATUS_LABEL: Record<string, string> = {
   in_transit: "IN TRANSIT",
@@ -53,7 +53,7 @@ export const VEHICLE_STATUS_LABEL: Record<VehicleStatus, string> = {
 
 export const DRIVER_STATUS_LABEL: Record<DriverStatus, string> = {
   on_duty: "Bertugas",
-  off: "Libur",
+  off: "Nonaktif",
 };
 
 export const FLEET_STATUS_LABEL: Record<FleetStatus, string> = {
@@ -81,7 +81,7 @@ export const STATUS_LABELS: Record<string, string> = {
   batal: "Batal",
   tersedia: "Tersedia",
   bertugas: "Bertugas",
-  libur: "Libur",
+  libur: "Nonaktif",
   maintenance: "Maintenance",
   istirahat: "Istirahat",
   aktif: "Aktif",
@@ -95,30 +95,84 @@ export function statusLabel(status: string | undefined | null): string {
   return STATUS_LABELS[status] ?? status.replace(/_/g, " ");
 }
 
-/** Label untuk status ritase di dashboard (GPS mati tapi ritase sudah ada).
- *  Cek juga waktu: kalau direncanakan tapi jam_selesai sudah lewat → return null (sembunyikan). */
+/**
+ * Cek apakah ritase sudah expired berdasarkan tanggal + jam_selesai (WIB).
+ *
+ * Aturan:
+ *  - Kalau tanggal < hari ini (WIB) → sudah expired, apapun jamnya
+ *  - Kalau tanggal = hari ini (WIB) & jam_selesai sudah lewat → expired
+ *  - Kalau tanggal > hari ini → belum expired
+ *  - Kalau tanggal null/undefined → fallback ke cek jam saja (backward compat)
+ *  - Kalau jam_selesai <= 06:00 → cross-midnight, belum expired di tanggal yang sama
+ */
+export function isRitaseExpired(
+  jamSelesai?: string | null,
+  tanggal?: string | null,
+): boolean {
+  // Tanggal WIB hari ini dalam format YYYY-MM-DD
+  const todayWIB = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
+  // Kalau ada tanggal ritase, cek dulu apakah tanggal sudah lewat
+  if (tanggal) {
+    // Ambil hanya YYYY-MM-DD dari tanggal (bisa format ISO lengkap)
+    const ritaseDateStr = tanggal.slice(0, 10);
+    if (ritaseDateStr < todayWIB) return true;  // tanggal kemarin atau lebih lama
+    if (ritaseDateStr > todayWIB) return false; // tanggal besok atau lebih jauh
+    // ritaseDateStr === todayWIB → lanjut cek jam
+  }
+
+  // Cek jam selesai (WIB)
+  if (!jamSelesai) return false;
+  const parts = jamSelesai.split(":");
+  if (parts.length < 2) return false;
+
+  const selesaiJam = parseInt(parts[0], 10);
+  const selesaiMenit = parseInt(parts[1], 10);
+
+  // Cross-midnight: jam_selesai <= 06:00 artinya berakhir tengah malam (next day).
+  // Pada tanggal yang sama, ritase belum expired.
+  if (selesaiJam <= 6) return false;
+
+  const now = new Date();
+  const wibNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+  const nowMin = wibNow.getUTCHours() * 60 + wibNow.getUTCMinutes();
+  const selesaiMin = selesaiJam * 60 + selesaiMenit;
+
+  return nowMin > selesaiMin;
+}
+
+/**
+ * Label untuk status ritase di panel armada (GPS mati tapi ritase sudah ada).
+ *
+ * Parameter tanggal (YYYY-MM-DD) sekarang wajib untuk cek expired yang benar.
+ * Tanpa tanggal, hanya bisa cek berdasarkan jam (backward compat).
+ *
+ * Return null berarti ritase sudah expired / tidak perlu ditampilkan.
+ */
 export function ritaseStatusLabel(
   status?: string | null,
   jamSelesai?: string | null,
+  tanggal?: string | null,
 ): string | null {
+  if (!status) return null;
+
+  // Ritase sudah berjalan → selalu tampilkan, tidak ada expiry
   if (status === "berjalan") return "Sedang Berjalan";
-  if (status === "selesai") return "Selesai";
 
-  // direncanakan — cek apakah waktu selesai sudah lewat (WIB)
-  if (status === "direncanakan" && jamSelesai) {
-    const now = new Date();
-    // Konversi ke WIB (UTC+7)
-    const wibMs = now.getTime() + 7 * 60 * 60 * 1000;
-    const wibDate = new Date(wibMs);
-    const nowMin = wibDate.getUTCHours() * 60 + wibDate.getUTCMinutes();
+  // Ritase selesai → tampilkan "Selesai Bertugas"
+  if (status === "selesai") return "Selesai Bertugas";
 
-    const parts = jamSelesai.split(":");
-    const selesaiMin = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-
-    if (nowMin > selesaiMin) return null; // lewat jadwal → sembunyikan
+  // Ritase direncanakan → cek expired dulu (tanggal + jam)
+  if (status === "direncanakan") {
+    if (isRitaseExpired(jamSelesai, tanggal)) return null; // expired → sembunyikan
+    return "Siap Berangkat";
   }
 
-  if (status === "direncanakan") return "Siap Berangkat";
   return null;
 }
 
@@ -129,7 +183,6 @@ export function stopTypeLabel(jenis?: string): string {
   return jenis.charAt(0).toUpperCase() + jenis.slice(1);
 }
 
-
 /** GPS basi? (lebih dari OFFLINE_MINUTES tanpa update terakhir). */
 export function isStale(lastUpdate?: string | null): boolean {
   if (!lastUpdate) return true;
@@ -138,10 +191,12 @@ export function isStale(lastUpdate?: string | null): boolean {
   return Date.now() - t > OFFLINE_MINUTES * 60 * 1000;
 }
 
-/** Status tracking yang rapi: string mentah → label dikenal, kalau gak dikenal
- *  tentukan dari freshness update + kecepatan. GAK ada fallback "Aktif" yang
- *  menyesatkan — segar+berhenti = "Berhenti". Kalau basi: driver masih login
- *  (app cuma tidur/layar mati) = "Tidak aktif"; sudah keluar app = "Offline". */
+/**
+ * Status tracking yang rapi: string mentah → label dikenal, kalau gak dikenal
+ * tentukan dari freshness update + kecepatan. GAK ada fallback "Aktif" yang
+ * menyesatkan — segar+berhenti = "Berhenti". Kalau basi: driver masih login
+ * (app cuma tidur/layar mati) = "Tidak aktif"; sudah keluar app = "Offline".
+ */
 export function displayTrackingStatus(
   status?: string | null,
   speed?: number | null,

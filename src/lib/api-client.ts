@@ -62,12 +62,26 @@ export async function apiRequest<T>(
     requestHeaders["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(url, {
-    ...rest,
-    method,
-    headers: requestHeaders,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15_000);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...rest,
+      method,
+      headers: requestHeaders,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (err: unknown) {
+    clearTimeout(timeoutId);
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError(408, "Koneksi timeout — server tidak merespon. Silakan coba lagi.");
+    }
+    throw new ApiError(0, "Gagal menghubungi server. Periksa koneksi jaringan.");
+  }
+  clearTimeout(timeoutId);
 
   let payload: ApiResponse<T> | null = null;
   try {

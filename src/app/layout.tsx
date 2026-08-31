@@ -30,7 +30,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="id" className={plusJakartaSans.variable}>
+    <html lang="id" className={plusJakartaSans.variable} suppressHydrationWarning>
       <body className={`${plusJakartaSans.className} font-sans antialiased`}>
         <NextTopLoader color="#0c1e3a" showSpinner={false} height={3} />
         <QueryProvider>
@@ -41,4 +41,3 @@ export default function RootLayout({
     </html>
   );
 }
-

@@ -36,7 +36,7 @@ function getDot(status: string): string {
   if (["in_transit", "in_progress", "picked_up", "maintenance", "berjalan", "loading"].some((k) => s.includes(k))) {
     return "bg-sky-500";
   }
-  if (["cancelled", "off", "inactive", "expired", "destructive", "error", "batal"].some((k) => s.includes(k))) {
+  if (["cancelled", "off", "inactive", "nonaktif", "expired", "destructive", "error", "batal"].some((k) => s.includes(k))) {
     return "bg-rose-500";
   }
   return "bg-slate-400";
@@ -54,7 +54,7 @@ function getTone(status: string): string {
   if (["in_transit", "in_progress", "picked_up", "maintenance", "berjalan", "loading"].some((k) => s.includes(k))) {
     return "bg-sky-50 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300";
   }
-  if (["cancelled", "off", "inactive", "expired", "destructive", "error", "batal"].some((k) => s.includes(k))) {
+  if (["cancelled", "off", "inactive", "nonaktif", "expired", "destructive", "error", "batal"].some((k) => s.includes(k))) {
     return "bg-rose-50 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300";
   }
   return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";

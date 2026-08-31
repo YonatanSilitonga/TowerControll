@@ -136,22 +136,23 @@ export default function DashboardPage() {
   const historyQueries = useMemo(
     () =>
       vehicles.map((v) => ({
-        queryKey: ["hist", v.id_kendaraan],
+        queryKey: ["hist", v.id_kendaraan, selectedDate],
         queryFn: () =>
           get<TrackingCheckpoint[]>("/armada/tracking/history", {
             token,
-            query: { kendaraan_id: v.id_kendaraan },
+            query: { kendaraan_id: v.id_kendaraan, tanggal: selectedDate },
           }),
         enabled: !!token && vehicles.length > 0,
       })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [idsKey, token]
+    [idsKey, token, selectedDate]
   );
   const histories = useQueries({ queries: historyQueries });
 
-  // Definisi "Aktif/LIVE": GPS masih fresh (≤ 15 menit) — app benar-benar mengirim posisi.
-  // Status cuma 2: LIVE (app hidup) atau Offline. Sesi login (session_online) & riwayat
-  // buka app (last_open/last_login) ditampilkan sebagai konteks di panel detail, bukan status.
+  // Definisi "Aktif/LIVE": GPS masih fresh — field `offline` dari backend
+  // adalah sumber kebenaran (computed di SQL berdasarkan TRACKING_OFFLINE_MIN = 3 mnt).
+  // Fallback perhitungan manual hanya dipakai kalau field offline null/undefined
+  // (misal data lama / backend belum di-deploy).
   const isOnline = (v: TrackingVehicle) =>
     !(v.offline ??
       (() => {
@@ -237,10 +238,12 @@ export default function DashboardPage() {
 
   const summaryCards = [
     { label: "Total Armada", value: formatNumber(d?.total_kendaraan ?? 0), icon: Truck },
-    { label: "Aktif Online", value: formatNumber(d?.armada_online ?? d?.armada_aktif ?? 0), icon: PlayCircle },
+    // Bug 6: jangan fallback ke armada_aktif (data master statis) — tampilkan 0
+    // kalau armada_online null, biar angka mencerminkan realita GPS, bukan master data.
+    { label: "Aktif Online", value: formatNumber(d?.armada_online ?? 0), icon: PlayCircle },
     { label: "Selesai", value: formatNumber(d?.armada_selesai ?? 0), icon: CheckCircle2 },
-    { label: "Rata² Loading", value: fmtShort(avgLoading), icon: PackageCheck },
-    { label: "Rata² Perjalanan", value: fmtShort(avgPerjalanan), icon: RouteIcon },
+    { label: "Rata² Loading (Hari Ini)", value: fmtShort(avgLoading), icon: PackageCheck },
+    { label: "Rata² Perjalanan (Hari Ini)", value: fmtShort(avgPerjalanan), icon: RouteIcon },
   ];
 
   // Filter peta: truk → hanya kendaraan; gudang → hanya gudang + drop point; semua → semua.
@@ -281,7 +284,7 @@ export default function DashboardPage() {
       )}
 
       {/* KPI */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {summaryCards.map((c) => (
           <div
             key={c.label}
@@ -304,23 +307,24 @@ export default function DashboardPage() {
       <div className="grid gap-5 lg:grid-cols-[1fr_380px] items-start">
         {/* KIRI: peta live — dengan filter tabs */}
         <Card className="flex flex-col overflow-hidden rounded-lg border-slate-200">
-  <CardContent className="flex-1 p-0">
-    <div className="h-[80vh] min-h-[700px] w-full">
-      <LiveMap
-        vehicles={vehicles}
-        sellers={sellers}
-        gudang={map.data?.gudang ?? []}
-        dropPoints={map.data?.drop_points ?? []}
-        phones={phones}
-        selectedVehicleId={selectedId}
-        onSelectVehicle={setSelectedId}
-      />
-    </div>
-  </CardContent>
-</Card>
+          <CardContent className="flex-1 p-0">
+            {/* Map: mobile kecil, desktop besar */}
+            <div className="h-[40vh] min-h-[300px] w-full lg:h-[90vh] lg:min-h-[700px]">
+              <LiveMap
+                vehicles={vehicles}
+                sellers={sellers}
+                gudang={map.data?.gudang ?? []}
+                dropPoints={map.data?.drop_points ?? []}
+                phones={phones}
+                selectedVehicleId={selectedId}
+                onSelectVehicle={setSelectedId}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* KANAN: panel armada */}
-        <div className="flex h-[80vh] min-h-[700px] flex-col gap-4">
+        {/* KANAN: panel armada — tinggi sama dengan peta, scroll di dalam */}
+        <div className="flex min-h-0 flex-col gap-4 lg:h-[90vh] lg:min-h-[700px]">
           <Card className="shrink-0 rounded-lg border-slate-200">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
@@ -344,7 +348,8 @@ export default function DashboardPage() {
                 />
               </div>
 
-              <div className="max-h-[300px] space-y-2 overflow-y-auto">
+              {/* Max-height armada: mobile kecil, desktop lebih lega */}
+              <div className="max-h-[150px] space-y-2 overflow-y-auto lg:max-h-[260px]">
                 {map.isPending ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <Skeleton key={i} className="h-16 w-full" />
@@ -413,23 +418,23 @@ export default function DashboardPage() {
           
            <Card className="flex min-h-0 flex-1 flex-col rounded-lg border-slate-200">
   <CardHeader className="shrink-0 pb-2">
-    <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-      <MapPin className={cn("h-4 w-4", selectedVehicle ? "text-amber-500" : "text-slate-300")} />
-      {selectedVehicle ? (selectedVehicle.plat_nomor || "-") : "Detail Armada"}
+    <CardTitle className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+      <MapPin className={cn("h-4 w-4 shrink-0", selectedVehicle ? "text-amber-500" : "text-slate-300")} />
+      <span className="min-w-0 truncate">{selectedVehicle ? (selectedVehicle.plat_nomor || "-") : "Detail Armada"}</span>
       {selectedVehicle && (
-        <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#0c1e3a]">
+        <span className="shrink-0 rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#0c1e3a]">
           Focus
         </span>
       )}
       <InfoTip text="Status terkini + riwayat log kendaraan. Isi tanggal untuk filter per hari (kosong = semua)." />
       {selectedVehicle && (
-        <span className="ml-auto text-xs font-normal text-slate-400">
+        <span className="ml-auto shrink-0 text-xs font-normal text-slate-400">
           {selectedVehicle.nama_driver || "-"}
         </span>
       )}
     </CardTitle>
   </CardHeader>
-  <CardContent className="min-h-0 flex-1 space-y-3 overflow-y-auto pt-0">
+  <CardContent className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto pt-0">
     {!selectedVehicle ? (
       <p className="py-10 text-center text-sm text-slate-400">
         Pilih driver untuk melihat riwayat
@@ -492,31 +497,14 @@ export default function DashboardPage() {
           );
         })()}
 
-        {/* Kotak Rincian Jumlah Muatan yang Dibawa */}
-        <div className="rounded-lg border border-amber-200/80 bg-amber-50/60 p-2.5 dark:border-amber-700/40 dark:bg-amber-950/20">
-          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-amber-900 dark:text-amber-300">
-            <span>📦</span> Jumlah Muatan yang Dibawa
-          </p>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-md border border-amber-100 bg-white p-1.5 shadow-xs dark:border-slate-700 dark:bg-slate-800">
-              <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400">Koli</span>
-              <span className="text-sm font-extrabold text-slate-800 dark:text-white">
-                {selectedVehicle.total_koli ?? 0}
-              </span>
-            </div>
-            <div className="rounded-md border border-amber-100 bg-white p-1.5 shadow-xs dark:border-slate-700 dark:bg-slate-800">
-              <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400">Ecer</span>
-              <span className="text-sm font-extrabold text-slate-800 dark:text-white">
-                {selectedVehicle.total_eceran ?? 0}
-              </span>
-            </div>
-            <div className="rounded-md border border-amber-100 bg-white p-1.5 shadow-xs dark:border-slate-700 dark:bg-slate-800">
-              <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400">High Value</span>
-              <span className="text-sm font-extrabold text-slate-800 dark:text-white">
-                {selectedVehicle.total_high_value ?? 0}
-              </span>
-            </div>
-          </div>
+        {/* Muatan: compact inline row */}
+        <div className="flex items-center gap-2 rounded-md border border-amber-200/80 bg-amber-50/60 px-2.5 py-1.5 text-xs dark:border-amber-700/40 dark:bg-amber-950/20">
+          <span className="shrink-0 font-bold text-amber-800 dark:text-amber-300">📦 Muatan</span>
+          <span className="ml-auto flex items-center gap-3 text-slate-700 dark:text-slate-300">
+            <span><b>{selectedVehicle.total_koli ?? 0}</b> koli</span>
+            <span><b>{selectedVehicle.total_eceran ?? 0}</b> ecer</span>
+            <span><b>{selectedVehicle.total_high_value ?? 0}</b> HV</span>
+          </span>
         </div>
 
         <input

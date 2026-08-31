@@ -95,6 +95,7 @@ export interface AdminRitaseItem {
   nama_drop_point: string;
   ritase_ke: number;
   status: string;
+  jenis_ritase?: string; // "outgoing" | "incoming"
   jam_mulai?: string | null;
   jam_selesai?: string | null;
   jam_berangkat?: string | null;
@@ -121,6 +122,8 @@ export interface TrackingVehicle {
   /** Ritase yang sedang berjalan (kalau ada) — buat rute live armada. */
   id_ritase?: number | null;
   /** Status ritase dari tabel ritase (direncanakan/berjalan/selesai). */
+  /** Tanggal ritase (YYYY-MM-DD) � perlu untuk cek expired yang benar. */
+  tanggal?: string | null;
   status_ritase?: string | null;
   /** Jam mulai & selesai ritase (HH:MM:SS) dari backend. */
   jam_mulai?: string | null;

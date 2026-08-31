@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "@/stores/auth-store";
+import { ROLE_LABEL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 const DURATION_MS = 2000;
@@ -30,6 +31,7 @@ function greetingByTime(): string {
  */
 export function SplashScreen() {
   const name = useAuthStore((s) => s.user?.name);
+  const role = useAuthStore((s) => s.user?.role);
   const [mounted, setMounted] = useState(true);
   const [visible, setVisible] = useState(true);
   const [showSkip, setShowSkip] = useState(false);
@@ -109,10 +111,10 @@ export function SplashScreen() {
           className="mt-8 animate-[fade-in-up_0.6s_ease-out_0.2s_both] text-lg font-semibold text-white"
         >
           {greeting}
-          {name ? `, ${name}!` : "!"}
+          {role ? `, ${ROLE_LABEL[role]}!` : "!"}
         </p>
         <p className="mt-1.5 animate-[fade-in-up_0.6s_ease-out_0.25s_both] text-sm text-blue-100/60">
-          {name
+          {role
             ? "Menyiapkan dashboard operasionalmu…"
             : "Siap mengawal operasional hari ini?"}
         </p>

@@ -26,9 +26,7 @@ const columns: Column<KendaraanAdmin>[] = [
     header: "Jenis Kendaraan",
     accessorKey: "jenis_kendaraan",
     render: (r) => (
-      <span className="font-semibold text-slate-800 dark:text-slate-200">
-        {r.jenis_kendaraan || "—"}
-      </span>
+      <span className="font-semibold text-slate-800 dark:text-slate-200">{r.jenis_kendaraan || "—"}</span>
     ),
   },
   {
@@ -45,12 +43,22 @@ const columns: Column<KendaraanAdmin>[] = [
   {
     header: "Status Armada",
     accessorKey: "status_kendaraan",
-    render: (r) => <StatusBadge status={r.status_kendaraan === "aktif" ? "available" : r.status_kendaraan} />,
+    render: (r) => (
+      <StatusBadge status={r.status_kendaraan === "aktif" ? "available" : r.status_kendaraan} />
+    ),
   },
 ];
 
 const fields: FieldConfig[] = [
-  { key: "plat_nomor", label: "Plat Nomor", required: true, placeholder: "B 1234 SLB" },
+  // ── Section: Data Armada ──
+  { key: "sec_armada", type: "section-divider", label: "Data Armada" },
+  {
+    key: "plat_nomor",
+    label: "Plat Nomor",
+    required: true,
+    placeholder: "B 1234 SLB",
+    hint: "Format: [Kode Wilayah] [Angka] [Huruf] · Input otomatis UPPERCASE",
+  },
   {
     key: "jenis_kendaraan",
     label: "Jenis Kendaraan",
@@ -63,8 +71,20 @@ const fields: FieldConfig[] = [
       { value: "Pickup Double", label: "Pickup Double" },
       { value: "Blind Van", label: "Blind Van" },
     ],
+    hint: "Menentukan kapasitas maksimal muatan di ritase",
   },
-  { key: "kapasitas_kg", label: "Kapasitas Maksimal (kg)", type: "number", required: true, placeholder: "Contoh: 8000" },
+
+  // ── Section: Teknis & Status ──
+  { key: "sec_teknis", type: "section-divider", label: "Teknis & Status" },
+  {
+    key: "kapasitas_kg",
+    label: "Kapasitas Maksimal",
+    type: "number",
+    unit: "kg",
+    required: true,
+    placeholder: "8000",
+    hint: "Batas berat muatan maksimal yang boleh diangkut",
+  },
   {
     key: "status_kendaraan",
     label: "Status Kendaraan",
@@ -83,6 +103,8 @@ export default function AdminVehiclesPage() {
     <AdminCrudPage
       title="Kendaraan"
       subtitle="Kelola master data armada kendaraan operasional"
+      modalIcon={<Truck className="h-5 w-5" />}
+      modalSize="md"
       columns={columns}
       fields={fields}
       emptyText="Belum ada data kendaraan"
@@ -91,7 +113,12 @@ export default function AdminVehiclesPage() {
       createFn={adminKendaraan.create}
       updateFn={adminKendaraan.update}
       deleteFn={adminKendaraan.delete}
-      initialForm={{ plat_nomor: "", jenis_kendaraan: "Truk Box 6m", kapasitas_kg: 8000, status_kendaraan: "aktif" }}
+      initialForm={{
+        plat_nomor: "",
+        jenis_kendaraan: "Truk Box 6m",
+        kapasitas_kg: 8000,
+        status_kendaraan: "aktif",
+      }}
       statusFilterKey="status_kendaraan"
       statusFilterOptions={[
         { label: "Aktif", value: "aktif" },

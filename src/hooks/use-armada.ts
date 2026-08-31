@@ -28,7 +28,7 @@ export function useDriver() {
   });
 }
 
-/** List ritase (kapten/direktur lihat semua; driver ter-scope oleh backend). */
+/** List ritase (tower_control/direktur lihat semua; driver ter-scope oleh backend). */
 export function useRitase() {
   const token = useAuthStore(tokenSelector);
   return useQuery({

@@ -2,150 +2,380 @@
 
 import { useState, useEffect, useCallback, ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Search, X, Loader2, KeyRound, Shield, CheckCircle2, AlertTriangle } from "lucide-react";
+import {
+  Plus,
+  Search,
+  X,
+  Loader2,
+  KeyRound,
+  Shield,
+  CheckCircle2,
+  AlertTriangle,
+  UserPlus,
+  LockKeyhole,
+  ChevronDown,
+  Check,
+  Eye,
+  EyeOff,
+  Filter,
+  ToggleLeft,
+  ToggleRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { adminUser, UserAdmin } from "@/lib/admin-api";
 
-function Modal({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
-  if (!open) return null;
+/* ─────────── TOAST ─────────── */
+function Toast({
+  show,
+  title,
+  type,
+  onClose,
+}: {
+  show: boolean;
+  title: string;
+  type: "success" | "error";
+  onClose: () => void;
+}) {
+  if (!show) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-lg overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
-        <div className="h-1 w-full bg-gradient-to-r from-[#0c1e3a] to-[#1a3a5c]" />
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
-          <h3 className="text-base font-bold text-[#0c1e3a] dark:text-white">{title}</h3>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800">
+    <div className="fixed bottom-6 right-6 z-[60] flex items-center gap-3 rounded-2xl bg-[#0c1e3a] p-4 pr-5 text-white shadow-2xl ring-1 ring-white/10 animate-in slide-in-from-bottom-4 fade-in duration-300">
+      <div
+        className={cn(
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+          type === "success" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"
+        )}
+      >
+        {type === "success" ? <CheckCircle2 className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
+      </div>
+      <p className="text-xs font-bold text-white">{title}</p>
+      <button
+        onClick={onClose}
+        className="ml-2 rounded-full p-1 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+/* ─────────── MODAL (with scroll lock) ─────────── */
+function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  icon,
+  children,
+  footer,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  description?: string;
+  icon?: ReactNode;
+  children: ReactNode;
+  footer: ReactNode;
+}) {
+  // Lock body scroll when open
+  useEffect(() => {
+    if (open) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        className="flex w-full max-w-lg flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in zoom-in-95 duration-200 max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Accent bar */}
+        <div className="h-1 w-full shrink-0 bg-gradient-to-r from-[#0c1e3a] to-[#1a3a5c]" />
+
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
+          <div className="flex items-center gap-3 min-w-0">
+            {icon && (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0c1e3a]/8 text-[#0c1e3a] dark:bg-white/10 dark:text-white">
+                {icon}
+              </div>
+            )}
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-bold text-[#0c1e3a] dark:text-white">{title}</h3>
+              {description && (
+                <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{description}</p>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="ml-3 shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="max-h-[75vh] overflow-y-auto px-6 py-5">{children}</div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+
+        {/* Sticky footer */}
+        <div className="shrink-0 border-t border-slate-100 bg-slate-50/80 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/80">
+          {footer}
+        </div>
       </div>
     </div>
   );
 }
 
+/* ─────────── SECTION DIVIDER ─────────── */
+function SectionDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 pb-1 pt-2">
+      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+        {label}
+      </span>
+      <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800" />
+    </div>
+  );
+}
+
+/* ─────────── FIELD WRAPPER ─────────── */
+function FieldWrapper({
+  label,
+  required,
+  hint,
+  error,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  hint?: string;
+  error?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+        {label}
+        {required && <span className="ml-0.5 text-rose-500">*</span>}
+      </label>
+      {children}
+      {error ? (
+        <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-rose-500">
+          <AlertTriangle className="h-3 w-3 shrink-0" />
+          {error}
+        </p>
+      ) : hint ? (
+        <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
+
+/* ─────────── ROLE CONFIG ─────────── */
 const ROLE_OPTIONS = [
-  { value: "admin", label: "Admin System" },
-  { value: "direktur", label: "Direktur" },
-  { value: "kapten", label: "Kapten Operasional" },
-  { value: "cs", label: "Customer Service (CS)" },
-  { value: "spv", label: "Supervisor (SPV)" },
-  { value: "driver", label: "Driver App Access" },
-  { value: "coor", label: "Coordinator" },
+  { value: "admin",         label: "Admin",         color: "bg-amber-500" },
+  { value: "direktur",      label: "Direktur",       color: "bg-purple-500" },
+  { value: "tower_control", label: "Tower Control",   color: "bg-blue-500" },
+  { value: "driver",        label: "Driver",          color: "bg-emerald-500" },
 ];
 
 const ROLE_COLORS: Record<string, string> = {
-  admin: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
-  direktur: "bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400",
-  kapten: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400",
-  driver: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
+  admin:         "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
+  direktur:      "bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400",
+  tower_control: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400",
+  driver:        "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
 };
 
-export default function AdminUsersPage() {
-  const [data, setData] = useState<UserAdmin[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [resetOpen, setResetOpen] = useState(false);
-  const [resetTarget, setResetTarget] = useState<UserAdmin | null>(null);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [saving, setSaving] = useState(false);
+/* ─────────── ROLE SELECT DROPDOWN ─────────── */
+function RoleSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const selected = ROLE_OPTIONS.find((o) => o.value === value);
 
-  // Notifications
-  const [toastMsg, setToastMsg] = useState<{ show: boolean; title: string; type: "success" | "error" }>({
-    show: false,
-    title: "",
-    type: "success",
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        className={cn(
+          "flex h-10 w-full items-center justify-between rounded-lg border bg-white px-3.5 text-sm text-slate-700 outline-none transition-all dark:bg-slate-800 dark:text-white",
+          open
+            ? "border-[#FEA103] ring-2 ring-[#FEA103]/20"
+            : "border-slate-200 hover:border-slate-300 dark:border-slate-700"
+        )}
+      >
+        <span className="flex items-center gap-2">
+          {selected && <span className={cn("h-2 w-2 shrink-0 rounded-full", selected.color)} />}
+          <span>{selected?.label ?? "Pilih Role…"}</span>
+        </span>
+        <ChevronDown className={cn("h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800 animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-1">
+              {ROLE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => { onChange(opt.value); setOpen(false); }}
+                  className={cn(
+                    "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
+                    value === opt.value
+                      ? "bg-[#FEA103]/10 font-semibold text-[#E09102] dark:text-[#FEA103]"
+                      : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"
+                  )}
+                >
+                  <span className={cn("h-2 w-2 shrink-0 rounded-full", opt.color)} />
+                  <span className="flex-1 text-left">{opt.label}</span>
+                  {value === opt.value && <Check className="h-3.5 w-3.5 shrink-0 text-[#FEA103]" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ─────────── PASSWORD INPUT ─────────── */
+function PasswordInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <Input
+        type={show ? "text" : "password"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder ?? "Minimal 6 karakter"}
+        className="h-10 rounded-lg pr-10 text-sm"
+      />
+      <button
+        type="button"
+        onClick={() => setShow((p) => !p)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-300"
+        tabIndex={-1}
+      >
+        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </div>
+  );
+}
+
+/* ─────────── PAGE ─────────── */
+export default function AdminUsersPage() {
+  const [data, setData]           = useState<UserAdmin[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [search, setSearch]       = useState("");
+  // Filter: "ALL" | role value | "aktif" | "nonaktif"
+  const [roleFilter, setRoleFilter]     = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  const [createOpen, setCreateOpen]   = useState(false);
+  const [resetOpen, setResetOpen]     = useState(false);
+  const [resetTarget, setResetTarget] = useState<UserAdmin | null>(null);
+  const [togglingId, setTogglingId]   = useState<number | null>(null);
+  const [saving, setSaving]           = useState(false);
+
+  const [toast, setToast] = useState<{ show: boolean; title: string; type: "success" | "error" }>({
+    show: false, title: "", type: "success",
   });
 
   const showToast = (title: string, type: "success" | "error" = "success") => {
-    setToastMsg({ show: true, title, type });
-    setTimeout(() => setToastMsg((prev) => ({ ...prev, show: false })), 4000);
+    setToast({ show: true, title, type });
+    setTimeout(() => setToast((p) => ({ ...p, show: false })), 4000);
   };
 
-  // Create form
-  const [form, setForm] = useState({ username: "", password: "", name: "", role: "cs", karyawan_id: "" });
-  // Reset password form
+  const [form, setFormState] = useState({ username: "", password: "", name: "", role: "cs", karyawan_id: "" });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [newPw, setNewPw] = useState("");
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    try {
-      setData(await adminUser.list());
-    } catch {
-      /* ignore */
-    }
+    try { setData(await adminUser.list()); } catch { /* ignore */ }
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  useEffect(() => { refresh(); }, [refresh]);
 
+  // ── Filtering ──
   const filtered = data.filter((row) => {
+    if (roleFilter !== "ALL" && row.role !== roleFilter) return false;
+    if (statusFilter === "aktif" && row.status !== "aktif") return false;
+    if (statusFilter === "nonaktif" && row.status !== "nonaktif") return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return [row.username, row.name, row.role].some((v) => String(v ?? "").toLowerCase().includes(q));
   });
 
+  // ── Validate & Save ──
+  const validateCreate = () => {
+    const errors: Record<string, string> = {};
+    if (!form.username.trim()) errors.username = "Username wajib diisi";
+    if (!form.password) errors.password = "Password wajib diisi";
+    else if (form.password.length < 6) errors.password = "Password minimal 6 karakter";
+    if (!form.name.trim()) errors.name = "Nama lengkap wajib diisi";
+    if (!form.role) errors.role = "Role wajib dipilih";
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleCreate = async () => {
-    if (!form.username || !form.password || !form.name || !form.role) {
-      showToast("Semua field wajib diisi", "error");
-      return;
-    }
-    if (form.password.length < 6) {
-      showToast("Password minimal 6 karakter", "error");
-      return;
-    }
+    if (!validateCreate()) return;
     setSaving(true);
     try {
       await adminUser.create({ ...form, karyawan_id: form.karyawan_id ? Number(form.karyawan_id) : undefined });
       showToast("User Baru Berhasil Dibuat");
       setCreateOpen(false);
-      setForm({ username: "", password: "", name: "", role: "cs", karyawan_id: "" });
+      setFormState({ username: "", password: "", name: "", role: "cs", karyawan_id: "" });
+      setFormErrors({});
       await refresh();
-    } catch (err: any) {
-      showToast(err?.message || "Gagal membuat user", "error");
-    }
+    } catch (err: any) { showToast(err?.message || "Gagal membuat user", "error"); }
     setSaving(false);
   };
 
   const handleResetPassword = async () => {
     if (!resetTarget || !newPw) return;
-    if (newPw.length < 6) {
-      showToast("Password minimal 6 karakter", "error");
-      return;
-    }
+    if (newPw.length < 6) { showToast("Password minimal 6 karakter", "error"); return; }
     setSaving(true);
     try {
       await adminUser.resetPassword(resetTarget.id_user, newPw);
       showToast(`Password ${resetTarget.username} berhasil direset`);
-      setResetOpen(false);
-      setNewPw("");
-      setResetTarget(null);
-    } catch (err: any) {
-      showToast(err?.message || "Gagal reset password", "error");
-    }
+      setResetOpen(false); setNewPw(""); setResetTarget(null);
+    } catch (err: any) { showToast(err?.message || "Gagal reset password", "error"); }
     setSaving(false);
   };
 
-  const handleDelete = async (id: number) => {
-    setDeletingId(id);
+  const handleToggleStatus = async (row: UserAdmin) => {
+    const newStatus = row.status === "aktif" ? "nonaktif" : "aktif";
+    setTogglingId(row.id_user);
     try {
-      await adminUser.delete(id);
-      showToast("User telah dinonaktifkan");
+      await adminUser.updateStatus(row.id_user, newStatus);
+      showToast(`User ${newStatus === "aktif" ? "diaktifkan" : "dinonaktifkan"}`);
       await refresh();
-    } catch (err: any) {
-      showToast(err?.message || "Gagal mengnonaktifkan", "error");
-    }
-    setDeletingId(null);
+    } catch (err: any) { showToast(err?.message || "Gagal update status", "error"); }
+    setTogglingId(null);
   };
 
-  const inputClass = "h-10 rounded-lg border border-slate-200 bg-white px-3.5 text-sm text-slate-700 outline-none transition-colors focus:border-[#FEA103] focus:ring-2 focus:ring-[#FEA103]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-[#FEA103]";
-  const selectClass = "h-10 w-full rounded-lg border border-slate-200 bg-white px-3.5 text-sm text-slate-700 outline-none transition-colors focus:border-[#FEA103] focus:ring-2 focus:ring-[#FEA103]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-[#FEA103]";
+  const setField = (key: string, val: string) => {
+    setFormState((p) => ({ ...p, [key]: val }));
+    if (formErrors[key]) setFormErrors((p) => ({ ...p, [key]: "" }));
+  };
+
+  const hasErrors = Object.keys(formErrors).length > 0;
 
   return (
     <>
@@ -155,38 +385,109 @@ export default function AdminUsersPage() {
         actions={
           <Button
             onClick={() => {
-              setForm({ username: "", password: "", name: "", role: "cs", karyawan_id: "" });
+              setFormState({ username: "", password: "", name: "", role: "cs", karyawan_id: "" });
+              setFormErrors({});
               setCreateOpen(true);
             }}
             className="bg-[#FEA103] text-xs font-semibold text-white shadow-sm hover:bg-[#E09102]"
           >
-            <Plus className="mr-1.5 h-4 w-4 text-white" /> Tambah User
+            <Plus className="mr-1.5 h-4 w-4 text-white" />
+            Tambah User
           </Button>
         }
       />
 
-      <div className="relative mb-4 max-w-xs">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Cari username, nama..."
-          className="pl-9"
-        />
+      {/* ── Control Bar: Search + Filter chips ── */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        {/* Search */}
+        <div className="relative w-56">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari username, nama..."
+            className="pl-9"
+          />
+        </div>
+
+        {/* Filter Role chips */}
+        <div className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
+          <Filter className="ml-1 h-3.5 w-3.5 text-slate-400" />
+          <button
+            onClick={() => setRoleFilter("ALL")}
+            className={cn(
+              "rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
+              roleFilter === "ALL"
+                ? "bg-[#FEA103] text-white"
+                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+            )}
+          >
+            Semua Role
+          </button>
+          {ROLE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setRoleFilter(roleFilter === opt.value ? "ALL" : opt.value)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
+                roleFilter === opt.value
+                  ? "bg-[#FEA103] text-white"
+                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+              )}
+            >
+              <span className={cn("h-1.5 w-1.5 rounded-full", opt.color)} />
+              {opt.label.split(" ")[0]}
+            </button>
+          ))}
+        </div>
+
+        {/* Filter Status chips */}
+        <div className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
+          {[
+            { value: "ALL", label: "Semua Status" },
+            { value: "aktif", label: "Aktif" },
+            { value: "nonaktif", label: "Nonaktif" },
+          ].map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setStatusFilter(opt.value)}
+              className={cn(
+                "rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
+                statusFilter === opt.value
+                  ? "bg-[#FEA103] text-white"
+                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Active filter count badge */}
+        {(roleFilter !== "ALL" || statusFilter !== "ALL") && (
+          <button
+            onClick={() => { setRoleFilter("ALL"); setStatusFilter("ALL"); }}
+            className="flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400"
+          >
+            <X className="h-3 w-3" />
+            Reset filter
+          </button>
+        )}
       </div>
 
+      {/* ── Table ── */}
       <div className="rounded-md border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b-2 border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500 select-none dark:border-slate-800">
-                <th className="w-12 px-4 py-2.5 text-center font-semibold select-none">#</th>
-                <th className="px-4 py-2.5 font-semibold select-none">Username</th>
-                <th className="px-4 py-2.5 font-semibold select-none">Nama Lengkap</th>
-                <th className="w-32 px-4 py-2.5 font-semibold select-none">Role</th>
-                <th className="w-28 px-4 py-2.5 text-right font-semibold select-none">Karyawan ID</th>
-                <th className="w-24 px-4 py-2.5 font-semibold select-none">Status</th>
-                <th className="w-28 px-4 py-2.5 text-right font-semibold select-none">Aksi</th>
+                <th className="w-12 px-4 py-2.5 text-center">#</th>
+                <th className="px-4 py-2.5">Username</th>
+                <th className="px-4 py-2.5">Nama Lengkap</th>
+                <th className="w-44 px-4 py-2.5">Role</th>
+                <th className="w-28 px-4 py-2.5 text-right">Karyawan ID</th>
+                <th className="w-24 px-4 py-2.5">Status</th>
+                <th className="w-28 px-4 py-2.5 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -199,8 +500,13 @@ export default function AdminUsersPage() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-16 text-center text-sm font-semibold text-slate-500">
-                    Tidak ada data user
+                  <td colSpan={7} className="px-4 py-16 text-center">
+                    <p className="text-sm font-semibold text-slate-500">Tidak ada data user</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {roleFilter !== "ALL" || statusFilter !== "ALL"
+                        ? "Tidak ada user yang cocok dengan filter aktif."
+                        : "Tambahkan user baru untuk memulai."}
+                    </p>
                   </td>
                 </tr>
               ) : (
@@ -210,51 +516,42 @@ export default function AdminUsersPage() {
                     className="border-b border-slate-100 text-sm transition-colors last:border-0 hover:bg-slate-50 dark:border-slate-800/80 dark:hover:bg-slate-800/50"
                   >
                     <td className="px-4 py-3 text-center text-xs font-medium text-slate-400 tabular-nums">{i + 1}</td>
-                    <td className="px-4 py-3 font-mono text-xs font-bold text-slate-900 dark:text-white">
-                      {row.username}
-                    </td>
-                    <td className="px-4 py-3">{row.name}</td>
+                    <td className="px-4 py-3 font-mono text-xs font-bold text-slate-900 dark:text-white">{row.username}</td>
+                    <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{row.name}</td>
                     <td className="px-4 py-3">
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize",
-                          ROLE_COLORS[row.role] ?? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                        )}
-                      >
+                      <span className={cn(
+                        "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize",
+                        ROLE_COLORS[row.role] ?? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                      )}>
                         <Shield className="h-3 w-3" />
-                        {row.role}
+                        {ROLE_OPTIONS.find((o) => o.value === row.role)?.label ?? row.role}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-xs tabular-nums text-slate-500">
-                      {row.karyawan_id ?? "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={row.is_active ? "aktif" : "off"} />
-                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-xs tabular-nums text-slate-500">{row.karyawan_id ?? "—"}</td>
+                    <td className="px-4 py-3"><StatusBadge status={row.status} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button
-                          onClick={() => {
-                            setResetTarget(row);
-                            setNewPw("");
-                            setResetOpen(true);
-                          }}
+                          onClick={() => handleToggleStatus(row)}
+                          disabled={togglingId === row.id_user}
+                          className={cn(
+                            "rounded-md p-1.5 transition-colors disabled:opacity-50",
+                            row.status === "aktif"
+                              ? "text-slate-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-500/10"
+                              : "text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/10"
+                          )}
+                          title={row.status === "aktif" ? "Nonaktifkan" : "Aktifkan"}
+                        >
+                          {togglingId === row.id_user
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : row.status === "aktif" ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                        </button>
+                        <button
+                          onClick={() => { setResetTarget(row); setNewPw(""); setResetOpen(true); }}
                           className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-500/10"
                           title="Reset Password"
                         >
                           <KeyRound className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(row.id_user)}
-                          disabled={deletingId === row.id_user}
-                          className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50 dark:hover:bg-rose-500/10"
-                          title="Nonaktifkan"
-                        >
-                          {deletingId === row.id_user ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
                         </button>
                       </div>
                     </td>
@@ -265,130 +562,135 @@ export default function AdminUsersPage() {
           </table>
         </div>
         <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500 dark:border-slate-800">
-          Menampilkan {filtered.length} dari {data.length} total user
+          Menampilkan{" "}
+          <span className="font-semibold text-slate-800 dark:text-white">{filtered.length}</span> dari{" "}
+          <span className="font-semibold text-slate-800 dark:text-white">{data.length}</span> total user
+          {(roleFilter !== "ALL" || statusFilter !== "ALL") && (
+            <span className="ml-1 text-[#FEA103] font-semibold">(difilter)</span>
+          )}
         </div>
       </div>
 
-      {/* Create User Modal */}
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tambah Akun User Baru">
-        <div className="space-y-4">
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Username <span className="text-rose-500">*</span>
-            </label>
-            <Input
-              value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })}
-              placeholder="Username untuk login"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Password <span className="text-rose-500">*</span>
-            </label>
-            <Input
-              type="password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder="Minimal 6 karakter"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Nama Lengkap <span className="text-rose-500">*</span>
-            </label>
-            <Input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Nama lengkap pengoperasi"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Role Hak Akses <span className="text-rose-500">*</span>
-            </label>
-            <select
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
-              className={selectClass}
-            >
-              {ROLE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">Karyawan ID</label>
-            <Input
-              type="number"
-              value={form.karyawan_id}
-              onChange={(e) => setForm({ ...form, karyawan_id: e.target.value })}
-              placeholder="Opsional (cth: 101)"
-              className={inputClass}
-            />
-          </div>
-        </div>
-        <div className="flex items-center justify-end gap-2.5 border-t border-slate-100 px-6 py-4 dark:border-slate-800">
-          <Button variant="outline" onClick={() => setCreateOpen(false)} className="px-4 text-xs font-semibold">
-            Batal
-          </Button>
-          <Button onClick={handleCreate} disabled={saving} className="bg-[#FEA103] px-5 text-xs font-semibold text-white hover:bg-[#E09102]">
-            {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />} Tambah User
-          </Button>
-        </div>
-      </Modal>
-
-      {/* Reset Password Modal */}
-      <Modal open={resetOpen} onClose={() => setResetOpen(false)} title={`Reset Password — ${resetTarget?.username ?? ""}`}>
-        <div className="space-y-4">
-          <p className="text-sm text-slate-500">
-            Masukkan password baru untuk user <strong className="text-slate-700 dark:text-slate-300">{resetTarget?.username}</strong> ({resetTarget?.name}).
-          </p>
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Password Baru <span className="text-rose-500">*</span>
-            </label>
-            <Input
-              type="password"
-              value={newPw}
-              onChange={(e) => setNewPw(e.target.value)}
-              placeholder="Minimal 6 karakter"
-              className={inputClass}
-            />
-          </div>
-        </div>
-        <div className="flex items-center justify-end gap-2.5 border-t border-slate-100 px-6 py-4 dark:border-slate-800">
-          <Button variant="outline" onClick={() => setResetOpen(false)} className="px-4 text-xs font-semibold">
-            Batal
-          </Button>
-          <Button
-            onClick={handleResetPassword}
-            disabled={saving || !newPw}
-            className="bg-[#FEA103] px-5 text-xs font-semibold text-white hover:bg-[#E09102]"
-          >
-            {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />} Reset Password
-          </Button>
-        </div>
-      </Modal>
-
-      {/* Floating Toast Notification */}
-      {toastMsg.show && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl bg-[#0c1e3a] p-4 pr-5 text-white shadow-2xl shadow-slate-900/30 ring-1 ring-white/10 animate-in slide-in-from-bottom-4 fade-in duration-300">
-          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${toastMsg.type === "success" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"}`}>
-            {toastMsg.type === "success" ? (
-              <CheckCircle2 className="h-5 w-5" />
-            ) : (
-              <AlertTriangle className="h-5 w-5" />
+      {/* ── Create User Modal ── */}
+      <Modal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Tambah Akun User Baru"
+        description="Isi form berikut · 4 field wajib diisi"
+        icon={<UserPlus className="h-5 w-5" />}
+        footer={
+          <div className="flex items-center justify-between gap-3">
+            {hasErrors && (
+              <p className="flex items-center gap-1.5 text-[11px] font-medium text-rose-500">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                {Object.keys(formErrors).length} field belum terisi dengan benar
+              </p>
             )}
+            <div className="ml-auto flex items-center gap-2.5">
+              <Button variant="outline" onClick={() => setCreateOpen(false)} className="px-4 text-xs font-semibold">
+                Batal
+              </Button>
+              <Button
+                onClick={handleCreate}
+                disabled={saving}
+                className="min-w-[120px] bg-[#FEA103] px-5 text-xs font-semibold text-white hover:bg-[#E09102] disabled:opacity-70"
+              >
+                {saving ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Menyimpan…</> : "Tambah User"}
+              </Button>
+            </div>
           </div>
-          <p className="text-xs font-bold text-white">{toastMsg.title}</p>
+        }
+      >
+        <div className="space-y-4">
+          <SectionDivider label="Kredensial Login" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FieldWrapper label="Username" required error={formErrors.username} hint="Digunakan untuk login ke sistem">
+              <Input
+                value={form.username}
+                onChange={(e) => setField("username", e.target.value)}
+                placeholder="Username untuk login"
+                className={cn("h-10 rounded-lg text-sm", formErrors.username && "border-rose-400 bg-rose-50/50 focus:border-rose-500 dark:bg-rose-500/5")}
+              />
+            </FieldWrapper>
+            <FieldWrapper label="Password" required error={formErrors.password} hint="Minimal 6 karakter">
+              <PasswordInput value={form.password} onChange={(v) => setField("password", v)} placeholder="Minimal 6 karakter" />
+            </FieldWrapper>
+          </div>
+
+          <SectionDivider label="Data Pengguna" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FieldWrapper label="Nama Lengkap" required error={formErrors.name}>
+              <Input
+                value={form.name}
+                onChange={(e) => setField("name", e.target.value)}
+                placeholder="Nama lengkap pengoperasi"
+                className={cn("h-10 rounded-lg text-sm", formErrors.name && "border-rose-400 bg-rose-50/50 focus:border-rose-500 dark:bg-rose-500/5")}
+              />
+            </FieldWrapper>
+            <FieldWrapper label="Karyawan ID" hint="Opsional — hubungkan ke ID karyawan">
+              <Input
+                type="number"
+                value={form.karyawan_id}
+                onChange={(e) => setField("karyawan_id", e.target.value)}
+                placeholder="cth: 101"
+                className="h-10 rounded-lg text-sm"
+              />
+            </FieldWrapper>
+          </div>
+
+          <SectionDivider label="Hak Akses" />
+          <FieldWrapper label="Role Hak Akses" required error={formErrors.role} hint="Menentukan menu dan fitur yang bisa diakses user">
+            <RoleSelect value={form.role} onChange={(v) => setField("role", v)} />
+          </FieldWrapper>
         </div>
-      )}
+      </Modal>
+
+      {/* ── Reset Password Modal ── */}
+      <Modal
+        open={resetOpen}
+        onClose={() => setResetOpen(false)}
+        title="Reset Password"
+        description={`Atur ulang password untuk ${resetTarget?.username ?? "—"}`}
+        icon={<LockKeyhole className="h-5 w-5" />}
+        footer={
+          <div className="flex items-center justify-end gap-2.5">
+            <Button variant="outline" onClick={() => setResetOpen(false)} className="px-4 text-xs font-semibold">
+              Batal
+            </Button>
+            <Button
+              onClick={handleResetPassword}
+              disabled={saving || !newPw}
+              className="min-w-[130px] bg-[#FEA103] px-5 text-xs font-semibold text-white hover:bg-[#E09102] disabled:opacity-70"
+            >
+              {saving ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Menyimpan…</> : "Reset Password"}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {/* User info card */}
+          <div className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/50">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0c1e3a]/8 dark:bg-white/10">
+              <Shield className="h-4 w-4 text-[#0c1e3a] dark:text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-800 dark:text-white">{resetTarget?.name}</p>
+              <p className="font-mono text-[11px] text-slate-500">
+                @{resetTarget?.username} ·{" "}
+                <span className={cn("inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold capitalize", ROLE_COLORS[resetTarget?.role ?? ""] ?? "bg-slate-100 text-slate-600")}>
+                  {resetTarget?.role}
+                </span>
+              </p>
+            </div>
+          </div>
+          <FieldWrapper label="Password Baru" required hint="Minimal 6 karakter · User harus login ulang setelah direset">
+            <PasswordInput value={newPw} onChange={(v) => setNewPw(v)} placeholder="Masukkan password baru" />
+          </FieldWrapper>
+        </div>
+      </Modal>
+
+      {/* Toast */}
+      <Toast show={toast.show} title={toast.title} type={toast.type} onClose={() => setToast((p) => ({ ...p, show: false }))} />
     </>
   );
 }

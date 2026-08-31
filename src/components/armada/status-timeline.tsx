@@ -123,9 +123,9 @@ function TimelineList({
                   </div>
                   <div className="min-w-0 pb-2.5">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                      <p className="text-sm font-medium text-slate-800">{statusLabel(ev.status)}</p>
+                      <p className="min-w-0 truncate text-sm font-medium text-slate-800">{statusLabel(ev.status)}</p>
                       {ev.titik && (
-                        <span className="text-[11px] text-slate-500">{ev.titik}</span>
+                        <span className="min-w-0 truncate text-[11px] text-slate-500">{ev.titik}</span>
                       )}
                       {ev.status.toLowerCase().includes("bongkar") && (
                         <span className="rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">

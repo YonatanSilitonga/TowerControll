@@ -20,15 +20,14 @@ import { useRealtimeStore } from "@/stores/realtime-store";
 import { changePasswordRequest } from "@/lib/auth";
 import { MobileNav } from "@/components/layout/mobile-nav";
 
-/** Badge kecil status koneksi realtime (SSE). */
+/** Badge kecil status koneksi realtime (SSE). Hanya muncul saat connected/reconnecting. */
 function RealtimeBadge() {
   const status = useRealtimeStore((s) => s.status);
+  if (status === "disconnected") return null;
   const cfg =
     status === "connected"
       ? { label: "LIVE", dot: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" }
-      : status === "reconnecting" || status === "connecting"
-        ? { label: "MENGHUBUNGKAN", dot: "bg-amber-500 animate-pulse", text: "text-amber-700", bg: "bg-amber-50 border-amber-200" }
-        : { label: "OFFLINE", dot: "bg-slate-400", text: "text-slate-500", bg: "bg-slate-100 border-slate-200" };
+      : { label: "MENGHUBUNGKAN", dot: "bg-amber-500 animate-pulse", text: "text-amber-700", bg: "bg-amber-50 border-amber-200" };
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cfg.bg} ${cfg.text}`}

@@ -32,7 +32,7 @@ function BootLoader() {
  * Layout dashboard — guard yang benar:
  * - Tunggu store ke-hydrate (baca localStorage) dulu, biar refresh gak salah redirect.
  * - Kalau ada token → validasi via /auth/me (keep kalau valid, clear kalau expired).
- * - Web khusus direktur/kapten (driver pakai mobile).
+ * - Web khusus direktur/tower_control (driver pakai mobile).
  */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -44,6 +44,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     let active = true;
 
+    // Safety timeout — kalau boot stuck >10 detik, paksa clear & redirect login
+    const safetyTimer = setTimeout(() => {
+      if (active) {
+        const st = useAuthStore.getState();
+        st.clear();
+        router.replace("/login");
+      }
+    }, 10_000);
+
     (async () => {
       const st = useAuthStore.getState();
       // Validasi token kalau ada (keep/clear otomatis di fetchMe)
@@ -54,6 +63,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           /* fetchMe sudah clear kalau gagal */
         }
       }
+      clearTimeout(safetyTimer);
       if (!active) return;
       setReady(true);
 
@@ -76,6 +86,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     return () => {
       active = false;
+      clearTimeout(safetyTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

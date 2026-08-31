@@ -48,7 +48,7 @@ export default function ArmadaOverviewPage() {
       <ArmadaTabs />
 
       {/* Navigation cards */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         <NavCard
           href="/armada/vehicles"
           title="Kendaraan"
@@ -80,7 +80,7 @@ export default function ArmadaOverviewPage() {
       </div>
 
       {/* Breakdown status */}
-      <div className="mt-6 grid gap-4 items-stretch lg:grid-cols-3">
+      <div className="mt-5 grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
@@ -172,15 +172,11 @@ export default function ArmadaOverviewPage() {
         </Card>
       </div>
 
-      <div className="mt-6 flex items-start gap-3 rounded-lg border bg-card p-4 text-sm text-muted-foreground">
-        <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-        <div>
-          <p className="font-medium text-slate-800">Tips</p>
-          <p className="text-xs">
-            Peta live & status armada ada di <b>Dashboard</b>. Detail kendaraan, driver, dan rute ritase
-            ada di menu Armada.
-          </p>
-        </div>
+      <div className="mt-4 flex items-start gap-2.5 rounded-lg border bg-card p-3 text-sm text-muted-foreground">
+        <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+        <p className="text-xs">
+          Peta live & status armada ada di <b>Dashboard</b>. Detail kendaraan, driver, dan rute ritase ada di menu Armada.
+        </p>
       </div>
     </div>
   );
@@ -204,19 +200,19 @@ function Breakdown<
   const sorted = [...map.entries()].sort((a, b) => b[1] - a[1]);
   const total = items.length;
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {sorted.map(([key, count]) => {
         const pct = total > 0 ? Math.round((count / total) * 100) : 0;
         return (
           <div key={key}>
-            <div className="mb-1 flex items-center justify-between text-sm">
+            <div className="mb-0.5 flex items-center justify-between text-xs">
               <span className="text-slate-600">{statusLabel(key)}</span>
-              <span className="font-bold tabular-nums text-slate-800">
+              <span className="font-bold tabular-nums text-slate-700">
                 {count}
-                <span className="ml-1.5 text-[11px] font-semibold text-slate-400">({pct}%)</span>
+                <span className="ml-1 text-[10px] font-medium text-slate-400">({pct}%)</span>
               </span>
             </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
               <div
                 className="h-full rounded-full bg-[#0c1e3a]"
                 style={{ width: `${Math.max(pct, 3)}%` }}
@@ -225,9 +221,9 @@ function Breakdown<
           </div>
         );
       })}
-      <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-xs">
-        <span className="text-slate-500">Total</span>
-        <span className="font-bold tabular-nums text-slate-800">{total}</span>
+      <div className="flex items-center justify-between border-t border-slate-100 pt-1.5 text-xs">
+        <span className="text-slate-400">Total</span>
+        <span className="font-bold tabular-nums text-slate-700">{total}</span>
       </div>
     </div>
   );

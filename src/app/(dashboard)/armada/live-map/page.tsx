@@ -147,7 +147,7 @@ function LiveMapBody() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
         {/* Peta — mobile: tab "peta" full tinggi; desktop: flex-1 setara tinggi panel kanan */}
         <div className={cn("flex-1 min-w-0", mobileTab !== "peta" && "hidden lg:block")}>
-          <Card className="flex h-[420px] lg:h-full min-h-[420px] flex-col overflow-hidden">
+          <Card className="flex h-[calc(100svh-220px)] min-h-[400px] lg:h-full flex-col overflow-hidden">
             <CardContent className="flex h-full flex-1 p-0">
               <div className="h-full w-full flex-1">
                 {isLoading ? (

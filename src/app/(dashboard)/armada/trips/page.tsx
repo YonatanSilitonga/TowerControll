@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { ArmadaTabs } from "@/components/armada/armada-tabs";
 import { useRitase } from "@/hooks/use-armada";
 import { formatDateDMY, formatNumber } from "@/lib/utils";
+import { isRitaseExpired } from "@/lib/constants";
 import type { Ritase } from "@/types/armada";
 
 export default function RitasePage() {
@@ -80,7 +81,7 @@ export default function RitasePage() {
             render: (r) =>
               r.jam_mulai && r.jam_selesai ? `${r.jam_mulai} – ${r.jam_selesai}` : "-",
           },
-          { header: "Status", render: (r) => <StatusBadge status={r.status} /> },
+          { header: "Status", render: (r) => <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal) ? "expired" : r.status} /> },
           {
             header: "Detail",
             className: "text-right",

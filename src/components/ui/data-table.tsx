@@ -108,12 +108,12 @@ export function DataTable<T>({
         </div>
       )}
 
-      {/* Tabel normal (layar >= md) */}
-      <div className={cn("hidden border bg-card md:block", tableLayout === "fixed" ? "overflow-hidden" : "overflow-x-auto")}>
+      {/* Tabel — selalu overflow-x-auto agar bisa digeser di mobile */}
+      <div className="overflow-x-auto border bg-card">
         <table
           className={cn(
             "w-full text-sm",
-            tableLayout === "fixed" ? "table-fixed" : "table-auto"
+            tableLayout === "fixed" ? "table-fixed min-w-full" : "table-auto min-w-[640px]"
           )}
         >
           <thead>
@@ -181,46 +181,6 @@ export function DataTable<T>({
             )}
           </tbody>
         </table>
-      </div>
-
-      {/* Kartu bertumpuk (mobile < md) — pakai kolom yang sama otomatis */}
-      <div className="space-y-2 md:hidden">
-        {loading ? (
-          Array.from({ length: Math.min(3, skeletonRows) }).map((_, i) => (
-            <div key={i} className="rounded-lg border bg-card p-3">
-              <Skeleton className="h-3 w-1/3" />
-              <Skeleton className="mt-2 h-4 w-full" />
-              <Skeleton className="mt-2 h-3 w-2/3" />
-            </div>
-          ))
-        ) : shown.length === 0 ? (
-          <p className="rounded-lg border border-dashed bg-card py-8 text-center text-sm text-slate-400">
-            {q ? "Tidak ada data yang cocok" : emptyText}
-          </p>
-        ) : (
-          shown.map((row) => (
-            <div
-              key={rowKey(row)}
-              onClick={onRowClick ? () => onRowClick(row) : undefined}
-              className={cn(
-                "rounded-lg border bg-card p-3",
-                onRowClick && "cursor-pointer transition-colors hover:bg-slate-50"
-              )}
-            >
-              {columns.map((c, j) => (
-                <div
-                  key={j}
-                  className="flex items-start justify-between gap-3 border-b border-slate-100 py-1.5 last:border-0"
-                >
-                  <span className="shrink-0 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                    {c.header}
-                  </span>
-                  <span className="min-w-0 shrink-0 truncate text-right text-sm text-slate-800">{c.render(row)}</span>
-                </div>
-              ))}
-            </div>
-          ))
-        )}
       </div>
 
       {/* Pagination */}
