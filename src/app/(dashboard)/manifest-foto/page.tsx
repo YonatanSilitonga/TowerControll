@@ -27,18 +27,9 @@ import { PageHeader } from "@/components/layout/page-header";
 import { KPICard } from "@/components/ui/kpi-card";
 import { useManifestPhotos } from "@/hooks/use-manifest-photos";
 import { useDriver } from "@/hooks/use-armada";
-import { API_URL } from "@/lib/constants";
+import { getFullPhotoUrl } from "@/lib/constants";
 import { formatDateTime, formatDur, cn } from "@/lib/utils";
 import type { ManifestPhotoItem, DriverArmada } from "@/types/armada";
-
-/* ──────────── helper ──────────── */
-
-const getFullPhotoUrl = (url: string) => {
-  if (!url) return "/placeholder-photo.png";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  const baseHost = API_URL.replace(/\/api\/v1\/?$/, "");
-  return `${baseHost}${url.startsWith("/") ? "" : "/"}${url}`;
-};
 
 /* ──────────── types ──────────── */
 

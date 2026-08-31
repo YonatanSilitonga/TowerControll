@@ -35,7 +35,7 @@ import {
   useUpdateRitase,
 } from "@/hooks/use-admin-ritase";
 import { cn, formatDur, formatDateDMY } from "@/lib/utils";
-import { isRitaseExpired } from "@/lib/constants";
+import { isRitaseExpired, getFullPhotoUrl } from "@/lib/constants";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { JenisBadge } from "@/components/ui/jenis-badge";
 import { PengaturanTab } from "@/components/jadwal/pengaturan-tab";
@@ -91,6 +91,18 @@ export default function JadwalPage() {
     onConfirm: () => void;
   } | null>(null);
   const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Lightbox foto manifest
+  const [selectedFoto, setSelectedFoto] = useState<{ url: string; title: string } | null>(null);
+
+  // Tutup lightbox via Escape
+  useEffect(() => {
+    if (!selectedFoto) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSelectedFoto(null); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [selectedFoto]);
+
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showToast = (type: "success" | "error", text: string) => {
@@ -1058,15 +1070,14 @@ export default function JadwalPage() {
                             </div>
                             {/* Kanan: Foto button */}
                             {stop.foto_manifest_url && (
-                              <a
-                                href={stop.foto_manifest_url.startsWith("http") ? stop.foto_manifest_url : `http://127.0.0.1:8080${stop.foto_manifest_url.startsWith("/") ? "" : "/"}${stop.foto_manifest_url}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                              <button
+                                type="button"
+                                onClick={() => setSelectedFoto({ url: stop.foto_manifest_url!, title: stop.nama_lokasi })}
                                 title="Lihat foto bukti bongkar muat"
-                                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 hover:bg-[#0c1e3a] hover:text-white hover:border-[#0c1e3a] transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-[#0c1e3a]"
+                                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 hover:bg-[#0c1e3a] hover:text-white hover:border-[#0c1e3a] transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-[#0c1e3a] cursor-pointer"
                               >
                                 📷 Foto
-                              </a>
+                              </button>
                             )}
                           </div>
                         ))}
@@ -2005,6 +2016,40 @@ export default function JadwalPage() {
               </button>
             </div>
           )}
+
+      {/* ── Lightbox Foto Manifest ── */}
+      {selectedFoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setSelectedFoto(null)}
+        >
+          <div
+            className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">{selectedFoto.title}</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Foto Manifest</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedFoto(null)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex min-h-[250px] flex-1 items-center justify-center overflow-auto bg-slate-950 p-2 sm:p-4">
+              <img
+                src={getFullPhotoUrl(selectedFoto.url)}
+                alt="Foto Manifest"
+                className="max-h-[70vh] max-w-full rounded object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

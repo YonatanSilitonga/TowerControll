@@ -6,6 +6,18 @@ import type { DriverStatus, FleetStatus, TripStatus, VehicleStatus } from "@/typ
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "/api/v1";
 
+/**
+ * Bangun URL lengkap untuk foto manifest.
+ * Backend simpan path relatif (e.g. /uploads/manifest/xxx.webp).
+ * Fungsi ini prepend base host biar gambar bisa diakses dari browser.
+ */
+export function getFullPhotoUrl(url: string): string {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  const base = API_URL.replace(/\/api\/v1\/?$/, "");
+  return `${base}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
 /** Interval polling summary dashboard (ms). */
 export const POLL_INTERVAL = Number(
   process.env.NEXT_PUBLIC_POLL_INTERVAL ?? 30000
