@@ -18,11 +18,13 @@ export function useAdminRitase(tanggal?: string) {
 }
 
 export interface MasterOptions {
-  drivers: Array<{ id_driver: number; nama_driver: string; jabatan: string }>;
-  kendaraan: Array<{ id_kendaraan: number; plat_nomor: string; jenis_kendaraan: string }>;
+  drivers: Array<{ id_driver: number; nama_driver: string; jabatan: string; status_driver: string }>;
+  kendaraan: Array<{ id_kendaraan: number; plat_nomor: string; jenis_kendaraan: string; status_kendaraan: string }>;
   drop_points: Array<{ id_drop_point: number; nama_drop_point: string; kode_dp: string }>;
   sellers: Array<{ id_seller: number; nama_seller: string; kode_seller: string }>;
-  gudangs: Array<{ id_gudang: number; nama_gudang: string; jenis: string }>;
+  gudangs: Array<{ id_gudang: number; nama_gudang: string }>;
+  driver_jenis: Array<{ id_driver: number; ritase_ke: number; jenis: string }>;
+  jam_ritase: Array<{ jenis: string; ritase_ke: number; jam_mulai: string; jam_selesai: string }>;
 }
 
 /** Fetch master options (drivers, kendaraan, drop_points, sellers, gudangs). */

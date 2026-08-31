@@ -391,14 +391,14 @@ export type UserAdmin = {
   role: string;
   karyawan_id?: number;
   is_active: boolean;
+  status: string;
 };
 
 const defaultUsers: UserAdmin[] = [
-  { id_user: 1, username: "admin", name: "Administrator System", role: "admin", karyawan_id: 101, is_active: true },
-  { id_user: 2, username: "direktur", name: "Bapak Direktur", role: "direktur", karyawan_id: 102, is_active: true },
-  { id_user: 3, username: "kapten", name: "Kapten Operasional", role: "kapten", karyawan_id: 103, is_active: true },
-  { id_user: 4, username: "driver1", name: "Budi Santoso", role: "driver", karyawan_id: 104, is_active: true },
-  { id_user: 5, username: "cs1", name: "Customer Service A", role: "cs", karyawan_id: 105, is_active: true },
+  { id_user: 1, username: "admin", name: "Administrator System", role: "admin", karyawan_id: 101, is_active: true, status: "aktif" },
+  { id_user: 2, username: "direktur", name: "Bapak Direktur", role: "direktur", karyawan_id: 102, is_active: true, status: "aktif" },
+  { id_user: 3, username: "tower_control", name: "Tower Control", role: "tower_control", karyawan_id: 103, is_active: true, status: "aktif" },
+  { id_user: 4, username: "driver1", name: "Budi Santoso", role: "driver", karyawan_id: 104, is_active: true, status: "aktif" },
 ];
 
 export const adminUser = {
@@ -416,6 +416,7 @@ export const adminUser = {
       role: data.role,
       karyawan_id: data.karyawan_id,
       is_active: true,
+      status: "aktif",
     };
     if (isMock) {
       setStorage("users", [newObj, ...list]);
@@ -438,6 +439,21 @@ export const adminUser = {
     catch {
       const list = getStorage("users", defaultUsers);
       const updated = list.map((item) => item.id_user === id ? { ...item, role } : item);
+      setStorage("users", updated);
+      return { success: true };
+    }
+  },
+  updateStatus: async (id: number, status: string) => {
+    if (isMock) {
+      const list = getStorage("users", defaultUsers);
+      const updated = list.map((item) => item.id_user === id ? { ...item, status } : item);
+      setStorage("users", updated);
+      return { success: true };
+    }
+    try { return await adminFetch<any>(`/admin/users/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }); }
+    catch {
+      const list = getStorage("users", defaultUsers);
+      const updated = list.map((item) => item.id_user === id ? { ...item, status } : item);
       setStorage("users", updated);
       return { success: true };
     }
