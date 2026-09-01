@@ -63,7 +63,7 @@ export default function JadwalPage() {
   const isDatePast = selectedDate < todayStr;
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [ritaseFilter, setRitaseFilter] = useState<string>("all");
-  const [jenisFilter, setJenisFilter] = useState<string>("all");
+  const [jenisFilter, setJenisFilter] = useState<string>("outgoing");
 
   // Dynamic ritase options: outgoing cuma 3, incoming/all → 1-4
   const ritaseOptions = useMemo(() => {
@@ -79,7 +79,6 @@ export default function JadwalPage() {
     }
   }, [jenisFilter]);
   const [showPengaturan, setShowPengaturan] = useState<boolean>(false);
-  const pengaturanRef = useRef<HTMLDivElement>(null);
   const [showGenerateModal, setShowGenerateModal] = useState<boolean>(false);
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [editingRitase, setEditingRitase] = useState<AdminRitaseItem | null>(null);
@@ -118,13 +117,21 @@ export default function JadwalPage() {
   const { data: masterOptions } = useAdminMasterOptions();
 
   // Filter: driver aktif & kendaraan tersedia (dengan case-insensitive & fallback agar opsi tidak pernah kosong)
-  const activeDrivers = useMemo(() => {
-    if (!masterOptions?.drivers) return [];
-    const filtered = masterOptions.drivers.filter((d) =>
-      ["aktif", "bertugas", "on_duty", "standby", "tersedia"].includes((d.status_driver ?? "").toLowerCase().trim())
-    );
-    return filtered.length > 0 ? filtered : masterOptions.drivers;
-  }, [masterOptions?.drivers]);
+const activeDrivers = useMemo(() => {
+  if (!masterOptions?.drivers) return [];
+
+  // Fokus dulu ke driver Transporter Outgoing & Incoming saja
+  const jenisAllowed = ["transporter outgoing", "transporter incoming"];
+  const byJenis = masterOptions.drivers.filter((d) =>
+    jenisAllowed.includes((d.jabatan ?? "").toLowerCase().trim())
+  );
+
+  const filtered = byJenis.filter((d) =>
+    ["aktif", "bertugas", "on_duty", "standby", "tersedia"].includes((d.status_driver ?? "").toLowerCase().trim())
+  );
+
+  return filtered.length > 0 ? filtered : byJenis;
+}, [masterOptions?.drivers]);
 
   const activeVehicles = useMemo(() => {
     if (!masterOptions?.kendaraan) return [];
@@ -469,15 +476,21 @@ export default function JadwalPage() {
   };
 
   const handleSaveCreate = (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    // ── Validasi duplikat di frontend ──
-    const existingRitase = ritases?.find(
-      (r) =>
-        r.id_driver === newRitase.id_driver &&
-        r.tanggal === newRitase.tanggal &&
-        r.ritase_ke === newRitase.ritase_ke
-    );
+  // ── Validasi tanggal tidak boleh di masa lalu ──
+  if (newRitase.tanggal < todayStr) {
+    showToast("error", "Tidak bisa membuat jadwal untuk tanggal yang sudah berlalu.");
+    return;
+  }
+
+  // ── Validasi duplikat di frontend ──
+  const existingRitase = ritases?.find(
+    (r) =>
+      r.id_driver === newRitase.id_driver &&
+      r.tanggal === newRitase.tanggal &&
+      r.ritase_ke === newRitase.ritase_ke
+  );
     if (existingRitase) {
       const driverName = masterOptions?.drivers.find((d) => d.id_driver === newRitase.id_driver)?.nama_driver ?? `Driver #${newRitase.id_driver}`;
       showToast(
@@ -729,55 +742,58 @@ export default function JadwalPage() {
           <div className="flex flex-wrap items-center gap-2">
             {/* Tombol Pengaturan: icon gear */}
             <button
-              type="button"
-              onClick={() => {
-                setShowPengaturan(true);
-                requestAnimationFrame(() => {
-                  pengaturanRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                });
-              }}
-              className={cn(
-                "inline-flex items-center justify-center rounded-md border p-2 transition-colors",
-                showPengaturan
-                  ? "border-[#0c1e3a] bg-[#0c1e3a] text-white"
-                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-white"
-              )}
-              title="Pengaturan Jadwal"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
+  type="button"
+  onClick={() => setShowPengaturan(true)}
+  className={cn(
+    "inline-flex items-center justify-center rounded-md border p-2 transition-all duration-200 ease-out hover:scale-[1.06] active:scale-[0.96]",
+    showPengaturan
+      ? "border-[#0c1e3a] bg-[#0c1e3a] text-white"
+      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-white"
+  )}
+  title="Pengaturan Jadwal"
+>
+  <Settings className="h-4 w-4" />
+</button>
             {/* Tombol Utama: 1-Klik Generate Otomatis */}
             <button
-              type="button"
-              disabled={isDatePast}
-              onClick={() => { if (isDatePast) return; setShowGenerateModal(true); fetchPreview(); }}
-              className="inline-flex items-center justify-center gap-2 rounded-md bg-[#0c1e3a] px-5 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#16335a] disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Zap className="h-4 w-4" />
-              <span>Generate Otomatis</span>
-            </button>
+  type="button"
+  disabled={isDatePast}
+  onClick={() => { if (isDatePast) return; setShowGenerateModal(true); fetchPreview(); }}
+  className="inline-flex items-center justify-center gap-2 rounded-md bg-[#0c1e3a] px-5 py-2 text-xs font-semibold text-white transition-all duration-200 ease-out hover:bg-[#16335a] hover:scale-[1.03] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+>
+  <Zap className="h-4 w-4" />
+  <span>Generate Otomatis</span>
+</button>
           </div>
         }
       />
 
       {/* ── PENGATURAN PANEL (inline) ── */}
+      
       {showPengaturan && (
-        <div ref={pengaturanRef} className="mb-4 scroll-mt-20 rounded-lg border border-slate-200 bg-card dark:border-slate-800">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5 dark:border-slate-800">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Pengaturan Jadwal</h3>
-            <button
-              type="button"
-              onClick={() => setShowPengaturan(false)}
-              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="p-4">
-            <PengaturanTab />
-          </div>
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+    <div className="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+      <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5 dark:border-slate-800">
+        <div>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">Pengaturan Jadwal</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Atur jam ritase & template rute yang dipakai saat generate otomatis
+          </p>
         </div>
-      )}
+        <button
+          type="button"
+          onClick={() => setShowPengaturan(false)}
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-5">
+        <PengaturanTab />
+      </div>
+    </div>
+  </div>
+)}
 
       {/* ── TAB CONTENT ── */}
       {isDatePast && (
@@ -816,71 +832,71 @@ export default function JadwalPage() {
 
           {/* ── FILTER, TANGGAL, & RITASE FILTER BAR ── */}
           <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Tanggal Picker */}
-              <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex flex-wrap items-end gap-3">
+  {/* Tanggal Picker */}
+  <div className="flex flex-col gap-1">
+    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</span>
+    <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-800">
+      <input
+        type="date"
+        value={selectedDate}
+        onChange={(e) => { setSelectedDate(e.target.value); }}
+        className="bg-transparent text-xs font-semibold text-slate-700 outline-none dark:text-slate-200"
+      />
+    </div>
+  </div>
 
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => {
-                    setSelectedDate(e.target.value);
-                  }}
-                  className="bg-transparent text-xs font-semibold text-slate-700 outline-none dark:text-slate-200"
-                />
-              </div>
+  {/* Jenis Filter — Outgoing / Incoming, dengan count langsung di label */}
+  <div className="flex flex-col gap-1">
+    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Jenis</span>
+    <div className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
+      {[
+        { value: "outgoing", label: `Outgoing (${outgoingCount})` },
+        { value: "incoming", label: `Incoming (${incomingCount})` },
+      ].map((j) => (
+        <button
+  key={j.value}
+  type="button"
+  onClick={() => { setJenisFilter(j.value); setRitaseFilter("all"); }}
+  className={cn(
+    "rounded-lg px-2.5 py-1 text-xs font-semibold capitalize transition-all duration-200 ease-out hover:scale-[1.06] active:scale-[0.95]",
+    jenisFilter === j.value
+      ? "bg-[#FEA103] text-white"
+      : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+  )}
+>
+  {j.label}
+</button>
+      ))}
+    </div>
+  </div>
 
-              {/* Ritase Filter — menyusul tanggal */}
-              <div className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
-                {ritaseOptions.map((rit) => (
-                  <button
-                    key={rit}
-                    type="button"
-                    onClick={() => setRitaseFilter(rit)}
-                    className={cn(
-                      "rounded-lg px-2.5 py-1 text-xs font-semibold capitalize transition-all",
-                      ritaseFilter === rit
-                        ? "bg-[#FEA103] text-white"
-                        : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                    )}
-                  >
-                    {rit === "all" ? "Semua Ritase" : `Ritase ${rit}`}
-                  </button>
-                ))}
-              </div>
-
-              {/* Jenis Filter — Outgoing / Incoming */}
-              <div className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
-                {[
-                  { value: "all", label: "Semua Jenis" },
-                  { value: "outgoing", label: "Outgoing" },
-                  { value: "incoming", label: "Incoming" },
-                ].map((j) => (
-                  <button
-                    key={j.value}
-                    type="button"
-                    onClick={() => { setJenisFilter(j.value); setRitaseFilter("all"); }}
-                    className={cn(
-                      "rounded-lg px-2.5 py-1 text-xs font-semibold capitalize transition-all",
-                      jenisFilter === j.value
-                        ? j.value === "outgoing"
-                          ? "bg-blue-600 text-white"
-                          : j.value === "incoming"
-                            ? "bg-orange-500 text-white"
-                            : "bg-[#FEA103] text-white"
-                        : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                    )}
-                  >
-                    {j.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
+  {/* Ritase Filter */}
+  <div className="flex flex-col gap-1">
+    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ritase</span>
+    <div className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
+      {ritaseOptions.map((rit) => (
+        <button
+  key={rit}
+  type="button"
+  onClick={() => setRitaseFilter(rit)}
+  className={cn(
+    "rounded-lg px-2.5 py-1 text-xs font-semibold capitalize transition-all duration-200 ease-out hover:scale-[1.06] active:scale-[0.95]",
+    ritaseFilter === rit
+      ? "bg-[#FEA103] text-white"
+      : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+  )}
+>
+  {rit === "all" ? "Semua" : rit}
+</button>
+      ))}
+    </div>
+  </div>
+</div>
             {/* Tombol Buat Jadwal Manual — sendiri di paling kanan */}
             <button
-              type="button"
-              disabled={isDatePast}
+  type="button"
+  disabled={isDatePast}
               onClick={() => {
                 if (isDatePast) return;
                 setNewRitase({
@@ -892,26 +908,12 @@ export default function JadwalPage() {
                 });
                 setShowCreateModal(true);
               }}
-              className="group inline-flex items-center gap-2 rounded-md border border-[#FEA103] bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-[#FEA103] hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-[#FEA103] dark:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Plus className="h-4 w-4 text-slate-400 transition-colors group-hover:text-white" />
-              <span>Buat Jadwal Manual</span>
-            </button>
+               className="group inline-flex items-center gap-2 rounded-md border border-[#FEA103] bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition-all duration-200 ease-out hover:bg-[#FEA103] hover:text-white hover:scale-[1.03] active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-[#FEA103] dark:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+>
+  <Plus className="h-4 w-4 text-slate-400 transition-colors group-hover:text-white" />
+  <span>Buat Jadwal Manual</span>
+</button>
           </div>
-
-          {/* Outgoing / Incoming breakdown */}
-          {(outgoingCount > 0 || incomingCount > 0) && (
-            <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
-              <span className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-2.5 py-1 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
-                <ArrowUp className="h-3 w-3" />
-                Outgoing: {outgoingCount}
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-50 px-2.5 py-1 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300">
-                <ArrowDown className="h-3 w-3" />
-                Incoming: {incomingCount}
-              </span>
-            </div>
-          )}
 
           {/* ── ERROR DELETE (page-level) ── */}
           {deleteMutation.error && <MutationError error={deleteMutation.error} />}
@@ -1016,28 +1018,25 @@ export default function JadwalPage() {
                         {/* Action Edit — direncanakan (belum expired) & berjalan saja */}
                         {r.status !== "selesai" && !(r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal)) && (
                           <button
-                            type="button"
-                            onClick={() => {
-                              setEditingRitase(r);
-                              setEditingOriginal(r);
-                            }}
-                            className="inline-flex items-center gap-1 rounded-lg bg-blue-500 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
-                          >
-                            <Edit2 className="h-3.5 w-3.5" />
-                            <span>Edit</span>
-                          </button>
+  type="button"
+  onClick={() => { setEditingRitase(r); setEditingOriginal(r); }}
+  className="inline-flex items-center gap-1 rounded-lg bg-blue-500 px-2.5 py-1.5 text-xs font-medium text-white transition-all duration-200 ease-out hover:bg-blue-600 hover:scale-[1.05] active:scale-[0.95] dark:bg-blue-600 dark:hover:bg-blue-700"
+>
+  <Edit2 className="h-3.5 w-3.5" />
+  <span>Edit</span>
+</button>
                         )}
 
                         {/* Delete action — direncanakan saja (belum expired) */}
                         {r.status === "direncanakan" && !isRitaseExpired(r.jam_selesai, r.tanggal) && (
                           <button
-                            type="button"
-                            onClick={() => handleDelete(r.id_ritase, r.kode_ritase)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 dark:border-rose-700 dark:bg-slate-800 dark:text-rose-400 dark:hover:bg-rose-950/30"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <span>Hapus</span>
-                          </button>
+  type="button"
+  onClick={() => handleDelete(r.id_ritase, r.kode_ritase)}
+  className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-600 transition-all duration-200 ease-out hover:bg-rose-50 hover:scale-[1.05] active:scale-[0.95] dark:border-rose-700 dark:bg-slate-800 dark:text-rose-400 dark:hover:bg-rose-950/30"
+>
+  <Trash2 className="h-3.5 w-3.5" />
+  <span>Hapus</span>
+</button>
                         )}
                       </div>
                     </div>
@@ -1433,16 +1432,17 @@ export default function JadwalPage() {
                 <form onSubmit={handleSaveCreate} className="flex-1 overflow-y-auto mt-4 space-y-4 pr-1">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                        Tanggal Perjalanan
-                      </label>
-                      <input
-                        type="date"
-                        value={newRitase.tanggal}
-                        onChange={(e) => setNewRitase({ ...newRitase, tanggal: e.target.value })}
-                        className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                      />
-                    </div>
+  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+    Tanggal Perjalanan
+  </label>
+  <input
+    type="date"
+    min={todayStr}
+    value={newRitase.tanggal}
+    onChange={(e) => setNewRitase({ ...newRitase, tanggal: e.target.value })}
+    className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+  />
+</div>
 
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -1504,10 +1504,10 @@ export default function JadwalPage() {
                         onChange={(e) => setNewRitase({ ...newRitase, ritase_ke: parseInt(e.target.value, 10) })}
                         className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                       >
-                        <option value={1}>Ritase 1 (Otomatis dari jadwal)</option>
-                        <option value={2}>Ritase 2 (Otomatis dari jadwal)</option>
-                        <option value={3}>Ritase 3 (Otomatis dari jadwal)</option>
-                        <option value={4}>Ritase 4 (Otomatis dari jadwal)</option>
+                        <option value={1}>Ritase 1 </option>
+                        <option value={2}>Ritase 2 </option>
+                        <option value={3}>Ritase 3 </option>
+                        <option value={4}>Ritase 4 </option>
                       </select>
                     </div>
                   </div>
@@ -1526,7 +1526,7 @@ export default function JadwalPage() {
                         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-800 dark:bg-emerald-950/30">
                           <Clock className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                           <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
-                            Jam otomatis: <strong>{jamConfig.jam_mulai} – {jamConfig.jam_selesai}</strong>
+                            Waktu: <strong>{jamConfig.jam_mulai} – {jamConfig.jam_selesai}</strong>
                             {' '}({jenis === "outgoing" ? "Outgoing" : "Incoming"} R{newRitase.ritase_ke})
                             {selectedDriver && <span> • {selectedDriver.nama_driver}</span>}
                           </p>
@@ -1714,10 +1714,60 @@ export default function JadwalPage() {
                     </div>
                   )}
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                        Status Perjalanan
-                      </label>
+    <div>
+      <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+        Driver
+      </label>
+      <select
+        value={editingRitase.id_driver}
+        disabled={editingRitase.status === "berjalan"}
+        onChange={(e) =>
+          setEditingRitase({ ...editingRitase, id_driver: parseInt(e.target.value, 10) })
+        }
+        className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] disabled:opacity-50 disabled:cursor-not-allowed dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+      >
+        {/* Jaga-jaga: kalau driver saat ini tidak ada di daftar aktif, tetap tampilkan */}
+        {!activeDrivers.some((d) => d.id_driver === editingRitase.id_driver) && (
+          <option value={editingRitase.id_driver}>{editingRitase.nama_driver}</option>
+        )}
+        {activeDrivers.map((d) => (
+          <option key={d.id_driver} value={d.id_driver}>
+            {d.nama_driver} ({d.jabatan})
+          </option>
+        ))}
+      </select>
+    </div>
+
+    <div>
+      <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+        Kendaraan
+      </label>
+      <select
+        value={editingRitase.id_kendaraan}
+        disabled={editingRitase.status === "berjalan"}
+        onChange={(e) =>
+          setEditingRitase({ ...editingRitase, id_kendaraan: parseInt(e.target.value, 10) })
+        }
+        className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] disabled:opacity-50 disabled:cursor-not-allowed dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+      >
+        {/* Jaga-jaga: kalau kendaraan saat ini tidak ada di daftar aktif, tetap tampilkan */}
+        {!activeVehicles.some((v) => v.id_kendaraan === editingRitase.id_kendaraan) && (
+          <option value={editingRitase.id_kendaraan}>{editingRitase.nopol}</option>
+        )}
+        {activeVehicles.map((v) => (
+          <option key={v.id_kendaraan} value={v.id_kendaraan}>
+            {v.plat_nomor} ({v.jenis_kendaraan})
+          </option>
+        ))}
+      </select>
+    </div>
+  </div>
+
+  <div className="grid grid-cols-2 gap-4">
+    <div>
+      <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+        Status Perjalanan
+      </label>
                       <select
                         value={editingRitase.status}
                         disabled={editingRitase.status === "berjalan"}

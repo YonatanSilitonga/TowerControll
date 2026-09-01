@@ -450,13 +450,21 @@ function RouteTemplateTab({ data, onChanged, showToast }: { data: RouteTemplate[
     return dropPoints.map((d) => ({ id: d.id_drop_point, name: d.nama_drop_point }));
   };
 
-  return (
+   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-slate-900 dark:text-white">Template Rute</h3>
         <button type="button" onClick={startAdd} className="flex items-center gap-1.5 rounded-md bg-[#FEA103] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#E09102]">
           <Plus className="h-3.5 w-3.5" /> Tambah Rute
         </button>
+      </div>
+
+      {/* Info */}
+      <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-800 dark:bg-blue-950/30">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-500" />
+        <p className="text-[11px] text-blue-700 dark:text-blue-300">
+          Template ini digunakan saat ingin mengubah jadwal yang sudah ada di button generate otomatis.
+        </p>
       </div>
 
       {/* Form tambah/edit */}
