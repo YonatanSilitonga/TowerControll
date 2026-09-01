@@ -117,13 +117,22 @@ export default function JadwalPage() {
   // Fetch Master Data Options (Drivers, Vehicles, Sellers, Drop Points, Gudangs)
   const { data: masterOptions } = useAdminMasterOptions();
 
-  // Filter: hanya driver aktif (bertugas/aktif/on_duty) dan kendaraan tersedia (tersedia/berjalan/available)
-  const activeDrivers = masterOptions?.drivers.filter((d) =>
-    ["aktif", "bertugas", "on_duty"].includes(d.status_driver)
-  ) ?? [];
-  const activeVehicles = masterOptions?.kendaraan.filter((k) =>
-    ["tersedia", "berjalan", "available", "in_transit", "aktif"].includes(k.status_kendaraan)
-  ) ?? [];
+  // Filter: driver aktif & kendaraan tersedia (dengan case-insensitive & fallback agar opsi tidak pernah kosong)
+  const activeDrivers = useMemo(() => {
+    if (!masterOptions?.drivers) return [];
+    const filtered = masterOptions.drivers.filter((d) =>
+      ["aktif", "bertugas", "on_duty", "standby", "tersedia"].includes((d.status_driver ?? "").toLowerCase().trim())
+    );
+    return filtered.length > 0 ? filtered : masterOptions.drivers;
+  }, [masterOptions?.drivers]);
+
+  const activeVehicles = useMemo(() => {
+    if (!masterOptions?.kendaraan) return [];
+    const filtered = masterOptions.kendaraan.filter((k) =>
+      ["tersedia", "berjalan", "available", "in_transit", "aktif", "standby"].includes((k.status_kendaraan ?? "").toLowerCase().trim())
+    );
+    return filtered.length > 0 ? filtered : masterOptions.kendaraan;
+  }, [masterOptions?.kendaraan]);
 
   // New manual ritase state
   const [newRitase, setNewRitase] = useState<{
