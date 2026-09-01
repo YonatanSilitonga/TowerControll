@@ -242,47 +242,65 @@ export default function JadwalPage() {
     isFetching: isFetchingPreview,
     refetch: fetchPreview,
   } = usePreviewDailyRitase();
-  const [editableRoutes, setEditableRoutes] = useState<PreviewRoute[]>([]);
+  // SESUDAH (rapi — satu useEffect, sort di akhir, snapshot disimpan setelahnya)
+const [editableRoutes, setEditableRoutes] = useState<PreviewRoute[]>([]);
+const previewSnapshotRef = useRef<string>("");
 
-  useEffect(() => {
-    if (previewData?.routes) {
-      const routesCopy: PreviewRoute[] = JSON.parse(
-        JSON.stringify(previewData.routes),
-      );
-      if (masterOptions) {
-        routesCopy.forEach((r) => {
-          r.stops.forEach((s) => {
-            if (s.jenis_stop === "gudang") {
-              const validG = masterOptions.gudangs.find(
-                (g) => g.id_gudang === s.id_lokasi,
-              );
-              if (!validG && masterOptions.gudangs.length > 0) {
-                s.id_lokasi = masterOptions.gudangs[0].id_gudang;
-                s.nama_lokasi = masterOptions.gudangs[0].nama_gudang;
-              }
-            } else if (s.jenis_stop === "seller") {
-              const validS = masterOptions.sellers.find(
-                (sel) => sel.id_seller === s.id_lokasi,
-              );
-              if (!validS && masterOptions.sellers.length > 0) {
-                s.id_lokasi = masterOptions.sellers[0].id_seller;
-                s.nama_lokasi = masterOptions.sellers[0].nama_seller;
-              }
-            } else {
-              const validDp = masterOptions.drop_points.find(
-                (dp) => dp.id_drop_point === s.id_lokasi,
-              );
-              if (!validDp && masterOptions.drop_points.length > 0) {
-                s.id_lokasi = masterOptions.drop_points[0].id_drop_point;
-                s.nama_lokasi = masterOptions.drop_points[0].nama_drop_point;
-              }
+// Jenis driver ditentukan tetap dari jabatan (TRANSPORTER OUTGOING/INCOMING),
+// bukan pilihan manual — konsisten dengan Template Rute.
+const getDriverJenis = (idDriver: number) => {
+  const driver = masterOptions?.drivers.find((d) => d.id_driver === idDriver);
+  const jabatan = (driver?.jabatan ?? "").toLowerCase();
+  return jabatan.includes("incoming") ? "incoming" : "outgoing";
+};
+
+const getRouteJenis = (route: PreviewRoute) => getDriverJenis(route.id_driver);
+
+useEffect(() => {
+  if (previewData?.routes) {
+    const routesCopy: PreviewRoute[] = JSON.parse(JSON.stringify(previewData.routes));
+
+    if (masterOptions) {
+      routesCopy.forEach((r) => {
+        r.stops.forEach((s) => {
+          if (s.jenis_stop === "gudang") {
+            const validG = masterOptions.gudangs.find((g) => g.id_gudang === s.id_lokasi);
+            if (!validG && masterOptions.gudangs.length > 0) {
+              s.id_lokasi = masterOptions.gudangs[0].id_gudang;
+              s.nama_lokasi = masterOptions.gudangs[0].nama_gudang;
             }
-          });
+          } else if (s.jenis_stop === "seller") {
+            const validS = masterOptions.sellers.find((sel) => sel.id_seller === s.id_lokasi);
+            if (!validS && masterOptions.sellers.length > 0) {
+              s.id_lokasi = masterOptions.sellers[0].id_seller;
+              s.nama_lokasi = masterOptions.sellers[0].nama_seller;
+            }
+          } else {
+            const validDp = masterOptions.drop_points.find((dp) => dp.id_drop_point === s.id_lokasi);
+            if (!validDp && masterOptions.drop_points.length > 0) {
+              s.id_lokasi = masterOptions.drop_points[0].id_drop_point;
+              s.nama_lokasi = masterOptions.drop_points[0].nama_drop_point;
+            }
+          }
         });
-      }
-      setEditableRoutes(routesCopy);
+      });
+
+      // Urutkan SEKALI saat data awal dimuat: Outgoing (R1→3) dulu, lalu Incoming (R1→4).
+      // Urutan ini TIDAK dihitung ulang lagi setelah ini, supaya card tidak lompat
+      // posisi saat user mengubah ritase_ke di tengah proses edit.
+      routesCopy.sort((a, b) => {
+        const jenisA = getDriverJenis(a.id_driver);
+        const jenisB = getDriverJenis(b.id_driver);
+        if (jenisA !== jenisB) return jenisA === "outgoing" ? -1 : 1;
+        if (a.ritase_ke !== b.ritase_ke) return a.ritase_ke - b.ritase_ke;
+        return (a.nama_driver ?? "").localeCompare(b.nama_driver ?? "");
+      });
     }
-  }, [previewData, masterOptions]);
+
+    setEditableRoutes(routesCopy);
+    previewSnapshotRef.current = JSON.stringify(routesCopy);
+  }
+}, [previewData, masterOptions]);
 
   const {
     data: ritases,
@@ -294,6 +312,26 @@ export default function JadwalPage() {
   const createMutation = useCreateRitase();
   const updateMutation = useUpdateRitase();
   const deleteMutation = useDeleteRitase();
+
+  const generateIsDirty = () => {
+  return JSON.stringify(editableRoutes) !== previewSnapshotRef.current;
+};
+
+const closeGenerateModal = () => {
+  setShowGenerateModal(false);
+};
+
+const askCancelGenerate = () => {
+  if (!generateIsDirty()) {
+    closeGenerateModal();
+    return;
+  }
+  setConfirmBox({
+    title: "Batalkan Perubahan?",
+    message: "Perubahan rute, driver, atau jadwal yang belum di-generate akan hilang.",
+    onConfirm: closeGenerateModal,
+  });
+};
 
   const handleGenerate = () => {
     const payload = {
@@ -337,10 +375,23 @@ export default function JadwalPage() {
   const handleDriverChange = (routeIdx: number, driverId: number) => {
     const driver = masterOptions?.drivers.find((d) => d.id_driver === driverId);
     const updated = [...editableRoutes];
+    const current = updated[routeIdx];
+
+    const jenis = getDriverJenis(driverId);
+    const maxRitase = jenis === "outgoing" ? 3 : 4;
+    const clampedRitase = Math.min(maxRitase, current.ritase_ke);
+
+    const jamConfig = masterOptions?.jam_ritase?.find(
+      (j) => j.jenis === jenis && j.ritase_ke === clampedRitase,
+    );
+
     updated[routeIdx] = {
-      ...updated[routeIdx],
+      ...current,
       id_driver: driverId,
       nama_driver: driver?.nama_driver ?? `Driver #${driverId}`,
+      ritase_ke: clampedRitase,
+      jam_mulai: jamConfig?.jam_mulai ?? current.jam_mulai,
+      jam_selesai: jamConfig?.jam_selesai ?? current.jam_selesai,
     };
     setEditableRoutes(updated);
   };
@@ -359,12 +410,22 @@ export default function JadwalPage() {
   };
 
   const handleRitaseKeChange = (routeIdx: number, ritaseKe: number) => {
-    // Ritase cuma valid 1–4 (Outgoing max R3, Incoming max R4)
-    const clamped = Math.min(4, Math.max(1, ritaseKe || 1));
     const updated = [...editableRoutes];
+    const current = updated[routeIdx];
+    const jenis = getRouteJenis(current);
+
+    const maxRitase = jenis === "outgoing" ? 3 : 4;
+    const clamped = Math.min(maxRitase, Math.max(1, ritaseKe || 1));
+
+    const jamConfig = masterOptions?.jam_ritase?.find(
+      (j) => j.jenis === jenis && j.ritase_ke === clamped,
+    );
+
     updated[routeIdx] = {
-      ...updated[routeIdx],
+      ...current,
       ritase_ke: clamped,
+      jam_mulai: jamConfig?.jam_mulai ?? current.jam_mulai,
+      jam_selesai: jamConfig?.jam_selesai ?? current.jam_selesai,
     };
     setEditableRoutes(updated);
   };
@@ -377,14 +438,6 @@ export default function JadwalPage() {
         setEditableRoutes(editableRoutes.filter((_, idx) => idx !== routeIdx));
       },
     });
-  };
-
-  const handleMoveRoute = (index: number, direction: "up" | "down") => {
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= editableRoutes.length) return;
-    const arr = [...editableRoutes];
-    [arr[index], arr[targetIndex]] = [arr[targetIndex], arr[index]];
-    setEditableRoutes(arr);
   };
 
   const handleAddRoute = () => {
@@ -842,7 +895,6 @@ export default function JadwalPage() {
       onConfirm: closeEditModal,
     });
   };
-
   // Filter & sort ritases berdasarkan nama driver (A-Z)
   const filteredRitases = (ritases ?? [])
     .filter((r) => {
@@ -1338,12 +1390,12 @@ export default function JadwalPage() {
                 </div>
               </div>
               <button
-                type="button"
-                onClick={() => setShowGenerateModal(false)}
-                className="rounded-lg p-1.5 text-blue-200/60 hover:bg-white/10 hover:text-white transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
+  type="button"
+  onClick={askCancelGenerate}
+  className="rounded-lg p-1.5 text-blue-200/60 hover:bg-white/10 hover:text-white transition-colors"
+>
+  <X className="h-5 w-5" />
+</button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-slate-950/80">
@@ -1358,49 +1410,36 @@ export default function JadwalPage() {
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                     {editableRoutes.map((route: PreviewRoute, rIdx: number) => (
-                      <div
-                        key={rIdx}
-                        className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-[#0f2847] hover:border-[#0c1e3a] dark:hover:border-blue-500/50 hover:shadow-md transition-all"
-                      >
-                        <div>
-                          {/* Route Header Edit Controls */}
-                          <div className="mb-4 border-b border-slate-100 pb-3.5 dark:border-slate-700/50">
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <div className="flex items-center gap-1.5 font-bold text-xs text-[#0c1e3a] dark:text-blue-300">
-                                <span>Ritase Ke-</span>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={4}
-                                  value={route.ritase_ke}
-                                  onChange={(e) =>
-                                    handleRitaseKeChange(
-                                      rIdx,
-                                      parseInt(e.target.value) || 1,
-                                    )
-                                  }
-                                  className="w-12 rounded border border-[#0c1e3a]/20 bg-[#0c1e3a]/5 px-1.5 py-0.5 text-center font-extrabold dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-200"
-                                />
-                              </div>
-                              <div className="flex items-center gap-0.5">
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveRoute(rIdx, "up")}
-                                  disabled={rIdx === 0}
-                                  className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                  title="Pindah ke atas"
-                                >
-                                  <ArrowUp className="h-3.5 w-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveRoute(rIdx, "down")}
-                                  disabled={rIdx === editableRoutes.length - 1}
-                                  className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                  title="Pindah ke bawah"
-                                >
-                                  <ArrowDown className="h-3.5 w-3.5" />
-                                </button>
+                        <div key={rIdx}
+                          className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-[#0f2847] hover:border-[#0c1e3a] dark:hover:border-blue-500/50 hover:shadow-md transition-all"
+                        >
+                          <div>
+                            {/* Route Header Edit Controls */}
+                            <div className="mb-4 border-b border-slate-100 pb-3.5 dark:border-slate-700/50">
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <div className="flex items-center gap-2">
+                                  <JenisBadge jenis={getRouteJenis(route)} />
+                                  <div className="flex items-center gap-1.5 font-bold text-xs text-[#0c1e3a] dark:text-blue-300">
+                                    <span>R-</span>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      max={
+                                        getRouteJenis(route) === "outgoing"
+                                          ? 3
+                                          : 4
+                                      }
+                                      value={route.ritase_ke}
+                                      onChange={(e) =>
+                                        handleRitaseKeChange(
+                                          rIdx,
+                                          parseInt(e.target.value) || 1,
+                                        )
+                                      }
+                                      className="w-12 rounded border border-[#0c1e3a]/20 bg-[#0c1e3a]/5 px-1.5 py-0.5 text-center font-extrabold dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-200"
+                                    />
+                                  </div>
+                                </div>
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveRoute(rIdx)}
@@ -1410,235 +1449,229 @@ export default function JadwalPage() {
                                   <span>Hapus</span>
                                 </button>
                               </div>
-                            </div>
 
-                            {/* Date Badge */}
-                            {route.tanggal_label && (
-                              <div
-                                className={`mb-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                                  route.tanggal_label === "Hari Ini"
-                                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-                                    : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-                                }`}
-                              >
-                                <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                                {route.tanggal_label === "Hari Ini"
-                                  ? "Hari Ini"
-                                  : "Besok"}
-                                {route.tanggal && (
-                                  <span className="opacity-60 ml-0.5">
-                                    ({route.tanggal})
-                                  </span>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Driver Select */}
-                            <div className="mb-2">
-                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                                Driver
-                              </label>
-                              <select
-                                value={route.id_driver}
-                                onChange={(e) =>
-                                  handleDriverChange(
-                                    rIdx,
-                                    parseInt(e.target.value),
-                                  )
-                                }
-                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                              >
-                                {activeDrivers.map((d) => (
-                                  <option key={d.id_driver} value={d.id_driver}>
-                                    {d.nama_driver} ({d.jabatan})
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            {/* Vehicle Select */}
-                            <div>
-                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                                Kendaraan
-                              </label>
-                              <select
-                                value={route.id_kendaraan}
-                                onChange={(e) =>
-                                  handleVehicleChange(
-                                    rIdx,
-                                    parseInt(e.target.value),
-                                  )
-                                }
-                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                              >
-                                {activeVehicles.map((v) => (
-                                  <option
-                                    key={v.id_kendaraan}
-                                    value={v.id_kendaraan}
-                                  >
-                                    {v.plat_nomor} ({v.jenis_kendaraan})
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            {/* Jam Mulai & Selesai (read-only) */}
-                            {(route.jam_mulai || route.jam_selesai) && (
-                              <div className="flex items-center gap-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 px-2.5 py-1.5">
-                                <Clock className="h-3 w-3 text-slate-400" />
-                                <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                                  {route.jam_mulai?.slice(0, 5) ?? "?"} –{" "}
-                                  {route.jam_selesai?.slice(0, 5) ?? "?"}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Stops Section */}
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                                Daftar Perhentian / Stops
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handlePreviewAddStop(rIdx)}
-                                className="text-[11px] font-bold text-[#0c1e3a] dark:text-blue-400 hover:underline flex items-center gap-1"
-                              >
-                                <Plus className="h-3 w-3" /> Tambah Stop
-                              </button>
-                            </div>
-
-                            {route.stops.map(
-                              (
-                                stop: PreviewRoute["stops"][0],
-                                sIdx: number,
-                              ) => (
+                              {/* Date Badge */}
+                              {route.tanggal_label && (
                                 <div
-                                  key={sIdx}
-                                  className="rounded-lg border border-slate-100 bg-slate-50/80 p-2.5 dark:border-slate-700/50 dark:bg-[#0c1e3a]/40 space-y-2"
+                                  className={`mb-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                                    route.tanggal_label === "Hari Ini"
+                                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                                      : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                                  }`}
                                 >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0c1e3a] dark:bg-blue-700 text-[10px] font-bold text-white">
-                                      {sIdx + 1}
+                                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                                  {route.tanggal_label === "Hari Ini"
+                                    ? "Hari Ini"
+                                    : "Besok"}
+                                  {route.tanggal && (
+                                    <span className="opacity-60 ml-0.5">
+                                      ({route.tanggal})
                                     </span>
+                                  )}
+                                </div>
+                              )}
 
-                                    {/* Stop Type Select */}
+                              {/* Driver Select */}
+                              <div className="mb-2">
+  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Driver</label>
+  <select
+    value={route.id_driver}
+    onChange={(e) => handleDriverChange(rIdx, parseInt(e.target.value))}
+    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+  >
+    {activeDrivers
+      .filter((d) => getDriverJenis(d.id_driver) === getRouteJenis(route))
+      .map((d) => (
+        <option key={d.id_driver} value={d.id_driver}>
+          {d.nama_driver} ({d.jabatan})
+        </option>
+      ))}
+  </select>
+</div>
+
+                              {/* Vehicle Select */}
+                              <div>
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                                  Kendaraan
+                                </label>
+                                <select
+                                  value={route.id_kendaraan}
+                                  onChange={(e) =>
+                                    handleVehicleChange(
+                                      rIdx,
+                                      parseInt(e.target.value),
+                                    )
+                                  }
+                                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                >
+                                  {activeVehicles.map((v) => (
+                                    <option
+                                      key={v.id_kendaraan}
+                                      value={v.id_kendaraan}
+                                    >
+                                      {v.plat_nomor} ({v.jenis_kendaraan})
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {/* Jam Mulai & Selesai (read-only) */}
+                              {(route.jam_mulai || route.jam_selesai) && (
+                                <div className="flex items-center gap-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 px-2.5 py-1.5">
+                                  <Clock className="h-3 w-3 text-slate-400" />
+                                  <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                                    {route.jam_mulai?.slice(0, 5) ?? "?"} –{" "}
+                                    {route.jam_selesai?.slice(0, 5) ?? "?"}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Stops Section */}
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                                  Daftar Perhentian / Stops
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handlePreviewAddStop(rIdx)}
+                                  className="text-[11px] font-bold text-[#0c1e3a] dark:text-blue-400 hover:underline flex items-center gap-1"
+                                >
+                                  <Plus className="h-3 w-3" /> Tambah Stop
+                                </button>
+                              </div>
+
+                              {route.stops.map(
+                                (
+                                  stop: PreviewRoute["stops"][0],
+                                  sIdx: number,
+                                ) => (
+                                  <div
+                                    key={sIdx}
+                                    className="rounded-lg border border-slate-100 bg-slate-50/80 p-2.5 dark:border-slate-700/50 dark:bg-[#0c1e3a]/40 space-y-2"
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0c1e3a] dark:bg-blue-700 text-[10px] font-bold text-white">
+                                        {sIdx + 1}
+                                      </span>
+
+                                      {/* Stop Type Select */}
+                                      <select
+                                        value={
+                                          stop.jenis_stop === "gateway"
+                                            ? "drop_point"
+                                            : stop.jenis_stop
+                                        }
+                                        onChange={(e) =>
+                                          handleStopTypeChange(
+                                            rIdx,
+                                            sIdx,
+                                            e.target.value,
+                                          )
+                                        }
+                                        className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                      >
+                                        <option value="gudang">GUDANG</option>
+                                        <option value="seller">SELLER</option>
+                                        <option value="drop_point">
+                                          GATEWAY / DROP POINT
+                                        </option>
+                                      </select>
+
+                                      <div className="flex items-center gap-0.5">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handlePreviewMoveStop(
+                                              rIdx,
+                                              sIdx,
+                                              "up",
+                                            )
+                                          }
+                                          disabled={sIdx === 0}
+                                          className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-0.5 disabled:opacity-25 disabled:cursor-not-allowed"
+                                          title="Pindah ke atas"
+                                        >
+                                          <ArrowUp className="h-3.5 w-3.5" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handlePreviewMoveStop(
+                                              rIdx,
+                                              sIdx,
+                                              "down",
+                                            )
+                                          }
+                                          disabled={
+                                            sIdx === route.stops.length - 1
+                                          }
+                                          className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-0.5 disabled:opacity-25 disabled:cursor-not-allowed"
+                                          title="Pindah ke bawah"
+                                        >
+                                          <ArrowDown className="h-3.5 w-3.5" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handlePreviewRemoveStop(rIdx, sIdx)
+                                          }
+                                          className="text-slate-400 hover:text-rose-500 p-0.5"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Location Select */}
                                     <select
-                                      value={
-                                        stop.jenis_stop === "gateway"
-                                          ? "drop_point"
-                                          : stop.jenis_stop
-                                      }
+                                      value={stop.id_lokasi ?? 1}
                                       onChange={(e) =>
-                                        handleStopTypeChange(
+                                        handleStopLocationChange(
                                           rIdx,
                                           sIdx,
-                                          e.target.value,
+                                          parseInt(e.target.value),
                                         )
                                       }
-                                      className="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                      className="w-full rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                                     >
-                                      <option value="gudang">GUDANG</option>
-                                      <option value="seller">SELLER</option>
-                                      <option value="drop_point">
-                                        GATEWAY / DROP POINT
-                                      </option>
+                                      {stop.jenis_stop === "gudang" &&
+                                        masterOptions?.gudangs.map((g) => (
+                                          <option
+                                            key={g.id_gudang}
+                                            value={g.id_gudang}
+                                          >
+                                            {g.nama_gudang}
+                                          </option>
+                                        ))}
+                                      {stop.jenis_stop === "seller" &&
+                                        masterOptions?.sellers.map((s) => (
+                                          <option
+                                            key={s.id_seller}
+                                            value={s.id_seller}
+                                          >
+                                            {s.nama_seller}
+                                          </option>
+                                        ))}
+                                      {stop.jenis_stop !== "gudang" &&
+                                        stop.jenis_stop !== "seller" &&
+                                        masterOptions?.drop_points.map((dp) => (
+                                          <option
+                                            key={dp.id_drop_point}
+                                            value={dp.id_drop_point}
+                                          >
+                                            {dp.nama_drop_point}
+                                          </option>
+                                        ))}
                                     </select>
-
-                                    <div className="flex items-center gap-0.5">
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handlePreviewMoveStop(
-                                            rIdx,
-                                            sIdx,
-                                            "up",
-                                          )
-                                        }
-                                        disabled={sIdx === 0}
-                                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-0.5 disabled:opacity-25 disabled:cursor-not-allowed"
-                                        title="Pindah ke atas"
-                                      >
-                                        <ArrowUp className="h-3.5 w-3.5" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handlePreviewMoveStop(
-                                            rIdx,
-                                            sIdx,
-                                            "down",
-                                          )
-                                        }
-                                        disabled={
-                                          sIdx === route.stops.length - 1
-                                        }
-                                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-0.5 disabled:opacity-25 disabled:cursor-not-allowed"
-                                        title="Pindah ke bawah"
-                                      >
-                                        <ArrowDown className="h-3.5 w-3.5" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handlePreviewRemoveStop(rIdx, sIdx)
-                                        }
-                                        className="text-slate-400 hover:text-rose-500 p-0.5"
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </button>
-                                    </div>
                                   </div>
-
-                                  {/* Location Select */}
-                                  <select
-                                    value={stop.id_lokasi ?? 1}
-                                    onChange={(e) =>
-                                      handleStopLocationChange(
-                                        rIdx,
-                                        sIdx,
-                                        parseInt(e.target.value),
-                                      )
-                                    }
-                                    className="w-full rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                                  >
-                                    {stop.jenis_stop === "gudang" &&
-                                      masterOptions?.gudangs.map((g) => (
-                                        <option
-                                          key={g.id_gudang}
-                                          value={g.id_gudang}
-                                        >
-                                          {g.nama_gudang}
-                                        </option>
-                                      ))}
-                                    {stop.jenis_stop === "seller" &&
-                                      masterOptions?.sellers.map((s) => (
-                                        <option
-                                          key={s.id_seller}
-                                          value={s.id_seller}
-                                        >
-                                          {s.nama_seller}
-                                        </option>
-                                      ))}
-                                    {stop.jenis_stop !== "gudang" &&
-                                      stop.jenis_stop !== "seller" &&
-                                      masterOptions?.drop_points.map((dp) => (
-                                        <option
-                                          key={dp.id_drop_point}
-                                          value={dp.id_drop_point}
-                                        >
-                                          {dp.nama_drop_point}
-                                        </option>
-                                      ))}
-                                  </select>
-                                </div>
-                              ),
-                            )}
+                                ),
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}; 
                   </div>
 
                   <div className="flex justify-center pt-2">
@@ -1702,12 +1735,12 @@ export default function JadwalPage() {
               </div>
               <div className="flex items-center gap-3">
                 <button
-                  type="button"
-                  onClick={() => setShowGenerateModal(false)}
-                  className="rounded-lg border border-slate-200 dark:border-slate-600 px-5 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
-                >
-                  Batal
-                </button>
+  type="button"
+  onClick={askCancelGenerate}
+  className="rounded-lg border border-slate-200 dark:border-slate-600 px-5 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+>
+  Batal
+</button>
                 <button
                   type="button"
                   disabled={
