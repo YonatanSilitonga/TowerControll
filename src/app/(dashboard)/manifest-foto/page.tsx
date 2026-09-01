@@ -90,13 +90,26 @@ export default function ManifestFotoPage() {
 
   /* ── stats ── */
   const stats = useMemo(() => {
-    const totalPhotos = photos.length;
+    const uniquePhotoUrls = new Set(photos.map((p) => p.foto_manifest_url).filter(Boolean));
+    const totalPhotos = uniquePhotoUrls.size;
     const uniqueDrivers = new Set(photos.map((p) => p.id_driver)).size;
-    const totalKoli = photos.reduce((a, p) => a + (p.jumlah_koli || 0), 0);
-    const totalEcer = photos.reduce((a, p) => a + (p.jumlah_ecer || 0), 0);
-    const totalHV = photos.reduce((a, p) => a + (p.jumlah_high_value || 0), 0);
+
+    // Deduplikasi untuk hitung total muatan agar tidak terhitung ganda
+    const uniquePhotos = photos.filter((p, i, self) =>
+      i === self.findIndex((t) => t.foto_manifest_url === p.foto_manifest_url)
+    );
+
+    const totalKoli = uniquePhotos.reduce((a, p) => a + (p.jumlah_koli || 0), 0);
+    const totalEcer = uniquePhotos.reduce((a, p) => a + (p.jumlah_ecer || 0), 0);
+    const totalHV = uniquePhotos.reduce((a, p) => a + (p.jumlah_high_value || 0), 0);
     return { totalPhotos, uniqueDrivers, totalKoli, totalEcer, totalHV };
   }, [photos]);
+
+  /* ── deduplikasi foto untuk grid view (anti ganda) ── */
+  const dedupedPhotos = useMemo(
+    () => photos.filter((p, i, self) => i === self.findIndex((t) => t.foto_manifest_url === p.foto_manifest_url)),
+    [photos],
+  );
 
   const todayStr = useMemo(
     () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date()),
@@ -108,10 +121,11 @@ export default function ManifestFotoPage() {
     return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(d);
   }, []);
 
-  /* ── grouping ── */
+  /* ── grouping (dengan deduplikasi foto URL) ── */
   const ritaseGroups = useMemo<RitaseGroup[]>(() => {
     const map = new Map<number, RitaseGroup>();
     for (const p of photos) {
+      if (!p.foto_manifest_url) continue;
       let g = map.get(p.id_ritase);
       if (!g) {
         g = {
@@ -128,10 +142,13 @@ export default function ManifestFotoPage() {
         };
         map.set(p.id_ritase, g);
       }
-      g.totalKoli += p.jumlah_koli || 0;
-      g.totalEcer += p.jumlah_ecer || 0;
-      g.totalHV += p.jumlah_high_value || 0;
-      g.photos.push(p);
+      // Anti-duplikat foto dengan URL yang sama dalam ritase
+      if (!g.photos.some((existing) => existing.foto_manifest_url === p.foto_manifest_url)) {
+        g.totalKoli += p.jumlah_koli || 0;
+        g.totalEcer += p.jumlah_ecer || 0;
+        g.totalHV += p.jumlah_high_value || 0;
+        g.photos.push(p);
+      }
     }
     return Array.from(map.values()).sort((a, b) => {
       if (a.tanggal !== b.tanggal) return b.tanggal.localeCompare(a.tanggal);
@@ -142,6 +159,7 @@ export default function ManifestFotoPage() {
   const driverGroups = useMemo<DriverGroup[]>(() => {
     const map = new Map<number, DriverGroup>();
     for (const p of photos) {
+      if (!p.foto_manifest_url) continue;
       let g = map.get(p.id_driver);
       if (!g) {
         g = {
@@ -155,10 +173,13 @@ export default function ManifestFotoPage() {
         };
         map.set(p.id_driver, g);
       }
-      g.totalKoli += p.jumlah_koli || 0;
-      g.totalEcer += p.jumlah_ecer || 0;
-      g.totalHV += p.jumlah_high_value || 0;
-      g.photos.push(p);
+      // Anti-duplikat foto dengan URL yang sama untuk driver
+      if (!g.photos.some((existing) => existing.foto_manifest_url === p.foto_manifest_url)) {
+        g.totalKoli += p.jumlah_koli || 0;
+        g.totalEcer += p.jumlah_ecer || 0;
+        g.totalHV += p.jumlah_high_value || 0;
+        g.photos.push(p);
+      }
     }
     return Array.from(map.values()).sort((a, b) => b.photos.length - a.photos.length);
   }, [photos]);
@@ -581,7 +602,7 @@ export default function ManifestFotoPage() {
       ) : (
         /* ─── FLAT GRID ─── */
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {photos.map((photo) => (
+          {dedupedPhotos.map((photo) => (
             <div
               key={photo.id_event}
               className="group relative flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
