@@ -99,6 +99,7 @@ export const STATUS_LABELS: Record<string, string> = {
   aktif: "Aktif",
   loading: "Loading",
   tiba: "Tiba",
+  "tidak terlaksana": "Tidak Terlaksana",
 };
 
 /** Ambil label untuk status apa pun. */

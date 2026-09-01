@@ -1125,7 +1125,7 @@ export default function JadwalPage() {
                         status={
                           r.status === "direncanakan" &&
                           isRitaseExpired(r.jam_selesai, r.tanggal)
-                            ? "expired"
+                            ? "tidak terlaksana"
                             : r.status
                         }
                       />

@@ -81,7 +81,7 @@ export default function RitasePage() {
             render: (r) =>
               r.jam_mulai && r.jam_selesai ? `${r.jam_mulai} – ${r.jam_selesai}` : "-",
           },
-          { header: "Status", render: (r) => <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal) ? "expired" : r.status} /> },
+          { header: "Status", render: (r) => <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal) ? "tidak terlaksana" : r.status} /> },
           {
             header: "Detail",
             className: "text-right",

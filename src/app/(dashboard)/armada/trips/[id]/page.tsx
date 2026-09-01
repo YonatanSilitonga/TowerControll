@@ -123,7 +123,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
           { label: "Ritase", href: "/armada/trips" },
           { label: data.kode_ritase },
         ]}
-        actions={<StatusBadge status={data.status === "direncanakan" && isRitaseExpired(data.jam_selesai, data.tanggal) ? "expired" : data.status} />}
+        actions={<StatusBadge status={data.status === "direncanakan" && isRitaseExpired(data.jam_selesai, data.tanggal) ? "tidak terlaksana" : data.status} />}
       />
       <ArmadaTabs />
 

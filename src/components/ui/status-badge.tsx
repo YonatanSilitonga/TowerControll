@@ -27,7 +27,7 @@ export function StatusBadge({ status, className }: { status?: string | null; cla
 
 function getDot(status: string): string {
   const s = status.toLowerCase();
-  if (["cancelled", "off", "inactive", "nonaktif", "expired", "destructive", "error", "batal"].some((k) => s.includes(k))) {
+  if (["cancelled", "off", "inactive", "nonaktif", "expired", "tidak terlaksana", "destructive", "error", "batal"].some((k) => s.includes(k))) {
     return "bg-rose-500";
   }
   if (["pending", "planned", "scheduled", "unpaid", "out_for_delivery", "direncanakan"].some((k) => s.includes(k))) {
@@ -45,7 +45,7 @@ function getDot(status: string): string {
 function getTone(status: string): string {
   const s = status.toLowerCase();
 
-  if (["cancelled", "off", "inactive", "nonaktif", "expired", "destructive", "error", "batal"].some((k) => s.includes(k))) {
+  if (["cancelled", "off", "inactive", "nonaktif", "expired", "tidak terlaksana", "destructive", "error", "batal"].some((k) => s.includes(k))) {
     return "bg-rose-50 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300";
   }
   if (["pending", "planned", "scheduled", "unpaid", "out_for_delivery", "direncanakan"].some((k) => s.includes(k))) {
