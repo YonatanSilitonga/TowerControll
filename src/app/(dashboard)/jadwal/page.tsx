@@ -1124,7 +1124,7 @@ export default function JadwalPage() {
                       <StatusBadge
                         status={
                           r.status === "direncanakan" &&
-                          isRitaseExpired(r.jam_selesai, r.tanggal)
+                          isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai)
                             ? "tidak terlaksana"
                             : r.status
                         }
@@ -1203,7 +1203,7 @@ export default function JadwalPage() {
                     {r.status !== "selesai" &&
                       !(
                         r.status === "direncanakan" &&
-                        isRitaseExpired(r.jam_selesai, r.tanggal)
+                        isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai)
                       ) && (
                         <button
                           type="button"
@@ -1220,7 +1220,7 @@ export default function JadwalPage() {
 
                     {/* Delete action — direncanakan saja (belum expired) */}
                     {r.status === "direncanakan" &&
-                      !isRitaseExpired(r.jam_selesai, r.tanggal) && (
+                      !isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai) && (
                         <button
                           type="button"
                           onClick={() =>

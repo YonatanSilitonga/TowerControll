@@ -60,7 +60,7 @@ export function VehicleItem({ vehicle, selected, onSelect, durasi }: VehicleItem
   
   // Pass tanggal ke ritaseStatusLabel — kalau backend belum kirim (null), fallback cek jam saja
   const ritaseLabel = hasRitase
-    ? ritaseStatusLabel(vehicle.status_ritase, vehicle.jam_selesai, vehicle.tanggal)
+    ? ritaseStatusLabel(vehicle.status_ritase, vehicle.jam_selesai, vehicle.tanggal, vehicle.jam_mulai)
     : null;
 
   // atBeranda: driver login tapi GPS tidak fresh (layar mati, belum mulai, atau

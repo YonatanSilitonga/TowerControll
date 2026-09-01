@@ -238,7 +238,7 @@ export default function VehicleDetailPage({ params }: { params?: { id?: string }
                       header: "Status",
                       className: "w-20",
                       render: (r) => (
-                        <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal) ? "tidak terlaksana" : r.status} />
+                        <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai) ? "tidak terlaksana" : r.status} />
                       ),
                     },
                   ]}
@@ -291,7 +291,7 @@ export default function VehicleDetailPage({ params }: { params?: { id?: string }
                     header: "Status",
                     className: "w-20",
                     render: (r) => (
-                      <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal) ? "tidak terlaksana" : r.status} />
+                      <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai) ? "tidak terlaksana" : r.status} />
                     ),
                   },
                 ]}
