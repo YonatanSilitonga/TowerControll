@@ -220,7 +220,15 @@ export function displayTrackingStatus(
     "bongkar", "muat", "keluar", "menuju", "tiba", "sampai",
     "selesai", "berjalan", "berhenti", "istirahat", "loading", "unloading",
   ].some((k) => s.includes(k));
-  if (known) return statusLabel(status);
+  if (known) {
+    // Known status tapi GPS stale → tampilkan "Tidak aktif" / "Offline"
+    // supaya status lama gak nempel terus (ghost data fix)
+    if (isStale(lastUpdate)) {
+      if (sessionOnline) return "Tidak aktif";
+      return "Offline";
+    }
+    return statusLabel(status);
+  }
 
   // status mentah → tentukan dari freshness update + kecepatan
   if (isStale(lastUpdate)) {

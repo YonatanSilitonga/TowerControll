@@ -21,7 +21,7 @@ import { StatusTimeline } from "@/components/armada/status-timeline";
 import { InfoTip } from "@/components/ui/info-tip";
 import { useRitaseDetail } from "@/hooks/use-armada";
 import { useTrackingMap } from "@/hooks/use-tracking";
-import { displayTrackingStatus, isRitaseExpired, statusLabel } from "@/lib/constants";
+import { displayTrackingStatus, isRitaseExpired, isStale, statusLabel } from "@/lib/constants";
 import { cn, formatDateDMY, formatDur, formatNumber, hasActiveSession } from "@/lib/utils";
 
 export default function RitaseDetailPage({ params }: { params?: { id?: string } }) {
@@ -30,7 +30,16 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
   const { data, isLoading } = useRitaseDetail(rawId);
   const { data: mapData } = useTrackingMap();
 
-  const vehicle = mapData?.vehicles.find(v => v.id_kendaraan === data?.id_kendaraan);
+  // Match vehicle: harus id_kendaraan + id_ritase cocok → hindari cross-ritase bleed
+  const vehicle = mapData?.vehicles.find(
+    v => v.id_kendaraan === data?.id_kendaraan && (!v.id_ritase || v.id_ritase === data?.id_ritase)
+  );
+
+  // Live = session aktif + GPS fresh + ritase belum selesai
+  const isGpsFresh = vehicle ? !isStale(vehicle.last_update) : false;
+  const isLive = vehicle
+    ? hasActiveSession(vehicle.last_login) && isGpsFresh && data?.status !== "selesai"
+    : false;
 
   if (isLoading || data === undefined || !rawId) {
     return (
@@ -103,8 +112,6 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
 
   const realisasiBerangkat = data.jam_berangkat || fmtTime(evBerangkat?.created_at) || fmtTime(firstEvent?.created_at);
   const realisasiTiba = data.jam_tiba || fmtTime(evTiba?.created_at) || fmtTime(lastEvent?.created_at);
-
-  const isLive = vehicle ? hasActiveSession(vehicle.last_login) : false;
 
   return (
     <div className="space-y-3">
