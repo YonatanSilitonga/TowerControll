@@ -105,6 +105,12 @@ export default function ManifestFotoPage() {
     return { totalPhotos, uniqueDrivers, totalKoli, totalEcer, totalHV };
   }, [photos]);
 
+  /* ── deduplikasi foto untuk grid view (anti ganda) ── */
+  const dedupedPhotos = useMemo(
+    () => photos.filter((p, i, self) => i === self.findIndex((t) => t.foto_manifest_url === p.foto_manifest_url)),
+    [photos],
+  );
+
   const todayStr = useMemo(
     () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date()),
     [],
@@ -596,7 +602,7 @@ export default function ManifestFotoPage() {
       ) : (
         /* ─── FLAT GRID ─── */
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {photos.map((photo) => (
+          {dedupedPhotos.map((photo) => (
             <div
               key={photo.id_event}
               className="group relative flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"

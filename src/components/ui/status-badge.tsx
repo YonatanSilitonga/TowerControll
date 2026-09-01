@@ -27,8 +27,8 @@ export function StatusBadge({ status, className }: { status?: string | null; cla
 
 function getDot(status: string): string {
   const s = status.toLowerCase();
-  if (["delivered", "completed", "active", "available", "paid", "on_duty", "success", "selesai", "aktif", "tersedia", "bertugas"].some((k) => s.includes(k))) {
-    return "bg-emerald-500";
+  if (["cancelled", "off", "inactive", "nonaktif", "expired", "destructive", "error", "batal"].some((k) => s.includes(k))) {
+    return "bg-rose-500";
   }
   if (["pending", "planned", "scheduled", "unpaid", "out_for_delivery", "direncanakan"].some((k) => s.includes(k))) {
     return "bg-amber-500";
@@ -36,8 +36,8 @@ function getDot(status: string): string {
   if (["in_transit", "in_progress", "picked_up", "maintenance", "berjalan", "loading"].some((k) => s.includes(k))) {
     return "bg-sky-500";
   }
-  if (["cancelled", "off", "inactive", "nonaktif", "expired", "destructive", "error", "batal"].some((k) => s.includes(k))) {
-    return "bg-rose-500";
+  if (["delivered", "completed", "active", "available", "paid", "on_duty", "success", "selesai", "aktif", "tersedia", "bertugas"].some((k) => s.includes(k))) {
+    return "bg-emerald-500";
   }
   return "bg-slate-400";
 }
@@ -45,8 +45,8 @@ function getDot(status: string): string {
 function getTone(status: string): string {
   const s = status.toLowerCase();
 
-  if (["delivered", "completed", "active", "available", "paid", "on_duty", "success", "selesai", "aktif", "tersedia", "bertugas"].some((k) => s.includes(k))) {
-    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300";
+  if (["cancelled", "off", "inactive", "nonaktif", "expired", "destructive", "error", "batal"].some((k) => s.includes(k))) {
+    return "bg-rose-50 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300";
   }
   if (["pending", "planned", "scheduled", "unpaid", "out_for_delivery", "direncanakan"].some((k) => s.includes(k))) {
     return "bg-amber-50 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300";
@@ -54,8 +54,8 @@ function getTone(status: string): string {
   if (["in_transit", "in_progress", "picked_up", "maintenance", "berjalan", "loading"].some((k) => s.includes(k))) {
     return "bg-sky-50 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300";
   }
-  if (["cancelled", "off", "inactive", "nonaktif", "expired", "destructive", "error", "batal"].some((k) => s.includes(k))) {
-    return "bg-rose-50 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300";
+  if (["delivered", "completed", "active", "available", "paid", "on_duty", "success", "selesai", "aktif", "tersedia", "bertugas"].some((k) => s.includes(k))) {
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300";
   }
   return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
 }
