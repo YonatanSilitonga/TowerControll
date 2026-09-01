@@ -31,7 +31,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
   const { data: mapData } = useTrackingMap();
 
   // Match vehicle: harus id_kendaraan + id_ritase cocok → hindari cross-ritase bleed
-  const vehicle = mapData?.vehicles.find(
+  const vehicle = (mapData?.vehicles ?? []).find(
     v => v.id_kendaraan === data?.id_kendaraan && (!v.id_ritase || v.id_ritase === data?.id_ritase)
   );
 
