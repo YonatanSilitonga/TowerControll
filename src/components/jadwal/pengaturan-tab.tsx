@@ -22,7 +22,7 @@ import { JenisBadge } from "@/components/ui/jenis-badge";
 import { useAdminMasterOptions } from "@/hooks/use-admin-ritase";
 import { useAuthStore } from "@/stores/auth-store";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "/api/v1";
 
 // ── Types ──
 interface JamRitase {
