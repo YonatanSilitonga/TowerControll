@@ -134,7 +134,6 @@ export default function JadwalPage() {
     return filtered.length > 0 ? filtered : masterOptions.kendaraan;
   }, [masterOptions?.kendaraan]);
 
-  // New manual ritase state
   const [newRitase, setNewRitase] = useState<{
     tanggal: string;
     id_driver: number;
@@ -964,9 +963,6 @@ export default function JadwalPage() {
                     <div className="flex items-start justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded bg-slate-700 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white dark:bg-slate-600">
-                            {r.kode_ritase}
-                          </span>
                           <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                             Ritase ke-{r.ritase_ke}
                           </span>
@@ -1096,11 +1092,6 @@ export default function JadwalPage() {
 
                   {/* Footer: Tujuan Akhir + Tanggal */}
                   <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-[11px] text-slate-400 dark:border-slate-800">
-                    <span>
-                      Tujuan: <span className="font-medium text-slate-600 dark:text-slate-300">
-                        {(r.stops ?? []).length > 0 ? (r.stops ?? [])[(r.stops ?? []).length - 1].nama_lokasi ?? "-" : "-"}
-                      </span>
-                    </span>
                     <span>
                       Tanggal: <span className="font-medium text-slate-600 dark:text-slate-300">{formatDateDMY(r.tanggal)}</span>
                     </span>
