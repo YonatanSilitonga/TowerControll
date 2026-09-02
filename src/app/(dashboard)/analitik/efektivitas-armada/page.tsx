@@ -164,18 +164,14 @@ export default function EfektivitasArmadaPage() {
   };
 
   // Fetch Data
-  const { data: allRitase = [], isLoading: loadingRitase } = useRitase();
+  const { data: allRitase = [], isLoading: loadingRitase } = useRitase(startDate, endDate);
   const { data: allKendaraan = [], isLoading: loadingKendaraan } = useKendaraan();
   const isLoading = loadingRitase || loadingKendaraan;
 
-  // 1. Filter Ritase by Date
-  const filteredRitase = useMemo(() => {
-    return allRitase.filter((r) => {
-      const t = (r.tanggal ?? "").substring(0, 10);
-      if (!t) return false;
-      return t >= startDate && t <= endDate;
-    });
-  }, [allRitase, startDate, endDate]);
+  // 1. Backend already filtered Ritase by Date. 
+  // (We slice it to max 5000 records to absolutely prevent React from freezing the browser 
+  // just in case the backend hasn't been updated yet)
+  const filteredRitase = allRitase.slice(0, 5000);
 
   // 2. Compute Metrics per Vehicle
   const vehicleMetricsMap = useMemo(() => {

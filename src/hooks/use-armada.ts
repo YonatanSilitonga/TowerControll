@@ -28,20 +28,25 @@ export function useDriver() {
     enabled: !!token,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
-    refetchInterval: 30_000,
   });
 }
 
 /** List ritase (tower_control/direktur lihat semua; driver ter-scope oleh backend). */
-export function useRitase() {
+export function useRitase(startDate?: string, endDate?: string) {
   const token = useAuthStore(tokenSelector);
   return useQuery({
-    queryKey: ["armada-ritase"],
-    queryFn: () => get<Ritase[]>("/armada/ritase", { token }),
+    queryKey: ["armada-ritase", startDate, endDate],
+    queryFn: () => {
+      let url = "/armada/ritase";
+      const params = new URLSearchParams();
+      if (startDate) params.append("start_date", startDate);
+      if (endDate) params.append("end_date", endDate);
+      if (params.toString()) url += `?${params.toString()}`;
+      return get<Ritase[]>(url, { token });
+    },
     enabled: !!token,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
-    refetchInterval: 30_000,
   });
 }
 
