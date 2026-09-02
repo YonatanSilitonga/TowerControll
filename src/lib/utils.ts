@@ -72,6 +72,21 @@ export function formatDateDMY(value?: string | null): string {
   return `${String(d).padStart(2, "0")}/${String(mo).padStart(2, "0")}/${y}`;
 }
 
+/** Parse timestamp "YYYY-MM-DD HH:MM:SS" dari backend sebagai UTC, tampilkan WIB.
+ *  Backend kirim raw UTC tanpa timezone — JS perlu "Z" biar gak geser 2x. */
+export function formatAuditTime(val?: string | null): string {
+  if (!val) return "—";
+  try {
+    const d = new Date(val.replace(" ", "T") + "Z");
+    if (Number.isNaN(d.getTime())) return val;
+    return d.toLocaleString("id-ID", {
+      day: "2-digit", month: "2-digit",
+      hour: "2-digit", minute: "2-digit",
+      timeZone: "Asia/Jakarta",
+    });
+  } catch { return val; }
+}
+
 /** Format durasi KOMPAK (detik) — "22s", "1m 10s", "1j 5m". Buat UI yang sempit. */
 export function formatDur(sec?: number | null): string {
   if (!sec || sec <= 0) return "-";
