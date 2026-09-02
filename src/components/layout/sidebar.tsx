@@ -1,5 +1,4 @@
-"use client";
-
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -8,7 +7,7 @@ import {
   Calendar,
   Camera,
   Car,
-  Clock,
+  ChevronDown,
   ClipboardCheck,
   LayoutDashboard,
   MapPin,
@@ -21,19 +20,41 @@ import { cn } from "@/lib/utils";
 import { ROLE_MENU, ROLE_LABEL } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth-store";
 
-const NAV: { label: string; href: string; icon: React.ComponentType<{ className?: string }>; key: string }[] = [
+export interface NavChild {
+  label: string;
+  href: string;
+  key: string;
+}
+
+export interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  key: string;
+  children?: NavChild[];
+}
+
+const NAV: NavItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard, key: "dashboard" },
   { label: "Armada", href: "/armada", icon: Truck, key: "armada" },
   { label: "Live Map", href: "/armada/live-map", icon: MapPin, key: "live-map" },
   { label: "Jadwal Ritase", href: "/jadwal", icon: Calendar, key: "jadwal" },
   { label: "Foto Manifest", href: "/manifest-foto", icon: Camera, key: "manifest-foto" },
-  { label: "Analitik", href: "/analitik", icon: BarChart3, key: "analitik" },
+  {
+    label: "Analitik",
+    href: "/analitik",
+    icon: BarChart3,
+    key: "analitik",
+    children: [
+      { label: "Analitik Keseluruhan", href: "/analitik", key: "analitik-keseluruhan" },
+      { label: "Efektivitas Armada", href: "/analitik/efektivitas-armada", key: "analitik-efektivitas" },
+    ],
+  },
   { label: "Gudang", href: "/gudang", icon: Warehouse, key: "gudang" },
   { label: "Absensi", href: "/absensi", icon: ClipboardCheck, key: "absensi" },
-  // { label: "Laporan", href: "/laporan", icon: FileText, key: "laporan" }, // di-hide sementara (masih pengembangan), aktifkan saat modul siap
 ];
 
-const ADMIN_NAV: { label: string; href: string; icon: React.ComponentType<{ className?: string }>; key: string }[] = [
+const ADMIN_NAV: NavItem[] = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard, key: "admin-dashboard" },
   { label: "Driver", href: "/admin/drivers", icon: Users, key: "admin-drivers" },
   { label: "Kendaraan", href: "/admin/vehicles", icon: Car, key: "admin-vehicles" },
@@ -56,6 +77,29 @@ export function Sidebar() {
   const isAdminRoute = pathname.startsWith("/admin");
   const nav = isAdminRoute ? ADMIN_NAV : filterNav(role);
   const navLabel = isAdminRoute ? "Admin" : "Menu Utama";
+
+  // State untuk melacak dropdown yang terbuka
+  const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({
+    analitik: true,
+  });
+
+  useEffect(() => {
+    // Auto buka dropdown jika URL aktif ada di dalam submenu
+    nav.forEach((item) => {
+      if (item.children) {
+        const isChildActive = item.children.some(
+          (c) => pathname === c.href || pathname.startsWith(`${c.href}/`)
+        );
+        if (isChildActive) {
+          setOpenDropdowns((prev) => ({ ...prev, [item.key]: true }));
+        }
+      }
+    });
+  }, [pathname, nav]);
+
+  const toggleDropdown = (key: string) => {
+    setOpenDropdowns((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   return (
     <div className="hidden w-60 shrink-0 bg-[#0c1e3a] lg:block">
@@ -83,11 +127,75 @@ export function Sidebar() {
           {navLabel}
         </p>
         {nav.map((item) => {
+          const Icon = item.icon;
+          const hasChildren = item.children && item.children.length > 0;
+          const isDropdownOpen = !!openDropdowns[item.key];
+
+          if (hasChildren) {
+            const isAnyChildActive = item.children!.some(
+              (c) => pathname === c.href || (c.href !== "/analitik" && pathname.startsWith(`${c.href}/`))
+            );
+
+            return (
+              <div key={item.key} className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => toggleDropdown(item.key)}
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-md px-3 py-2 text-[13px] font-medium transition-colors",
+                    isAnyChildActive && !isDropdownOpen
+                      ? "bg-white/15 text-white"
+                      : "text-slate-300 hover:bg-white/10 hover:text-white"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className="h-[18px] w-[18px] shrink-0" />
+                    <span>{item.label}</span>
+                  </div>
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 transition-transform duration-200 text-slate-400",
+                      isDropdownOpen && "rotate-180 text-white"
+                    )}
+                  />
+                </button>
+
+                {isDropdownOpen && (
+                  <div className="ml-4 space-y-0.5 border-l border-white/15 pl-2 pt-0.5">
+                    {item.children!.map((child) => {
+                      const isChildExact = pathname === child.href;
+                      return (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          className={cn(
+                            "flex items-center gap-2 rounded-md px-3 py-1.5 text-[12.5px] font-medium transition-colors",
+                            isChildExact
+                              ? "bg-white text-[#0c1e3a] font-semibold shadow-sm"
+                              : "text-slate-400 hover:bg-white/10 hover:text-white"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "h-1.5 w-1.5 rounded-full shrink-0",
+                              isChildExact ? "bg-amber-400" : "bg-slate-500"
+                            )}
+                          />
+                          <span className="truncate">{child.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
           const active =
             item.href === "/" || item.href === "/admin"
               ? pathname === item.href
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
-          const Icon = item.icon;
+
           return (
             <Link
               key={item.href}
@@ -95,7 +203,7 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-colors",
                 active
-                  ? "bg-white text-[#0c1e3a] shadow-sm"
+                  ? "bg-white text-[#0c1e3a] shadow-sm font-semibold"
                   : "text-slate-300 hover:bg-white/10 hover:text-white"
               )}
             >

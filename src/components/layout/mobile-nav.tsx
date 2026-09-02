@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROLE_LABEL } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth-store";
@@ -13,10 +13,17 @@ import { filterNav } from "@/components/layout/sidebar";
 /** Navigasi mobile (hamburger drawer) — sidebar di HP. Hanya muncul < lg. */
 export function MobileNav() {
   const [open, setOpen] = useState(false);
+  const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({
+    analitik: true,
+  });
   const pathname = usePathname();
   const role = useAuthStore((s) => s.user?.role);
   const user = useAuthStore((s) => s.user);
   const nav = filterNav(role);
+
+  const toggleDropdown = (key: string) => {
+    setOpenDropdowns((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   return (
     <>
@@ -61,11 +68,76 @@ export function MobileNav() {
 
             <nav className="flex-1 space-y-1 overflow-y-auto p-3">
               {nav.map((item) => {
+                const Icon = item.icon;
+                const hasChildren = item.children && item.children.length > 0;
+                const isDropdownOpen = !!openDropdowns[item.key];
+
+                if (hasChildren) {
+                  const isAnyChildActive = item.children!.some(
+                    (c) => pathname === c.href || (c.href !== "/analitik" && pathname.startsWith(`${c.href}/`))
+                  );
+
+                  return (
+                    <div key={item.key} className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => toggleDropdown(item.key)}
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                          isAnyChildActive && !isDropdownOpen
+                            ? "bg-white/15 text-white"
+                            : "text-slate-300 hover:bg-white/10 hover:text-white"
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon className="h-5 w-5 shrink-0" />
+                          <span>{item.label}</span>
+                        </div>
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 transition-transform duration-200 text-slate-400",
+                            isDropdownOpen && "rotate-180 text-white"
+                          )}
+                        />
+                      </button>
+
+                      {isDropdownOpen && (
+                        <div className="ml-4 space-y-0.5 border-l border-white/15 pl-3 pt-1">
+                          {item.children!.map((child) => {
+                            const isChildExact = pathname === child.href;
+                            return (
+                              <Link
+                                key={child.href}
+                                href={child.href}
+                                onClick={() => setOpen(false)}
+                                className={cn(
+                                  "flex items-center gap-2 rounded-md px-3 py-2 text-[13px] font-medium transition-colors",
+                                  isChildExact
+                                    ? "bg-white text-[#0c1e3a] font-semibold"
+                                    : "text-slate-400 hover:bg-white/10 hover:text-white"
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "h-1.5 w-1.5 rounded-full shrink-0",
+                                    isChildExact ? "bg-amber-400" : "bg-slate-500"
+                                  )}
+                                />
+                                <span>{child.label}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
                 const active =
                   item.href === "/"
                     ? pathname === "/"
                     : pathname === item.href || pathname.startsWith(`${item.href}/`);
-                const Icon = item.icon;
+
                 return (
                   <Link
                     key={item.href}
@@ -74,7 +146,7 @@ export function MobileNav() {
                     className={cn(
                       "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                       active
-                        ? "bg-white text-[#0c1e3a]"
+                        ? "bg-white text-[#0c1e3a] font-semibold"
                         : "text-slate-300 hover:bg-white/10 hover:text-white"
                     )}
                   >

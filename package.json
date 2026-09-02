@@ -4,7 +4,7 @@
   "private": true,
   "description": "Frontend Tower Control PT Sentral Logistik Bersama - Next.js 14 + TypeScript + Tailwind + TanStack Query",
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
