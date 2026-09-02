@@ -17,7 +17,7 @@ const TripMap = dynamic(() => import("@/components/armada/trip-map").then(m => m
 });
 
 import { DriverSummary, summarizeEvents } from "@/components/armada/driver-summary";
-import { StatusTimeline } from "@/components/armada/status-timeline";
+import { StatusTimeline, dedupEvents } from "@/components/armada/status-timeline";
 import { InfoTip } from "@/components/ui/info-tip";
 import { useRitaseDetail } from "@/hooks/use-armada";
 import { useTrackingMap } from "@/hooks/use-tracking";
@@ -282,7 +282,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
               <Clock className="h-4 w-4 text-[#0c1e3a]" /> Timeline Status &amp; Durasi
               <InfoTip text="Riwayat status & durasi proses selama ritase." />
             </span>
-            <span className="text-xs text-slate-400">{formatNumber((data.events ?? []).length)} event</span>
+            <span className="text-xs text-slate-400">{formatNumber(dedupEvents(data.events ?? []).length)} event</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4">
