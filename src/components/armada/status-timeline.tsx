@@ -5,7 +5,7 @@ import { cn, formatDur } from "@/lib/utils";
 import { statusLabel } from "@/lib/constants";
 import type { RitaseStop } from "@/types/armada";
 
-interface TimelineItem {
+export interface TimelineItem {
   id?: number;
   id_ritase?: number;
   kode_ritase?: string;
@@ -61,7 +61,7 @@ function timeOnly(iso: string): string {
 
 /** Deduplicate: buang exact duplikat + consecutive same-status (spam tombol).
  *  Tapi JANGAN buang kalau muatannya beda (koli/ecer/hv berubah). */
-function dedupEvents(events: TimelineItem[]): TimelineItem[] {
+export function dedupEvents(events: TimelineItem[]): TimelineItem[] {
   return events.filter((ev, i, arr) => {
     if (i === 0) return true;
     const prev = arr[i - 1];

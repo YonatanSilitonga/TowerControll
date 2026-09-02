@@ -19,8 +19,12 @@ import { isRitaseExpired } from "@/lib/constants";
 import type { Ritase } from "@/types/armada";
 
 function todayLocal(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 export default function DriverDetailPage({ params }: { params?: { id?: string } }) {
@@ -250,7 +254,7 @@ export default function DriverDetailPage({ params }: { params?: { id?: string } 
                       header: "Status",
                       className: "w-20",
                       render: (r) => (
-                        <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal) ? "expired" : r.status} />
+                        <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai) ? "tidak terlaksana" : r.status} />
                       ),
                     },
                   ]}
@@ -305,7 +309,7 @@ export default function DriverDetailPage({ params }: { params?: { id?: string } 
                     header: "Status",
                     className: "w-20",
                     render: (r) => (
-                      <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal) ? "expired" : r.status} />
+                      <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai) ? "tidak terlaksana" : r.status} />
                     ),
                   },
                 ]}

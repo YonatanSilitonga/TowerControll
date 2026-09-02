@@ -273,6 +273,10 @@ export default function AdminDriversPage() {
     show: false, title: "", type: "success",
   });
 
+  // Detail Modal
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailRow, setDetailRow] = useState<DriverAdmin | null>(null);
+
   const showToast = (title: string, message?: string, type: "success" | "error" | "info" = "success") => {
     setToast({ show: true, title, message, type });
     setTimeout(() => setToast((p) => ({ ...p, show: false })), 5000);
@@ -536,6 +540,13 @@ export default function AdminDriversPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => { setDetailRow(row); setDetailOpen(true); }}
+                          className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
+                          title="Lihat Detail"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
                         <button onClick={() => openEdit(row)} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800" title="Edit">
                           <Pencil className="h-4 w-4" />
                         </button>
@@ -703,6 +714,73 @@ export default function AdminDriversPage() {
         onCancel={() => setConfirmState({ open: false, id: null })}
         loading={saving}
       />
+
+      {/* ── Detail Modal ── */}
+      {detailRow && (
+        <Modal
+          open={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          title="Detail Driver"
+          description="Informasi lengkap driver"
+          icon={<Eye className="h-5 w-5" />}
+          footer={
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => setDetailOpen(false)} className="px-4 text-xs font-semibold">
+                Tutup
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            {[
+              { label: "ID Driver", value: `#${detailRow.id_driver}` },
+              { label: "Nama Driver", value: detailRow.nama_driver },
+              { label: "No HP", value: detailRow.no_hp || "—" },
+              { label: "No SIM", value: detailRow.no_sim || "—" },
+              { label: "Jenis SIM", value: detailRow.jenis_sim || "—" },
+              {
+                label: "Status",
+                value: (
+                  <span className={cn(
+                    "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold",
+                    detailRow.status_driver === "aktif" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
+                  )}>
+                    <span className={cn("h-1.5 w-1.5 rounded-full", detailRow.status_driver === "aktif" ? "bg-emerald-500" : "bg-slate-400")} />
+                    {detailRow.status_driver === "aktif" ? "Aktif" : "Nonaktif"}
+                  </span>
+                ),
+              },
+            ].map((item) => (
+              <div key={item.label} className="flex items-start gap-3">
+                <span className="w-32 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">{item.label}</span>
+                <span className="text-sm text-slate-800 dark:text-white">{item.value}</span>
+              </div>
+            ))}
+            {/* Audit fields */}
+            {detailRow.created_at && (
+              <>
+                <div className="h-px bg-slate-100 dark:bg-slate-800" />
+                <div className="flex items-start gap-3">
+                  <span className="w-32 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Dibuat</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-300">
+                    {new Date(detailRow.created_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}
+                    {detailRow.created_by && ` oleh #${detailRow.created_by}`}
+                  </span>
+                </div>
+                {detailRow.updated_at && (
+                  <div className="flex items-start gap-3">
+                    <span className="w-32 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Diubah</span>
+                    <span className="text-sm text-slate-600 dark:text-slate-300">
+                      {new Date(detailRow.updated_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}
+                      {detailRow.updated_by && ` oleh #${detailRow.updated_by}`}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </Modal>
+      )}
 
       {/* ── Toast ── */}
       <Toast

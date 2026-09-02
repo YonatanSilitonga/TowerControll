@@ -99,6 +99,7 @@ export const STATUS_LABELS: Record<string, string> = {
   aktif: "Aktif",
   loading: "Loading",
   tiba: "Tiba",
+  "tidak terlaksana": "Tidak Terlaksana",
 };
 
 /** Ambil label untuk status apa pun. */
@@ -108,18 +109,20 @@ export function statusLabel(status: string | undefined | null): string {
 }
 
 /**
- * Cek apakah ritase sudah expired berdasarkan tanggal + jam_selesai (WIB).
+ * Cek apakah ritase sudah expired berdasarkan tanggal + jam (WIB).
  *
  * Aturan:
  *  - Kalau tanggal < hari ini (WIB) → sudah expired, apapun jamnya
  *  - Kalau tanggal = hari ini (WIB) & jam_selesai sudah lewat → expired
  *  - Kalau tanggal > hari ini → belum expired
  *  - Kalau tanggal null/undefined → fallback ke cek jam saja (backward compat)
- *  - Kalau jam_selesai <= 06:00 → cross-midnight, belum expired di tanggal yang sama
+ *  - Cross-midnight: kalau jam_mulai > jam_selesai (contoh 16:00→02:00),
+ *    jangan expired di tanggal yang sama walaupun jam_selesai sudah lewat
  */
 export function isRitaseExpired(
   jamSelesai?: string | null,
   tanggal?: string | null,
+  jamMulai?: string | null,
 ): boolean {
   // Tanggal WIB hari ini dalam format YYYY-MM-DD
   const todayWIB = new Intl.DateTimeFormat("en-CA", {
@@ -146,9 +149,19 @@ export function isRitaseExpired(
   const selesaiJam = parseInt(parts[0], 10);
   const selesaiMenit = parseInt(parts[1], 10);
 
-  // Cross-midnight: jam_selesai <= 06:00 artinya berakhir tengah malam (next day).
-  // Pada tanggal yang sama, ritase belum expired.
-  if (selesaiJam <= 6) return false;
+  // Cross-midnight detection: kalau jam_mulai > jam_selesai (contoh: 16:00→02:00),
+  // ritase dimulai hari sebelum dan berakhir dini hari → jangan expired di tanggal yang sama.
+  if (jamMulai) {
+    const mulaiParts = jamMulai.split(":");
+    if (mulaiParts.length >= 2) {
+      const mulaiJam = parseInt(mulaiParts[0], 10);
+      const mulaiMenit = parseInt(mulaiParts[1], 10);
+      const mulaiMin = mulaiJam * 60 + mulaiMenit;
+      const selesaiMin = selesaiJam * 60 + selesaiMenit;
+      // Cross-midnight: mulai > selesai → belum expired di tanggal yang sama
+      if (mulaiMin > selesaiMin) return false;
+    }
+  }
 
   const now = new Date();
   const wibNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
@@ -170,6 +183,7 @@ export function ritaseStatusLabel(
   status?: string | null,
   jamSelesai?: string | null,
   tanggal?: string | null,
+  jamMulai?: string | null,
 ): string | null {
   if (!status) return null;
 
@@ -181,7 +195,7 @@ export function ritaseStatusLabel(
 
   // Ritase direncanakan → cek expired dulu (tanggal + jam)
   if (status === "direncanakan") {
-    if (isRitaseExpired(jamSelesai, tanggal)) return null; // expired → sembunyikan
+    if (isRitaseExpired(jamSelesai, tanggal, jamMulai)) return null; // expired → sembunyikan
     return "Siap Berangkat";
   }
 

@@ -290,6 +290,10 @@ export default function AdminUsersPage() {
   const [togglingId, setTogglingId]   = useState<number | null>(null);
   const [saving, setSaving]           = useState(false);
 
+  // Detail Modal
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailRow, setDetailRow] = useState<UserAdmin | null>(null);
+
   const [toast, setToast] = useState<{ show: boolean; title: string; type: "success" | "error" }>({
     show: false, title: "", type: "success",
   });
@@ -532,6 +536,13 @@ export default function AdminUsersPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button
+                          onClick={() => { setDetailRow(row); setDetailOpen(true); }}
+                          className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
+                          title="Lihat Detail"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
                           onClick={() => handleToggleStatus(row)}
                           disabled={togglingId === row.id_user}
                           className={cn(
@@ -688,6 +699,83 @@ export default function AdminUsersPage() {
           </FieldWrapper>
         </div>
       </Modal>
+
+      {/* ── Detail Modal ── */}
+      {detailRow && (
+        <Modal
+          open={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          title="Detail User"
+          description="Informasi lengkap akun user"
+          icon={<Eye className="h-5 w-5" />}
+          footer={
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => setDetailOpen(false)} className="px-4 text-xs font-semibold">
+                Tutup
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            {[
+              { label: "Username", value: <span className="font-mono font-bold">{detailRow.username}</span> },
+              { label: "Nama", value: detailRow.name },
+              {
+                label: "Role",
+                value: (
+                  <span className={cn(
+                    "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize",
+                    ROLE_COLORS[detailRow.role] ?? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                  )}>
+                    <Shield className="h-3 w-3" />
+                    {ROLE_OPTIONS.find((o) => o.value === detailRow.role)?.label ?? detailRow.role}
+                  </span>
+                ),
+              },
+              { label: "ID Karyawan", value: detailRow.karyawan_id ?? "—" },
+              {
+                label: "Status",
+                value: (
+                  <span className={cn(
+                    "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold",
+                    detailRow.status === "aktif" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
+                  )}>
+                    <span className={cn("h-1.5 w-1.5 rounded-full", detailRow.status === "aktif" ? "bg-emerald-500" : "bg-slate-400")} />
+                    {detailRow.status === "aktif" ? "Aktif" : "Nonaktif"}
+                  </span>
+                ),
+              },
+            ].map((item) => (
+              <div key={item.label} className="flex items-start gap-3">
+                <span className="w-32 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">{item.label}</span>
+                <span className="text-sm text-slate-800 dark:text-white">{item.value}</span>
+              </div>
+            ))}
+            {/* Audit fields */}
+            {detailRow.created_at && (
+              <>
+                <div className="h-px bg-slate-100 dark:bg-slate-800" />
+                <div className="flex items-start gap-3">
+                  <span className="w-32 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Dibuat</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-300">
+                    {new Date(detailRow.created_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}
+                    {detailRow.created_by && ` oleh #${detailRow.created_by}`}
+                  </span>
+                </div>
+                {detailRow.updated_at && (
+                  <div className="flex items-start gap-3">
+                    <span className="w-32 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Diubah</span>
+                    <span className="text-sm text-slate-600 dark:text-slate-300">
+                      {new Date(detailRow.updated_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}
+                      {detailRow.updated_by && ` oleh #${detailRow.updated_by}`}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </Modal>
+      )}
 
       {/* Toast */}
       <Toast show={toast.show} title={toast.title} type={toast.type} onClose={() => setToast((p) => ({ ...p, show: false }))} />

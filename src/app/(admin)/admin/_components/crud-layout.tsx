@@ -19,6 +19,7 @@ import {
   Phone,
   ChevronDown,
   Check,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -447,6 +448,10 @@ export function AdminCrudPage<T extends Record<string, any>>({
     message: string;
   }>({ open: false, id: null, title: "", message: "" });
 
+  // Detail Modal
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailRow, setDetailRow] = useState<T | null>(null);
+
   const showToast = (title: string, message?: string, type: "success" | "error" | "info" = "success") => {
     setToast({ show: true, title, message, type });
     setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 4000);
@@ -501,6 +506,11 @@ export function AdminCrudPage<T extends Record<string, any>>({
     setForm(initialForm);
     setFormErrors({});
     setModalOpen(true);
+  };
+
+  const openDetail = (row: T) => {
+    setDetailRow(row);
+    setDetailOpen(true);
   };
 
   const openEdit = (row: T) => {
@@ -647,6 +657,17 @@ export function AdminCrudPage<T extends Record<string, any>>({
   // ── Required field count (for modal subtitle) ──
   const requiredCount = fields.filter((f) => f.required && f.type !== "section-divider" && (!f.createOnly || !editing)).length;
 
+  // ── Format date for detail modal ──
+  const formatDate = (val?: string | null) => {
+    if (!val) return "—";
+    try {
+      return new Date(val).toLocaleString("id-ID", {
+        day: "2-digit", month: "2-digit", year: "2-digit",
+        hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
+      });
+    } catch { return val; }
+  };
+
   // ── Modal description ──
   const modalDescription = editing
     ? `Perbarui data ${title.toLowerCase()} yang sudah ada`
@@ -777,6 +798,13 @@ export function AdminCrudPage<T extends Record<string, any>>({
                     ))}
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => openDetail(row)}
+                          className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
+                          title="Lihat Detail"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
                         <button
                           onClick={() => openEdit(row)}
                           className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
@@ -1069,6 +1097,69 @@ export function AdminCrudPage<T extends Record<string, any>>({
             })}
         </div>
       </Modal>
+
+      {/* ── Detail Modal ── */}
+      {detailRow && (
+        <Modal
+          open={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          title={`Detail ${title}`}
+          description={`Informasi lengkap ${title.toLowerCase()}`}
+          icon={<Eye className="h-5 w-5" />}
+          size="md"
+          footer={
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setDetailOpen(false)}
+                className="px-4 text-xs font-semibold"
+              >
+                Tutup
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            {columns.map((col) => (
+              <div key={col.header} className="flex items-start gap-3">
+                <span className="w-36 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {col.header}
+                </span>
+                <div className="flex-1 text-sm text-slate-800 dark:text-white">
+                  {col.render(detailRow)}
+                </div>
+              </div>
+            ))}
+
+            {/* Audit fields */}
+            {(detailRow as any).created_at && (
+              <>
+                <div className="h-px bg-slate-100 dark:bg-slate-800" />
+                <div className="flex items-start gap-3">
+                  <span className="w-36 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Dibuat
+                  </span>
+                  <span className="text-sm text-slate-600 dark:text-slate-300">
+                    {formatDate((detailRow as any).created_at)}
+                    {(detailRow as any).created_by && ` oleh #${(detailRow as any).created_by}`}
+                  </span>
+                </div>
+                {(detailRow as any).updated_at && (
+                  <div className="flex items-start gap-3">
+                    <span className="w-36 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      Diubah
+                    </span>
+                    <span className="text-sm text-slate-600 dark:text-slate-300">
+                      {formatDate((detailRow as any).updated_at)}
+                      {(detailRow as any).updated_by && ` oleh #${(detailRow as any).updated_by}`}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </Modal>
+      )}
 
       {/* ── Map Picker Modal ── */}
       <MapPickerModal

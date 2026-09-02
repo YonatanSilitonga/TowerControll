@@ -65,6 +65,10 @@ export type DriverAdmin = {
   no_sim?: string;
   jenis_sim?: string;
   status_driver: "aktif" | "nonaktif";
+  created_at?: string;
+  created_by?: number;
+  updated_at?: string;
+  updated_by?: number;
 };
 
 const defaultDrivers: DriverAdmin[] = [
@@ -148,6 +152,10 @@ export type KendaraanAdmin = {
   jenis_kendaraan?: string;
   kapasitas_kg?: number;
   status_kendaraan: "aktif" | "maintenance" | "nonaktif";
+  created_at?: string;
+  created_by?: number;
+  updated_at?: string;
+  updated_by?: number;
 };
 
 const defaultVehicles: KendaraanAdmin[] = [
@@ -236,6 +244,10 @@ export type SellerAdmin = {
   status: "aktif" | "nonaktif";
   latitude?: number;
   longitude?: number;
+  created_at?: string;
+  created_by?: number;
+  updated_at?: string;
+  updated_by?: number;
 };
 
 const defaultSellers: SellerAdmin[] = [
@@ -317,6 +329,10 @@ export type DropPointAdmin = {
   latitude?: number;
   longitude?: number;
   status: "aktif" | "nonaktif";
+  created_at?: string;
+  created_by?: number;
+  updated_at?: string;
+  updated_by?: number;
 };
 
 const defaultDropPoints: DropPointAdmin[] = [
@@ -392,6 +408,10 @@ export type UserAdmin = {
   karyawan_id?: number;
   is_active: boolean;
   status: string;
+  created_at?: string;
+  created_by?: number;
+  updated_at?: string;
+  updated_by?: number;
 };
 
 const defaultUsers: UserAdmin[] = [
