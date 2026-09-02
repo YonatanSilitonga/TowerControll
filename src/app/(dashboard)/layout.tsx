@@ -29,19 +29,32 @@ function BootLoader() {
 }
 
 /**
+ * Flag modul-level: hanya true setelah boot pertama selesai.
+ * Ini mencegah fetchMe() dipanggil ulang setiap kali layout re-mount
+ * akibat navigasi antar menu — penyebab utama layar loading lambat.
+ */
+let bootDone = false;
+
+/**
  * Layout dashboard — guard yang benar:
  * - Tunggu store ke-hydrate (baca localStorage) dulu, biar refresh gak salah redirect.
- * - Kalau ada token → validasi via /auth/me (keep kalau valid, clear kalau expired).
+ * - Kalau ada token → validasi via /auth/me HANYA SEKALI per sesi browser (bukan tiap navigasi).
  * - Web khusus direktur/tower_control (driver pakai mobile).
  */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
   const token = useAuthStore((s) => s.token);
-  const user = useAuthStore((s) => s.user);
-  const [ready, setReady] = useState(false);
+  // Kalau boot sudah pernah selesai, langsung ready — skip loading screen
+  const [ready, setReady] = useState(bootDone);
 
   useEffect(() => {
+    // Sudah boot sebelumnya di sesi ini → tidak perlu fetch ulang, langsung lanjut
+    if (bootDone) {
+      setReady(true);
+      return;
+    }
+
     let active = true;
 
     // Safety timeout — kalau boot stuck >10 detik, paksa clear & redirect login
@@ -65,6 +78,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
       clearTimeout(safetyTimer);
       if (!active) return;
+
+      bootDone = true; // Tandai boot sudah selesai — navigasi berikutnya langsung instan
       setReady(true);
 
       const after = useAuthStore.getState();
@@ -91,7 +106,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Tunggu store selesai hydrate & validasi boot
+  // Tunggu store selesai hydrate & validasi boot (hanya di kunjungan pertama)
   if (!hasHydrated || !ready) {
     return <BootLoader />;
   }
