@@ -134,8 +134,8 @@ export function MobileNav() {
                 }
 
                 const active =
-                  item.href === "/"
-                    ? pathname === "/"
+                  item.href === "/" || item.href === "/analitik"
+                    ? pathname === item.href
                     : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
                 return (

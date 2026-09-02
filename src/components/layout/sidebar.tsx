@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   MapPin,
   Store,
+  TrendingUp,
   Truck,
   Users,
   Warehouse,
@@ -40,15 +41,12 @@ const NAV: NavItem[] = [
   { label: "Live Map", href: "/armada/live-map", icon: MapPin, key: "live-map" },
   { label: "Jadwal Ritase", href: "/jadwal", icon: Calendar, key: "jadwal" },
   { label: "Foto Manifest", href: "/manifest-foto", icon: Camera, key: "manifest-foto" },
+  { label: "Analitik", href: "/analitik", icon: BarChart3, key: "analitik" },
   {
-    label: "Analitik",
-    href: "/analitik",
-    icon: BarChart3,
-    key: "analitik",
-    children: [
-      { label: "Analitik Keseluruhan", href: "/analitik", key: "analitik-keseluruhan" },
-      { label: "Efektivitas Armada", href: "/analitik/efektivitas-armada", key: "analitik-efektivitas" },
-    ],
+    label: "Efektivitas Armada",
+    href: "/analitik/efektivitas-armada",
+    icon: TrendingUp,
+    key: "efektivitas-armada",
   },
   { label: "Gudang", href: "/gudang", icon: Warehouse, key: "gudang" },
   { label: "Absensi", href: "/absensi", icon: ClipboardCheck, key: "absensi" },
@@ -192,7 +190,7 @@ export function Sidebar() {
           }
 
           const active =
-            item.href === "/" || item.href === "/admin"
+            item.href === "/" || item.href === "/admin" || item.href === "/analitik"
               ? pathname === item.href
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
