@@ -22,7 +22,7 @@ import { InfoTip } from "@/components/ui/info-tip";
 import { useRitaseDetail } from "@/hooks/use-armada";
 import { useTrackingMap } from "@/hooks/use-tracking";
 import { displayTrackingStatus, isRitaseExpired, isStale, statusLabel } from "@/lib/constants";
-import { cn, formatDateDMY, formatDur, formatNumber, hasActiveSession } from "@/lib/utils";
+import { cn, formatDateDMY, formatDur, formatNumber, formatAuditTime, hasActiveSession } from "@/lib/utils";
 
 export default function RitaseDetailPage({ params }: { params?: { id?: string } }) {
   const routeParams = useParams();
@@ -286,10 +286,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
                     <span className="w-20 shrink-0 font-semibold text-slate-400 pt-0.5">Dibuat</span>
                     <div>
                       <span className="text-slate-600 dark:text-slate-300">
-                        {new Date(data.created_at).toLocaleString("id-ID", {
-                          day: "2-digit", month: "2-digit", year: "2-digit",
-                          hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
-                        })}
+                        {formatAuditTime(data.created_at)}
                       </span>
                       {data.created_by && (
                         <span className="ml-1 text-slate-400">oleh #{data.created_by}</span>
@@ -301,10 +298,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
                       <span className="w-20 shrink-0 font-semibold text-slate-400 pt-0.5">Diubah</span>
                       <div>
                         <span className="text-slate-600 dark:text-slate-300">
-                          {new Date(data.updated_at).toLocaleString("id-ID", {
-                            day: "2-digit", month: "2-digit", year: "2-digit",
-                            hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
-                          })}
+                          {formatAuditTime(data.updated_at)}
                         </span>
                         {data.updated_by && (
                           <span className="ml-1 text-slate-400">oleh #{data.updated_by}</span>

@@ -34,7 +34,7 @@ import {
   usePreviewDailyRitase,
   useUpdateRitase,
 } from "@/hooks/use-admin-ritase";
-import { cn, formatDur, formatDateDMY } from "@/lib/utils";
+import { cn, formatDur, formatDateDMY, formatAuditTime } from "@/lib/utils";
 import { isRitaseExpired, getFullPhotoUrl } from "@/lib/constants";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { JenisBadge } from "@/components/ui/jenis-badge";
@@ -1363,10 +1363,7 @@ const askCancelGenerate = () => {
                     <span className="text-slate-400">
                       Dibuat{" "}
                       <span className="font-medium text-slate-500">
-                        {new Date(r.created_at).toLocaleString("id-ID", {
-                          day: "2-digit", month: "2-digit",
-                          hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
-                        })}
+                        {formatAuditTime(r.created_at)}
                       </span>
                       {r.created_by && (
                         <span className="ml-0.5">#{r.created_by}</span>
@@ -1379,10 +1376,7 @@ const askCancelGenerate = () => {
                     <span>
                       Diubah{" "}
                       <span className="font-medium text-slate-500">
-                        {new Date(r.updated_at).toLocaleString("id-ID", {
-                          day: "2-digit", month: "2-digit",
-                          hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
-                        })}
+                        {formatAuditTime(r.updated_at)}
                       </span>
                       {r.updated_by && (
                         <span className="ml-0.5">#{r.updated_by}</span>
@@ -2461,10 +2455,7 @@ const askCancelGenerate = () => {
                     <div className="flex items-center gap-2">
                       <span className="w-20 shrink-0 font-semibold text-slate-400">Dibuat</span>
                       <span>
-                        {new Date(editingRitase.created_at).toLocaleString("id-ID", {
-                          day: "2-digit", month: "2-digit", year: "2-digit",
-                          hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
-                        })}
+                        {formatAuditTime(editingRitase.created_at)}
                         {editingRitase.created_by && (
                           <span className="ml-1 text-slate-400">oleh #{editingRitase.created_by}</span>
                         )}
@@ -2474,10 +2465,7 @@ const askCancelGenerate = () => {
                       <div className="flex items-center gap-2">
                         <span className="w-20 shrink-0 font-semibold text-slate-400">Diubah</span>
                         <span>
-                          {new Date(editingRitase.updated_at).toLocaleString("id-ID", {
-                            day: "2-digit", month: "2-digit", year: "2-digit",
-                            hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
-                          })}
+                          {formatAuditTime(editingRitase.updated_at)}
                           {editingRitase.updated_by && (
                             <span className="ml-1 text-slate-400">oleh #{editingRitase.updated_by}</span>
                           )}
