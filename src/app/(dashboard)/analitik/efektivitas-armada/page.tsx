@@ -138,7 +138,7 @@ interface VehicleMetrics {
   avgUtilKoliPercent: number;
   avgUtilEcerPercent: number;
   statusKapasitas: "Under" | "Optimal" | "Overload" | "NoData";
-  trips: Ritase[];
+  // trips TIDAK disimpan di sini — diambil lazily via selectedVehicleTrips
 }
 
 export default function EfektivitasArmadaPage() {
@@ -192,7 +192,6 @@ export default function EfektivitasArmadaPage() {
         avgUtilKoliPercent: 0,
         avgUtilEcerPercent: 0,
         statusKapasitas: "NoData",
-        trips: [],
       });
     });
 
@@ -216,16 +215,16 @@ export default function EfektivitasArmadaPage() {
           avgUtilKoliPercent: 0,
           avgUtilEcerPercent: 0,
           statusKapasitas: "NoData",
-          trips: [],
         };
         map.set(r.id_kendaraan, vm);
       }
+      if (!vm) return;
       
       vm.ritaseCount += 1;
       vm.totalKoli += r.total_koli || 0;
       vm.totalEceran += r.total_eceran || 0;
       vm.totalHV += r.total_high_value || 0;
-      vm.trips.push(r);
+      // trips TIDAK disimpan di sini — diambil lazily saat modal dibuka
     });
 
     Array.from(map.values()).forEach((vm) => {
@@ -244,6 +243,14 @@ export default function EfektivitasArmadaPage() {
 
     return Array.from(map.values()).sort((a, b) => b.ritaseCount - a.ritaseCount);
   }, [filteredRitase, allKendaraan]);
+
+  // Trips untuk kendaraan yang dipilih — hanya dihitung saat modal dibuka (lazy)
+  const selectedVehicleTrips = useMemo(() => {
+    if (!selectedArmadaForHistory) return [];
+    return filteredRitase
+      .filter((r) => r.id_kendaraan === selectedArmadaForHistory.idKendaraan)
+      .sort((a, b) => (b.tanggal ?? "").localeCompare(a.tanggal ?? ""));
+  }, [selectedArmadaForHistory, filteredRitase]);
 
   // 3. Aggregate KPIs for Row 1
   const kpis = useMemo(() => {
@@ -284,7 +291,7 @@ export default function EfektivitasArmadaPage() {
       .filter(v => v.ritaseCount > 0)
       .slice(0, 8)
       .map(v => {
-        const driverName = v.trips[0]?.nama_driver || v.platNomor;
+        const driverName = v.platNomor;
         return {
           name: driverName.split(' ')[0],
           'Koli Reguler': Math.max(0, (v.totalKoli || 0) - (v.totalHV || 0)),
@@ -937,9 +944,9 @@ export default function EfektivitasArmadaPage() {
 
             {/* Modal Body: List of Trips */}
             <div className="p-6 overflow-y-auto flex-1 space-y-3">
-              {selectedArmadaForHistory.trips.length > 0 ? (
+              {selectedVehicleTrips.length > 0 ? (
                 <div className="space-y-2.5">
-                  {selectedArmadaForHistory.trips.map((trip, idx) => (
+                  {selectedVehicleTrips.map((trip, idx) => (
                     <div 
                       key={trip.id_ritase || idx}
                       className="border border-slate-200 rounded-lg p-3.5 bg-white hover:border-slate-300 transition-all space-y-2.5"
