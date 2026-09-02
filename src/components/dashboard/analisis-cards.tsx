@@ -129,7 +129,7 @@ export function BottleneckCard({
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold">
           <AlertTriangle className="h-4 w-4 text-slate-400" /> Titik-titik hambatan
-          <InfoTip text="Titik potensial hambatan operasional (seller/driver). Klik item untuk detail & rekomendasi." />
+          <InfoTip text="Hambatan operasional potensial" />
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
@@ -240,7 +240,7 @@ export function AlertCard({ alerts, limit = 5 }: { alerts: AlertAnomali[]; limit
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold">
           <BellRing className="h-4 w-4 text-slate-400" /> Status tidak wajar
-          <InfoTip text="Kondisi abnormal: armada berhenti lama, perjalanan kelamaan. Klik item untuk detail & rekomendasi." />
+          <InfoTip text="Kondisi abnormal armada" />
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">

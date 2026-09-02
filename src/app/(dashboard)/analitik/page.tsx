@@ -419,7 +419,7 @@ export default function AnalitikPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                   <Truck className="h-4 w-4 text-[#0c1e3a]" /> Ritase per Hari
-                  <InfoTip text="Garis navy = total ritase; emerald = ritase selesai. Per hari berdasarkan tanggal jadwal ritase." />
+                  <InfoTip text="Navy = total, Emerald = selesai" />
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -439,7 +439,7 @@ export default function AnalitikPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                   <ArrowUpFromLine className="h-4 w-4 text-[#0c1e3a]" /> Arah Operasional
-                  <InfoTip text="Outgoing = Gateway JKT (barang keluar), Incoming = Gateway SEG (barang masuk)." />
+                  <InfoTip text="Out = JKT, In = SEG" />
                 </CardTitle>
               </CardHeader>
               <CardContent>

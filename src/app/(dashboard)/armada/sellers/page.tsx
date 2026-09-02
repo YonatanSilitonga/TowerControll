@@ -146,7 +146,7 @@ export default function SellersPage() {
             <CardHeader className="border-b py-3">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                 <MapPin className="h-4 w-4 text-[#0c1e3a]" /> Peta Seller
-                <InfoTip text="Lokasi seller. Klik baris tabel untuk zoom & buka popup seller." />
+                <InfoTip text="Lokasi seller di peta" />
                 <span className="ml-auto text-xs font-normal text-slate-400">
                   {tracked.length} bertitik
                 </span>

@@ -97,6 +97,7 @@ export const STATUS_LABELS: Record<string, string> = {
   maintenance: "Maintenance",
   istirahat: "Istirahat",
   aktif: "Aktif",
+  nonaktif: "Nonaktif",
   loading: "Loading",
   tiba: "Tiba",
   "tidak terlaksana": "Tidak Terlaksana",

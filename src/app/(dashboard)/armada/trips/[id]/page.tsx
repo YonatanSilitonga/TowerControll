@@ -163,7 +163,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
               <CardTitle className="flex items-center justify-between gap-2 text-sm font-semibold">
                 <span className="flex items-center gap-1.5">
                   <MapPin className="h-4 w-4 text-[#0c1e3a]" /> Perjalanan
-                  <InfoTip text="Rute, komposisi titik, dan posisi ritase." />
+                  <InfoTip text="Rute & posisi titik" />
                 </span>
                 <span className="flex items-center gap-1.5 text-xs">
                   <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-slate-600">
@@ -211,7 +211,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
             <CardHeader className="border-b px-4 py-3">
               <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
                 Muatan
-                <InfoTip text="Jumlah AWB, koli, high value, dan eceran." />
+                <InfoTip text="Muatan ritase" />
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 p-4">
@@ -239,7 +239,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
             <CardHeader className="border-b px-4 py-3">
               <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
                 Jadwal
-                <InfoTip text="Jadwal rencana vs realisasi berangkat & tiba." />
+                <InfoTip text="Jadwal vs realisasi" />
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 space-y-4 p-4">
@@ -319,7 +319,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
           <CardTitle className="flex items-center justify-between gap-2 text-sm font-semibold">
             <span className="flex items-center gap-1.5">
               <Clock className="h-4 w-4 text-[#0c1e3a]" /> Timeline Status &amp; Durasi
-              <InfoTip text="Riwayat status & durasi proses selama ritase." />
+              <InfoTip text="Riwayat status & durasi" />
             </span>
             <span className="text-xs text-slate-400">{formatNumber(dedupEvents(data.events ?? []).length)} event</span>
           </CardTitle>
