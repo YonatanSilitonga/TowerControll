@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { X, MapPin, Check, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { swal } from "@/lib/swal";
 
 // Dynamic import Leaflet component with SSR disabled
 const LeafletMapPickerInner = dynamic(() => import("./map-picker-inner"), {
@@ -61,10 +62,10 @@ export function MapPickerModal({
         setLat(parseFloat(data[0].lat));
         setLng(parseFloat(data[0].lon));
       } else {
-        alert("Lokasi tidak ditemukan. Coba kata kunci yang lebih spesifik.");
+        swal.error("Lokasi tidak ditemukan", "Coba kata kunci yang lebih spesifik.");
       }
     } catch {
-      alert("Gagal mencari lokasi.");
+      swal.error("Gagal mencari lokasi");
     }
     setSearching(false);
   };

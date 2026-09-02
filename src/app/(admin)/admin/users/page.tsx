@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { swal } from "@/lib/swal";
 import {
   Plus,
   Search,
@@ -26,40 +27,6 @@ import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { adminUser, UserAdmin } from "@/lib/admin-api";
-
-/* ─────────── TOAST ─────────── */
-function Toast({
-  show,
-  title,
-  type,
-  onClose,
-}: {
-  show: boolean;
-  title: string;
-  type: "success" | "error";
-  onClose: () => void;
-}) {
-  if (!show) return null;
-  return (
-    <div className="fixed bottom-6 right-6 z-[60] flex items-center gap-3 rounded-2xl bg-[#0c1e3a] p-4 pr-5 text-white shadow-2xl ring-1 ring-white/10 animate-in slide-in-from-bottom-4 fade-in duration-300">
-      <div
-        className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
-          type === "success" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"
-        )}
-      >
-        {type === "success" ? <CheckCircle2 className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
-      </div>
-      <p className="text-xs font-bold text-white">{title}</p>
-      <button
-        onClick={onClose}
-        className="ml-2 rounded-full p-1 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
-      >
-        <X className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
 
 /* ─────────── MODAL (with scroll lock) ─────────── */
 function Modal({
@@ -291,15 +258,6 @@ export default function AdminUsersPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailRow, setDetailRow] = useState<UserAdmin | null>(null);
 
-  const [toast, setToast] = useState<{ show: boolean; title: string; type: "success" | "error" }>({
-    show: false, title: "", type: "success",
-  });
-
-  const showToast = (title: string, type: "success" | "error" = "success") => {
-    setToast({ show: true, title, type });
-    setTimeout(() => setToast((p) => ({ ...p, show: false })), 4000);
-  };
-
   const [form, setFormState] = useState({ username: "", password: "", name: "", role: "cs", karyawan_id: "" });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [newPw, setNewPw] = useState("");
@@ -339,24 +297,24 @@ export default function AdminUsersPage() {
     setSaving(true);
     try {
       await adminUser.create({ ...form, karyawan_id: form.karyawan_id ? Number(form.karyawan_id) : undefined });
-      showToast("User Baru Berhasil Dibuat");
+      swal.success("User Baru Berhasil Dibuat");
       setCreateOpen(false);
       setFormState({ username: "", password: "", name: "", role: "cs", karyawan_id: "" });
       setFormErrors({});
       await refresh();
-    } catch (err: any) { showToast(err?.message || "Gagal membuat user", "error"); }
+    } catch (err: any) { swal.error(err?.message || "Gagal membuat user"); }
     setSaving(false);
   };
 
   const handleResetPassword = async () => {
     if (!resetTarget || !newPw) return;
-    if (newPw.length < 6) { showToast("Password minimal 6 karakter", "error"); return; }
+    if (newPw.length < 6) { swal.error("Password minimal 6 karakter"); return; }
     setSaving(true);
     try {
       await adminUser.resetPassword(resetTarget.id_user, newPw);
-      showToast(`Password ${resetTarget.username} berhasil direset`);
+      swal.success(`Password ${resetTarget.username} berhasil direset`);
       setResetOpen(false); setNewPw(""); setResetTarget(null);
-    } catch (err: any) { showToast(err?.message || "Gagal reset password", "error"); }
+    } catch (err: any) { swal.error(err?.message || "Gagal reset password"); }
     setSaving(false);
   };
 
@@ -365,9 +323,9 @@ export default function AdminUsersPage() {
     setTogglingId(row.id_user);
     try {
       await adminUser.updateStatus(row.id_user, newStatus);
-      showToast(`User ${newStatus === "aktif" ? "diaktifkan" : "dinonaktifkan"}`);
+      swal.success(`User ${newStatus === "aktif" ? "diaktifkan" : "dinonaktifkan"}`);
       await refresh();
-    } catch (err: any) { showToast(err?.message || "Gagal update status", "error"); }
+    } catch (err: any) { swal.error(err?.message || "Gagal update status"); }
     setTogglingId(null);
   };
 
@@ -789,9 +747,6 @@ export default function AdminUsersPage() {
           </div>
         </Modal>
       )}
-
-      {/* Toast */}
-      <Toast show={toast.show} title={toast.title} type={toast.type} onClose={() => setToast((p) => ({ ...p, show: false }))} />
     </>
   );
 }

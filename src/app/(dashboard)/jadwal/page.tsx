@@ -35,6 +35,7 @@ import {
   useUpdateRitase,
 } from "@/hooks/use-admin-ritase";
 import { cn, formatDur, formatDateDMY, formatAuditTime } from "@/lib/utils";
+import { swal } from "@/lib/swal";
 import { isRitaseExpired, getFullPhotoUrl } from "@/lib/constants";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { JenisBadge } from "@/components/ui/jenis-badge";
@@ -89,19 +90,7 @@ export default function JadwalPage() {
   );
   const [editingOriginal, setEditingOriginal] =
     useState<AdminRitaseItem | null>(null);
-  const [deletingRitase, setDeletingRitase] = useState<{
-    id: number;
-    kode: string;
-  } | null>(null);
-  const [confirmBox, setConfirmBox] = useState<{
-    title: string;
-    message: string;
-    onConfirm: () => void;
-  } | null>(null);
-  const [toast, setToast] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+  const createOriginalRef = useRef<string>("");
 
   // Lightbox foto manifest
   const [selectedFoto, setSelectedFoto] = useState<{
@@ -118,14 +107,6 @@ export default function JadwalPage() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [selectedFoto]);
-
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const showToast = (type: "success" | "error", text: string) => {
-    setToast({ type, text });
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 5000);
-  };
 
   const errMsg = (e: unknown) =>
     e instanceof ApiError ? e.message : "Terjadi kesalahan. Coba lagi.";
@@ -318,19 +299,24 @@ useEffect(() => {
 };
 
 const closeGenerateModal = () => {
+  // Reset editableRoutes ke snapshot awal (buang perubahan)
+  if (previewSnapshotRef.current) {
+    setEditableRoutes(JSON.parse(previewSnapshotRef.current));
+  }
   setShowGenerateModal(false);
 };
 
-const askCancelGenerate = () => {
+const askCancelGenerate = async () => {
   if (!generateIsDirty()) {
     closeGenerateModal();
     return;
   }
-  setConfirmBox({
-    title: "Batalkan Perubahan?",
-    message: "Perubahan rute, driver, atau jadwal yang belum di-generate akan hilang.",
-    onConfirm: closeGenerateModal,
-  });
+  const confirmed = await swal.confirm(
+    "Batalkan Perubahan?",
+    "Perubahan rute, driver, atau jadwal yang belum di-generate akan hilang.",
+    "Ya, batalkan",
+  );
+  if (confirmed) closeGenerateModal();
 };
 
   const handleGenerate = () => {
@@ -360,14 +346,14 @@ const askCancelGenerate = () => {
         const count =
           (data as { total_generated?: number })?.total_generated ??
           editableRoutes.length;
-        showToast(
-          "success",
+        swal.success(
+          "Berhasil!",
           `Berhasil menimpa & meng-generate ${count} ritase harian!`,
         );
         refetch();
       },
       onError: (e) => {
-        showToast("error", `Gagal generate: ${errMsg(e)}`);
+        swal.error("Gagal generate", errMsg(e));
       },
     });
   };
@@ -430,14 +416,18 @@ const askCancelGenerate = () => {
     setEditableRoutes(updated);
   };
 
-  const handleRemoveRoute = (routeIdx: number) => {
-    setConfirmBox({
-      title: "Hapus Rute dari Preview?",
-      message: `Yakin ingin menghapus rute "${editableRoutes[routeIdx]?.nama_driver ?? "Driver"}" Ritase Ke-${editableRoutes[routeIdx]?.ritase_ke ?? "?"} dari daftar generate?`,
-      onConfirm: () => {
-        setEditableRoutes(editableRoutes.filter((_, idx) => idx !== routeIdx));
-      },
-    });
+  const handleRemoveRoute = async (routeIdx: number) => {
+    const confirmed = await swal.confirm(
+      "Hapus Rute dari Preview?",
+      `Yakin ingin menghapus rute "${editableRoutes[routeIdx]?.nama_driver ?? "Driver"}" Ritase Ke-${editableRoutes[routeIdx]?.ritase_ke ?? "?"} dari daftar generate?`,
+      "Ya, hapus!",
+    );
+    if (confirmed) {
+      const newRoutes = editableRoutes.filter((_, idx) => idx !== routeIdx);
+      setEditableRoutes(newRoutes);
+      previewSnapshotRef.current = JSON.stringify(newRoutes);
+      swal.success("Rute Dihapus", "Rute berhasil dihapus dari daftar generate.");
+    }
   };
 
   const handleAddRoute = () => {
@@ -564,31 +554,35 @@ const askCancelGenerate = () => {
     setEditableRoutes(updated);
   };
 
-  const handleDelete = (idRitase: number, kode: string) => {
-    setDeletingRitase({ id: idRitase, kode });
+  const handleDelete = async (idRitase: number, kode: string) => {
+    const confirmed = await swal.confirm(
+      "Hapus Ritase?",
+      `Ritase ${kode} akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`,
+      "Ya, Hapus",
+    );
+    if (!confirmed) return;
+    deleteMutation.mutate(idRitase, {
+      onSuccess: () => {
+        swal.success("Berhasil!", `Ritase ${kode} berhasil dihapus`);
+      },
+      onError: (e) => {
+        swal.error("Gagal menghapus ritase", errMsg(e));
+      },
+    });
   };
 
-  const confirmDelete = () => {
-    if (deletingRitase) {
-      deleteMutation.mutate(deletingRitase.id, {
-        onSuccess: () => {
-          setDeletingRitase(null);
-          showToast(
-            "success",
-            `Ritase ${deletingRitase.kode} berhasil dihapus`,
-          );
-        },
-        onError: (e) => {
-          setDeletingRitase(null);
-          showToast("error", `Gagal menghapus ritase: ${errMsg(e)}`);
-        },
-      });
-    }
-  };
-
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingRitase) return;
+
+    if (editingRitase.status === "berjalan") {
+      const confirmed = await swal.confirm(
+        "Ritase Sedang Berjalan?",
+        `Driver ${editingRitase.nama_driver} sedang dalam perjalanan. Perubahan rute akan langsung diterapkan. Yakin ingin menyimpan?`,
+        "Ya, Simpan Perubahan",
+      );
+      if (!confirmed) return;
+    }
 
     const reindexedStops = (editingRitase.stops ?? []).map((s, idx) => ({
       ...s,
@@ -602,39 +596,42 @@ const askCancelGenerate = () => {
             : s.id_drop_point,
     }));
 
+    const isBerjalan = editingRitase.status === "berjalan";
     updateMutation.mutate(
       {
         idRitase: editingRitase.id_ritase,
-        data: {
-          id_driver: editingRitase.id_driver,
-          id_kendaraan: editingRitase.id_kendaraan,
-          id_drop_point: editingRitase.id_drop_point,
-          ritase_ke: editingRitase.ritase_ke,
-          status: editingRitase.status,
-          stops: reindexedStops,
-        },
+        data: isBerjalan
+          ? { stops: reindexedStops }
+          : {
+              id_driver: editingRitase.id_driver,
+              id_kendaraan: editingRitase.id_kendaraan,
+              id_drop_point: editingRitase.id_drop_point,
+              ritase_ke: editingRitase.ritase_ke,
+              status: editingRitase.status,
+              stops: reindexedStops,
+            },
       },
       {
         onSuccess: () => {
           const kode = editingRitase.kode_ritase;
           setEditingRitase(null);
           setEditingOriginal(null);
-          showToast("success", `Rute ${kode} berhasil diperbarui!`);
+          swal.success("Berhasil!", `Rute ${kode} berhasil diperbarui!`);
         },
         onError: (e) => {
-          showToast("error", `Gagal menyimpan rute: ${errMsg(e)}`);
+          swal.error("Gagal menyimpan rute", errMsg(e));
         },
       },
     );
   };
 
-  const handleSaveCreate = (e: React.FormEvent) => {
+  const handleSaveCreate = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // ── Validasi tanggal tidak boleh di masa lalu ──
     if (newRitase.tanggal < todayStr) {
-      showToast(
-        "error",
+      swal.error(
+        "Error",
         "Tidak bisa membuat jadwal untuk tanggal yang sudah berlalu.",
       );
       return;
@@ -651,8 +648,8 @@ const askCancelGenerate = () => {
       const driverName =
         masterOptions?.drivers.find((d) => d.id_driver === newRitase.id_driver)
           ?.nama_driver ?? `Driver #${newRitase.id_driver}`;
-      showToast(
-        "error",
+      swal.error(
+        "Duplikat Ritase",
         `${driverName} sudah memiliki Ritase Ke-${newRitase.ritase_ke} pada tanggal ${newRitase.tanggal} (${existingRitase.kode_ritase}). Pilih driver lain atau ritase ke berbeda.`,
       );
       return;
@@ -663,8 +660,8 @@ const askCancelGenerate = () => {
       (d) => d.id_driver === newRitase.id_driver,
     );
     if (!selectedDriver) {
-      showToast(
-        "error",
+      swal.error(
+        "Driver Tidak Aktif",
         "Driver yang dipilih sedang tidak aktif. Pilih driver lain yang aktif.",
       );
       return;
@@ -673,8 +670,8 @@ const askCancelGenerate = () => {
       (k) => k.id_kendaraan === newRitase.id_kendaraan,
     );
     if (!selectedVehicle) {
-      showToast(
-        "error",
+      swal.error(
+        "Kendaraan Tidak Tersedia",
         "Kendaraan yang dipilih sedang tidak tersedia. Pilih kendaraan lain.",
       );
       return;
@@ -691,22 +688,30 @@ const askCancelGenerate = () => {
             : s.id_drop_point,
     }));
 
+    const driverName = masterOptions?.drivers.find((d) => d.id_driver === newRitase.id_driver)?.nama_driver ?? "Driver";
+    const confirmed = await swal.confirm(
+      "Simpan Jadwal Baru?",
+      `Jadwal ritase untuk ${driverName} R${newRitase.ritase_ke} akan disimpan ke database.`,
+      "Ya, Simpan",
+    );
+    if (!confirmed) return;
+
     createMutation.mutate(
       {
         tanggal: newRitase.tanggal,
         id_driver: newRitase.id_driver,
         id_kendaraan: newRitase.id_kendaraan,
-        id_drop_point: newRitase.id_drop_point,
+        id_drop_point: [...newRitase.stops].reverse().find((s) => s.jenis_stop === "gateway")?.id_drop_point ?? masterOptions?.drop_points[0]?.id_drop_point ?? newRitase.id_drop_point,
         ritase_ke: newRitase.ritase_ke,
         stops: reindexedStops,
       },
       {
         onSuccess: () => {
           setShowCreateModal(false);
-          showToast("success", "Jadwal ritase baru berhasil dibuat!");
+          swal.success("Berhasil!", "Jadwal ritase baru berhasil dibuat!");
         },
         onError: (e) => {
-          showToast("error", `Gagal membuat jadwal: ${errMsg(e)}`);
+          swal.error("Gagal membuat jadwal", errMsg(e));
         },
       },
     );
@@ -733,28 +738,37 @@ const askCancelGenerate = () => {
     }
   };
 
-  const handleRemoveStop = (isEdit: boolean, index: number) => {
+  const handleRemoveStop = async (isEdit: boolean, index: number) => {
     if (isEdit) {
       const name = editingRitase?.stops?.[index]?.nama_lokasi ?? "titik ini";
-      setConfirmBox({
-        title: "Hapus Titik Ini?",
-        message: `Titik "${name}" akan dihapus dari rute ${editingRitase?.kode_ritase ?? ""}. Tindakan ini hanya berlaku saat disimpan.`,
-        onConfirm: () => {
-          setEditingRitase((cur) =>
-            cur
-              ? {
-                  ...cur,
-                  stops: (cur.stops ?? []).filter((_, i) => i !== index),
-                }
-              : cur,
-          );
-        },
-      });
+      const confirmed = await swal.confirm(
+        "Hapus Titik Ini?",
+        `Titik "${name}" akan dihapus dari rute ${editingRitase?.kode_ritase ?? ""}. Tindakan ini hanya berlaku saat disimpan.`,
+        "Ya, hapus!",
+      );
+      if (confirmed) {
+        setEditingRitase((cur) =>
+          cur
+            ? {
+                ...cur,
+                stops: (cur.stops ?? []).filter((_, i) => i !== index),
+              }
+            : cur,
+        );
+      }
     } else {
-      setNewRitase((cur) => ({
-        ...cur,
-        stops: cur.stops.filter((_, i) => i !== index),
-      }));
+      const name = newRitase.stops[index]?.nama_lokasi ?? "titik ini";
+      const confirmed = await swal.confirm(
+        "Hapus Titik Ini?",
+        `Titik "${name}" akan dihapus dari rute jadwal baru.`,
+        "Ya, hapus!",
+      );
+      if (confirmed) {
+        setNewRitase((cur) => ({
+          ...cur,
+          stops: cur.stops.filter((_, i) => i !== index),
+        }));
+      }
     }
   };
 
@@ -884,17 +898,70 @@ const askCancelGenerate = () => {
     setEditingOriginal(null);
   };
 
-  const askCancelEdit = () => {
+  const askCancelEdit = async () => {
     if (!ritaseIsDirty()) {
       closeEditModal();
       return;
     }
-    setConfirmBox({
-      title: "Batalkan Perubahan?",
-      message: "Perubahan yang belum disimpan pada rute ini akan hilang.",
-      onConfirm: closeEditModal,
-    });
+    const confirmed = await swal.confirm(
+      "Batalkan Perubahan?",
+      "Perubahan yang belum disimpan pada rute ini akan hilang.",
+      "Ya, batalkan",
+    );
+    if (confirmed) closeEditModal();
   };
+
+  const createIsDirty = () => {
+    if (!createOriginalRef.current) return false;
+    return JSON.stringify(newRitase) !== createOriginalRef.current;
+  };
+
+  const askCancelCreate = async () => {
+    if (!createIsDirty()) {
+      setShowCreateModal(false);
+      return;
+    }
+    const confirmed = await swal.confirm(
+      "Batalkan Pembuatan Jadwal?",
+      "Data jadwal yang sudah diisi akan hilang.",
+      "Ya, batalkan",
+    );
+    if (confirmed) {
+      resetNewRitase();
+      setShowCreateModal(false);
+    }
+  };
+
+  const resetNewRitase = () => {
+    const fresh: typeof newRitase = {
+      tanggal: selectedDate,
+      id_driver: activeDrivers[0]?.id_driver ?? 1,
+      id_kendaraan: activeVehicles[0]?.id_kendaraan ?? 1,
+      id_drop_point: masterOptions?.drop_points[0]?.id_drop_point ?? 1,
+      ritase_ke: 1,
+      stops: [
+        {
+          id_stop: 1,
+          urutan: 1,
+          jenis_stop: "gudang",
+          id_gudang: masterOptions?.gudangs[0]?.id_gudang ?? 1,
+          nama_lokasi: masterOptions?.gudangs[0]?.nama_gudang ?? "Gudang 1",
+          keterangan: "Mulai dari Gudang",
+        },
+        {
+          id_stop: 2,
+          urutan: 2,
+          jenis_stop: "gateway",
+          id_drop_point: masterOptions?.drop_points[0]?.id_drop_point ?? 1,
+          nama_lokasi: masterOptions?.drop_points[0]?.nama_drop_point ?? "Gateway 1",
+          keterangan: "Tujuan akhir Gateway",
+        },
+      ],
+    };
+    setNewRitase(fresh);
+    createOriginalRef.current = JSON.stringify(fresh);
+  };
+
   // Filter & sort ritases berdasarkan nama driver (A-Z)
   const filteredRitases = (ritases ?? [])
     .filter((r) => {
@@ -1098,13 +1165,7 @@ const askCancelGenerate = () => {
           disabled={isDatePast}
           onClick={() => {
             if (isDatePast) return;
-            setNewRitase({
-              ...newRitase,
-              tanggal: selectedDate,
-              id_driver: activeDrivers[0]?.id_driver ?? 1,
-              id_kendaraan: activeVehicles[0]?.id_kendaraan ?? 1,
-              id_drop_point: masterOptions?.drop_points[0]?.id_drop_point ?? 1,
-            });
+            resetNewRitase();
             setShowCreateModal(true);
           }}
           className="group inline-flex items-center gap-2 rounded-md border border-[#FEA103] bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition-all duration-200 ease-out hover:bg-[#FEA103] hover:text-white hover:scale-[1.03] active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-[#FEA103] dark:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
@@ -1811,7 +1872,7 @@ const askCancelGenerate = () => {
               </div>
               <button
                 type="button"
-                onClick={() => setShowCreateModal(false)}
+                onClick={askCancelCreate}
                 className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 <X className="h-5 w-5" />
@@ -1844,12 +1905,17 @@ const askCancelGenerate = () => {
                   </label>
                   <select
                     value={newRitase.id_driver}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const newDriverId = parseInt(e.target.value, 10);
+                      const driver = masterOptions?.drivers.find((d) => d.id_driver === newDriverId);
+                      const jabatan = (driver?.jabatan ?? "").toLowerCase();
+                      const maxR = jabatan.includes("incoming") ? 4 : 3;
                       setNewRitase({
                         ...newRitase,
-                        id_driver: parseInt(e.target.value, 10),
-                      })
-                    }
+                        id_driver: newDriverId,
+                        ritase_ke: Math.min(maxR, newRitase.ritase_ke),
+                      });
+                    }}
                     className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                   >
                     {activeDrivers.map((d) => (
@@ -1884,45 +1950,29 @@ const askCancelGenerate = () => {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Gateway Tujuan Akhir
-                  </label>
-                  <select
-                    value={newRitase.id_drop_point}
-                    onChange={(e) =>
-                      setNewRitase({
-                        ...newRitase,
-                        id_drop_point: parseInt(e.target.value, 10),
-                      })
-                    }
-                    className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                  >
-                    {masterOptions?.drop_points.map((dp) => (
-                      <option key={dp.id_drop_point} value={dp.id_drop_point}>
-                        {dp.nama_drop_point} ({dp.kode_dp})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
                     Ritase Ke-
                   </label>
-                  <select
-                    value={newRitase.ritase_ke}
-                    onChange={(e) =>
-                      setNewRitase({
-                        ...newRitase,
-                        ritase_ke: parseInt(e.target.value, 10),
-                      })
-                    }
-                    className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                  >
-                    <option value={1}>Ritase 1 </option>
-                    <option value={2}>Ritase 2 </option>
-                    <option value={3}>Ritase 3 </option>
-                    <option value={4}>Ritase 4 </option>
-                  </select>
+                  {(() => {
+                    const selDriver = masterOptions?.drivers.find((d) => d.id_driver === newRitase.id_driver);
+                    const jabatan = (selDriver?.jabatan ?? "").toLowerCase();
+                    const maxR = jabatan.includes("incoming") ? 4 : 3;
+                    return (
+                      <select
+                        value={newRitase.ritase_ke}
+                        onChange={(e) =>
+                          setNewRitase({
+                            ...newRitase,
+                            ritase_ke: parseInt(e.target.value, 10),
+                          })
+                        }
+                        className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                      >
+                        {Array.from({ length: maxR }, (_, i) => (
+                          <option key={i + 1} value={i + 1}>R{i + 1}</option>
+                        ))}
+                      </select>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -1932,11 +1982,9 @@ const askCancelGenerate = () => {
                   (d) => d.id_driver === newRitase.id_driver,
                 );
                 const jenis =
-                  masterOptions?.driver_jenis?.find(
-                    (dj) =>
-                      dj.id_driver === newRitase.id_driver &&
-                      dj.ritase_ke === newRitase.ritase_ke,
-                  )?.jenis ?? "outgoing";
+                  (selectedDriver?.jabatan ?? "").toLowerCase().includes("incoming")
+                      ? "incoming"
+                      : "outgoing";
                 const jamConfig = masterOptions?.jam_ritase?.find(
                   (j) =>
                     j.jenis === jenis && j.ritase_ke === newRitase.ritase_ke,
@@ -2121,7 +2169,7 @@ const askCancelGenerate = () => {
               <div className="mt-6 flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={askCancelCreate}
                   className="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   Batal
@@ -2253,7 +2301,7 @@ const askCancelGenerate = () => {
                   </label>
                   <select
                     value={editingRitase.status}
-                    disabled={editingRitase.status === "berjalan"}
+                    disabled
                     onChange={(e) =>
                       setEditingRitase({
                         ...editingRitase,
@@ -2501,136 +2549,6 @@ const askCancelGenerate = () => {
               </div>
             </form>
           </div>
-        </div>
-      )}
-
-      {/* ── MODAL KONFIRMASI GENERIK ── */}
-      {confirmBox && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-lg bg-white p-5 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
-              <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-            </div>
-
-            <h3 className="mt-4 text-base font-bold text-slate-900 dark:text-white">
-              {confirmBox.title}
-            </h3>
-            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-              {confirmBox.message}
-            </p>
-
-            <div className="mt-6 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setConfirmBox(null)}
-                className="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-              >
-                Tidak
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  confirmBox.onConfirm();
-                  setConfirmBox(null);
-                }}
-                className="inline-flex items-center gap-2 rounded-md bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-amber-700"
-              >
-                Ya, Lanjutkan
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL KONFIRMASI HAPUS ── */}
-      {deletingRitase && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-lg bg-white p-5 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/30">
-              <Trash2 className="h-6 w-6 text-rose-600 dark:text-rose-400" />
-            </div>
-
-            <h3 className="mt-4 text-base font-bold text-slate-900 dark:text-white">
-              Hapus Ritase?
-            </h3>
-            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-              Ritase{" "}
-              <span className="font-semibold text-slate-700 dark:text-slate-200">
-                {deletingRitase.kode}
-              </span>{" "}
-              akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
-            </p>
-
-            <div className="mt-6 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setDeletingRitase(null)}
-                className="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                disabled={deleteMutation.isPending}
-                className="inline-flex items-center gap-2 rounded-md bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-50"
-              >
-                {deleteMutation.isPending ? (
-                  <>
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    <span>Menghapus...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span>Ya, Hapus</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── TOAST NOTIFIKASI (POPUP) ── */}
-      {toast && (
-        <div
-          className={cn(
-            "fixed bottom-6 right-6 z-[9999] flex items-start gap-3 rounded-2xl px-5 py-4 shadow-2xl ring-1 animate-in slide-in-from-bottom-4 fade-in duration-300",
-            toast.type === "success"
-              ? "bg-[#0c1e3a] text-white ring-white/10 shadow-slate-900/30"
-              : "bg-rose-950 text-white ring-rose-500/20 shadow-rose-950/40",
-          )}
-        >
-          <div
-            className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
-              toast.type === "success"
-                ? "bg-emerald-500/20 text-emerald-400"
-                : "bg-rose-500/20 text-rose-400",
-            )}
-          >
-            {toast.type === "success" ? (
-              <CheckCircle2 className="h-5 w-5" />
-            ) : (
-              <AlertTriangle className="h-5 w-5" />
-            )}
-          </div>
-          <div>
-            <p className="text-sm font-bold text-white">
-              {toast.type === "success"
-                ? "Perubahan Berhasil Disimpan! 🎉"
-                : "Gagal Menyimpan"}
-            </p>
-            <p className="mt-0.5 text-xs text-slate-300">{toast.text}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setToast(null)}
-            className="ml-2 text-slate-400 hover:text-white transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
         </div>
       )}
 

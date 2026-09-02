@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { swal } from "@/lib/swal";
 import {
   Plus, Pencil, Trash2, Search, X, Loader2, Phone,
   UserCog, CheckCircle2, AlertTriangle, ChevronDown, Check,
@@ -270,7 +271,7 @@ export default function AdminDriversPage() {
   const [toast, setToast] = useState<{ show: boolean; title: string; message?: string; type: "success" | "error" | "info" }>({
     show: false, title: "", type: "success",
   });
-
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   // Detail Modal
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailRow, setDetailRow] = useState<DriverAdmin | null>(null);
@@ -279,6 +280,7 @@ export default function AdminDriversPage() {
     setToast({ show: true, title, message, type });
     setTimeout(() => setToast((p) => ({ ...p, show: false })), 5000);
   };
+
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -310,7 +312,7 @@ export default function AdminDriversPage() {
 
   // ── Export Excel ──
   const handleExportExcel = () => {
-    if (processed.length === 0) { showToast("Tidak ada data", "Tidak ada data untuk diekspor.", "error"); return; }
+    if (processed.length === 0) { swal.error("Tidak ada data", "Tidak ada data untuk diekspor."); return; }
     const headers = ["ID", "Nama Driver", "No HP", "Jenis SIM", "Status"];
     const rows = processed.map((r) => [r.id_driver, r.nama_driver, r.no_hp ?? "-", r.jenis_sim ?? "-", r.status_driver ?? "-"]);
     const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"/><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Driver</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table border="1"><thead><tr>${headers.map((h) => `<th style="font-weight:bold;background:#0c1e3a;color:#fff;padding:6px 12px">${h}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td style="padding:4px 10px">${c}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
@@ -319,7 +321,7 @@ export default function AdminDriversPage() {
     const a = document.createElement("a"); a.href = url;
     a.download = `Data_Driver_${new Date().toISOString().slice(0, 10)}.xls`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-    showToast("Export berhasil", `${processed.length} data driver berhasil diekspor.`);
+    swal.success("Export berhasil", `${processed.length} data driver berhasil diekspor.`);
   };
 
   // ── Open/Close ──
@@ -379,7 +381,7 @@ export default function AdminDriversPage() {
     try {
       if (editing) {
         await adminDriver.update(editing.id_driver, form as Partial<DriverAdmin>);
-        showToast("Driver Diperbarui", `Data ${form.nama_driver} berhasil disimpan.`);
+        swal.success("Driver Diperbarui", `Data ${form.nama_driver} berhasil disimpan.`);
       } else {
         // 1. Buat driver
         const res = await adminDriver.create(form as Partial<DriverAdmin>);
@@ -395,43 +397,47 @@ export default function AdminDriversPage() {
               role: "driver",
               karyawan_id: driverId,
             });
-            showToast(
+            swal.success(
               "Driver + Akun Berhasil Dibuat",
               `Driver "${form.nama_driver}" dan akun login "@${akunForm.username}" sudah aktif.`,
-              "success"
             );
           } catch (akunErr: any) {
             // Driver sudah dibuat, akun gagal — informasikan tanpa rollback
-            showToast(
+            swal.error(
               "Driver Dibuat, Akun Gagal",
               `Driver berhasil ditambahkan tapi akun login gagal: ${akunErr?.message ?? "Error tidak diketahui"}. Buat akun manual di halaman Users.`,
-              "error"
             );
           }
         } else {
-          showToast("Driver Berhasil Ditambahkan", `${form.nama_driver} sudah terdaftar.`);
+          swal.success("Driver Berhasil Ditambahkan", `${form.nama_driver} sudah terdaftar.`);
         }
       }
       setModalOpen(false);
       await refresh();
     } catch (err: any) {
-      showToast("Gagal Menyimpan", err?.message || "Terjadi kesalahan server", "error");
+      swal.error("Gagal Menyimpan", err?.message || "Terjadi kesalahan server");
     }
     setSaving(false);
   };
 
-  const executeDelete = async () => {
-    if (!confirmState.id) return;
+  const handleDeleteClick = async (id: number) => {
+    const confirmed = await swal.confirm(
+      "Nonaktifkan Driver?",
+      "Data driver akan dinonaktifkan dan tidak lagi tampil di operasional aktif. Tindakan ini dapat diaktifkan kembali oleh admin.",
+      "Ya, Nonaktifkan",
+    );
+    if (!confirmed) return;
+    setDeleteTargetId(id);
     setSaving(true);
     try {
-      await adminDriver.delete(confirmState.id);
-      showToast("Driver Dinonaktifkan", "Data berhasil dinonaktifkan.");
-      setConfirmState({ open: false, id: null });
+      await adminDriver.delete(id);
+      swal.success("Driver Dinonaktifkan", "Data berhasil dinonaktifkan.");
       await refresh();
     } catch (err: any) {
-      showToast("Gagal", err?.message || "Gagal mengnonaktifkan data", "error");
+      swal.error("Gagal", err?.message || "Gagal mengnonaktifkan data");
     }
     setSaving(false);
+    setDeleteTargetId(null);
   };
 
   const setField = (key: string, val: string) => {
@@ -548,7 +554,7 @@ export default function AdminDriversPage() {
                         <button onClick={() => openEdit(row)} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800" title="Edit">
                           <Pencil className="h-4 w-4" />
                         </button>
-                        <button onClick={() => setConfirmState({ open: true, id: row.id_driver })} className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10" title="Nonaktifkan">
+                        <button onClick={() => handleDeleteClick(row.id_driver)} className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10" title="Nonaktifkan">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>

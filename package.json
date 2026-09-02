@@ -37,6 +37,7 @@
     "react-leaflet": "^5.0.0",
     "react-leaflet-cluster": "^4.1.3",
     "recharts": "^2.13.3",
+    "sweetalert2": "^11.26.25",
     "tailwind-merge": "^2.5.4",
     "zustand": "^5.0.0"
   },

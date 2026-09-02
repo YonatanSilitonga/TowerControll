@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
+import { swal } from "@/lib/swal";
 import {
   Plus,
   Pencil,
@@ -444,6 +445,8 @@ export function AdminCrudPage<T extends Record<string, any>>({
   const [activeLatKey, setActiveLatKey] = useState<string>("latitude");
   const [activeLngKey, setActiveLngKey] = useState<string>("longitude");
 
+  // Confirm state for delete
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   // Toast & Confirm Modal
   const [toast, setToast] = useState<ToastState>({ show: false, title: "", type: "success" });
   const [confirmState, setConfirmState] = useState<{
@@ -567,46 +570,43 @@ export function AdminCrudPage<T extends Record<string, any>>({
     try {
       if (editing) {
         await updateFn(Number(editing[idKey]), form);
-        showToast("Berhasil Disimpan", `Data ${title.toLowerCase()} telah diperbarui.`);
+        swal.success("Berhasil Disimpan", `Data ${title.toLowerCase()} telah diperbarui.`);
       } else {
         await createFn(form);
-        showToast("Berhasil Ditambahkan", `Data ${title.toLowerCase()} baru berhasil dibuat.`);
+        swal.success("Berhasil Ditambahkan", `Data ${title.toLowerCase()} baru berhasil dibuat.`);
       }
       setModalOpen(false);
       await refresh();
     } catch (err: any) {
-      showToast("Gagal Menyimpan", err?.message || "Terjadi kesalahan server", "error");
+      swal.error("Gagal Menyimpan", err?.message || "Terjadi kesalahan server");
     }
     setSaving(false);
   };
 
-  const confirmDelete = (id: number) => {
-    setConfirmState({
-      open: true,
-      id,
-      title: `Nonaktifkan ${title}?`,
-      message: `Data ini akan dinonaktifkan dan tidak lagi tampil di operasional aktif. Tindakan ini dapat diaktifkan kembali oleh admin.`,
-    });
-  };
-
-  const executeDelete = async () => {
-    if (!confirmState.id) return;
+  const confirmDelete = async (id: number) => {
+    const confirmed = await swal.confirm(
+      `Nonaktifkan ${title}?`,
+      "Data ini akan dinonaktifkan dan tidak lagi tampil di operasional aktif. Tindakan ini dapat diaktifkan kembali oleh admin.",
+      "Ya, Nonaktifkan",
+    );
+    if (!confirmed) return;
+    setDeleteTargetId(id);
     setSaving(true);
     try {
-      await deleteFn(confirmState.id);
-      showToast("Data Dinonaktifkan", `Data berhasil dinonaktifkan.`);
-      setConfirmState({ open: false, id: null, title: "", message: "" });
+      await deleteFn(id);
+      swal.success("Data Dinonaktifkan", "Data berhasil dinonaktifkan.");
       await refresh();
     } catch (err: any) {
-      showToast("Gagal", err?.message || "Gagal mengnonaktifkan data", "error");
+      swal.error("Gagal", err?.message || "Gagal mengnonaktifkan data");
     }
     setSaving(false);
+    setDeleteTargetId(null);
   };
 
   // ── Excel Export ──
   const handleExportExcel = () => {
     if (processedData.length === 0) {
-      showToast("Ekspor Dibatalkan", "Tidak ada data untuk diekspor", "info");
+      swal.info("Ekspor Dibatalkan", "Tidak ada data untuk diekspor");
       return;
     }
 
@@ -651,7 +651,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
     link.href = url;
     link.download = `Data_${title}_${new Date().toISOString().slice(0, 10)}.xls`;
     link.click();
-    showToast("Ekspor Excel Berhasil", `File Data_${title}.xls telah diunduh.`);
+    swal.success("Ekspor Excel Berhasil", `File Data_${title}.xls telah diunduh.`);
   };
 
   const setField = (key: string, value: any) => {
@@ -1201,23 +1201,9 @@ export function AdminCrudPage<T extends Record<string, any>>({
             [activeLatKey]: selectedLat,
             [activeLngKey]: selectedLng,
           }));
-          showToast("Koordinat Diperbarui", `Lat: ${selectedLat}, Lng: ${selectedLng}`);
+          swal.success("Koordinat Diperbarui", `Lat: ${selectedLat}, Lng: ${selectedLng}`);
         }}
       />
-
-      {/* ── Confirm Modal ── */}
-      <ConfirmModal
-        open={confirmState.open}
-        title={confirmState.title}
-        message={confirmState.message}
-        onConfirm={executeDelete}
-        onCancel={() => setConfirmState({ open: false, id: null, title: "", message: "" })}
-        loading={saving}
-        confirmLabel="Ya, Nonaktifkan"
-      />
-
-      {/* ── Toast ── */}
-      <Toast toast={toast} onClose={() => setToast((prev) => ({ ...prev, show: false }))} />
     </div>
   );
 }
