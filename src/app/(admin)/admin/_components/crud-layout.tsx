@@ -90,31 +90,34 @@ function ConfirmModal({
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-md overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in zoom-in-95 duration-200"
+        className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="h-1 w-full bg-gradient-to-r from-rose-500 to-rose-400" />
-        <div className="px-6 pt-5 pb-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">
-              <AlertTriangle className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">{title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{message}</p>
-            </div>
+        <div className="p-6">
+          {/* Icon */}
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-500/10">
+            <AlertTriangle className="h-7 w-7 text-rose-500" />
           </div>
-          <div className="mt-6 flex justify-end gap-2.5">
-            <Button variant="outline" size="sm" onClick={onCancel} className="px-4 text-xs font-semibold">
+          {/* Text */}
+          <div className="text-center">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">{title}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{message}</p>
+          </div>
+          {/* Actions */}
+          <div className="mt-6 flex gap-3">
+            <Button
+              variant="outline"
+              onClick={onCancel}
+              className="flex-1 font-semibold"
+            >
               Batal
             </Button>
             <Button
-              size="sm"
               onClick={onConfirm}
               disabled={loading}
-              className="bg-rose-600 px-4 text-xs font-semibold text-white hover:bg-rose-700"
+              className="flex-1 bg-rose-600 font-semibold text-white hover:bg-rose-700"
             >
-              {loading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              {loading && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
               {confirmLabel}
             </Button>
           </div>
@@ -239,7 +242,6 @@ function Modal({
   children: ReactNode;
   footer: ReactNode;
 }) {
-  // Lock body scroll when modal is open
   useEffect(() => {
     if (open) {
       const prev = document.body.style.overflow;
@@ -254,33 +256,37 @@ function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
         className={cn(
-          "flex w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in zoom-in-95 duration-200",
+          "flex w-full flex-col overflow-hidden bg-white shadow-2xl dark:bg-slate-900 animate-in duration-200",
+          "rounded-t-2xl sm:rounded-xl sm:border sm:border-slate-200 sm:dark:border-slate-800",
+          "slide-in-from-bottom-4 sm:zoom-in-95",
           maxW,
-          // Constrain total modal height so footer is always visible
-          "max-h-[90vh]"
+          "max-h-[92vh] sm:max-h-[90vh]"
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Accent bar */}
         <div className="h-1 w-full shrink-0 bg-gradient-to-r from-[#0c1e3a] to-[#1a3a5c]" />
 
+        {/* Drag handle (mobile) */}
+        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-slate-200 dark:bg-slate-700 sm:hidden" />
+
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
           <div className="flex items-center gap-3 min-w-0">
             {icon && (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0c1e3a]/8 text-[#0c1e3a] dark:bg-white/10 dark:text-white">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0c1e3a] text-white dark:bg-white/10">
                 {icon}
               </div>
             )}
             <div className="min-w-0">
-              <h3 className="truncate text-base font-bold text-[#0c1e3a] dark:text-white">{title}</h3>
+              <h3 className="truncate text-base font-bold text-slate-900 dark:text-white">{title}</h3>
               {description && (
-                <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{description}</p>
+                <p className="mt-0.5 truncate text-xs text-slate-400 dark:text-slate-500">{description}</p>
               )}
             </div>
           </div>
@@ -293,10 +299,10 @@ function Modal({
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div className="flex-1 overflow-y-auto px-5 py-5">{children}</div>
 
         {/* Sticky footer */}
-        <div className="shrink-0 border-t border-slate-100 bg-slate-50/80 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/80">
+        <div className="shrink-0 border-t border-slate-100 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-900">
           {footer}
         </div>
       </div>
@@ -307,11 +313,10 @@ function Modal({
 /* ─────────── SECTION DIVIDER ─────────── */
 function SectionDivider({ label }: { label: string }) {
   return (
-    <div className="col-span-full flex items-center gap-3 pb-1 pt-2">
-      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+    <div className="col-span-full -mx-6 border-y border-slate-100 bg-slate-50/80 px-6 py-2.5 dark:border-slate-800 dark:bg-slate-800/50">
+      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
         {label}
       </span>
-      <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800" />
     </div>
   );
 }
@@ -331,19 +336,19 @@ function FieldWrapper({
   children: ReactNode;
 }) {
   return (
-    <div>
-      <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+    <div className="space-y-1.5">
+      <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
         {label}
         {required && <span className="ml-0.5 text-rose-500">*</span>}
       </label>
       {children}
       {error ? (
-        <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-rose-500">
+        <p className="flex items-center gap-1 text-[11px] font-medium text-rose-500">
           <AlertTriangle className="h-3 w-3 shrink-0" />
           {error}
         </p>
       ) : hint ? (
-        <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{hint}</p>
+        <p className="text-[11px] text-slate-400 dark:text-slate-500">{hint}</p>
       ) : null}
     </div>
   );
@@ -378,7 +383,7 @@ export type FieldConfig = {
 
 /* ─────────── INPUT CLASS HELPERS ─────────── */
 const inputBase =
-  "h-10 w-full rounded-lg border bg-white px-3.5 text-sm text-slate-700 outline-none transition-all dark:bg-slate-800 dark:text-white";
+  "h-11 w-full rounded-lg border bg-white px-3.5 text-sm text-slate-700 outline-none transition-all dark:bg-slate-800 dark:text-white";
 const inputNormal =
   "border-slate-200 hover:border-slate-300 focus:border-[#FEA103] focus:ring-2 focus:ring-[#FEA103]/20 dark:border-slate-700 dark:hover:border-slate-600 dark:focus:border-[#FEA103]";
 const inputError =
@@ -843,43 +848,46 @@ export function AdminCrudPage<T extends Record<string, any>>({
         icon={modalIcon}
         size={modalSize}
         footer={
-          <div className="flex items-center justify-between gap-3">
-            {/* Left: error summary hint */}
+          <div className="space-y-3">
+            {/* Error banner */}
             {Object.keys(formErrors).length > 0 && (
-              <p className="flex items-center gap-1.5 text-[11px] font-medium text-rose-500">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                {Object.keys(formErrors).length} field belum terisi dengan benar
-              </p>
+              <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-500/20 dark:bg-rose-500/10">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
+                <p className="text-xs font-medium text-rose-600 dark:text-rose-400">
+                  {Object.keys(formErrors).length} field belum terisi dengan benar — periksa kembali sebelum menyimpan
+                </p>
+              </div>
             )}
-            <div className="ml-auto flex items-center gap-2.5">
+            {/* Actions */}
+            <div className="flex gap-3">
               <Button
                 variant="outline"
                 onClick={() => setModalOpen(false)}
-                className="px-4 text-xs font-semibold"
+                className="flex-1 font-semibold"
               >
                 Batal
               </Button>
               <Button
                 onClick={handleSave}
                 disabled={saving}
-                className="min-w-[120px] bg-[#FEA103] px-5 text-xs font-semibold text-white hover:bg-[#E09102] disabled:opacity-70"
+                className="flex-[2] bg-[#0c1e3a] font-semibold text-white hover:bg-[#0c1e3a]/90 disabled:opacity-70"
               >
                 {saving ? (
                   <>
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Menyimpan…
                   </>
                 ) : editing ? (
                   "Simpan Perubahan"
                 ) : (
-                  "Tambah Data"
+                  `Tambah ${title}`
                 )}
               </Button>
             </div>
           </div>
         }
       >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           {fields
             .filter((f) => !f.createOnly || !editing)
             .map((f) => {
@@ -932,7 +940,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                             setField(f.key, e.target.value === "" ? null : Number(e.target.value))
                           }
                           placeholder={f.placeholder || "Koordinat"}
-                          className={cn("h-10 rounded-lg text-sm font-mono", hasError && inputError)}
+                          className={cn("h-11 rounded-lg text-sm font-mono", hasError && inputError)}
                         />
                         <Button
                           type="button"
@@ -966,7 +974,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                                 )
                               }
                               placeholder="-6.2100"
-                              className="h-10 rounded-lg text-sm font-mono"
+                              className="h-11 rounded-lg text-sm font-mono"
                             />
                           </div>
                           <div className="flex-1">
@@ -984,7 +992,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                                 )
                               }
                               placeholder="106.5500"
-                              className="h-10 rounded-lg text-sm font-mono"
+                              className="h-11 rounded-lg text-sm font-mono"
                             />
                           </div>
                           <Button
@@ -1046,7 +1054,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                           }
                           placeholder={f.placeholder}
                           className={cn(
-                            "h-10 rounded-lg pr-14 text-sm",
+                            "h-11 rounded-lg pr-14 text-sm",
                             hasError ? inputError : ""
                           )}
                         />
@@ -1063,7 +1071,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                           onChange={(e) => setField(f.key, e.target.value)}
                           placeholder={f.placeholder ?? "08xxxxxxxxxx"}
                           className={cn(
-                            "h-10 rounded-lg pl-9 font-mono text-sm",
+                            "h-11 rounded-lg pl-9 font-mono text-sm",
                             hasError ? inputError : ""
                           )}
                         />
@@ -1086,7 +1094,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                         }
                         placeholder={f.placeholder}
                         className={cn(
-                          "h-10 rounded-lg text-sm",
+                          "h-11 rounded-lg text-sm",
                           hasError ? inputError : ""
                         )}
                       />
@@ -1108,54 +1116,74 @@ export function AdminCrudPage<T extends Record<string, any>>({
           icon={<Eye className="h-5 w-5" />}
           size="md"
           footer={
-            <div className="flex justify-end">
+            <div className="flex gap-3">
               <Button
                 variant="outline"
                 onClick={() => setDetailOpen(false)}
-                className="px-4 text-xs font-semibold"
+                className="flex-1 font-semibold"
               >
                 Tutup
+              </Button>
+              <Button
+                onClick={() => {
+                  setDetailOpen(false);
+                  openEdit(detailRow);
+                }}
+                className="flex-1 bg-[#0c1e3a] font-semibold text-white hover:bg-[#0c1e3a]/90"
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit Data
               </Button>
             </div>
           }
         >
-          <div className="space-y-3">
-            {columns.map((col) => (
-              <div key={col.header} className="flex items-start gap-3">
-                <span className="w-36 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {col.header}
-                </span>
-                <div className="flex-1 text-sm text-slate-800 dark:text-white">
-                  {col.render(detailRow)}
+          <div className="space-y-4">
+            {/* Data rows dalam grid 2 kolom */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {columns.map((col) => (
+                <div
+                  key={col.header}
+                  className="rounded-lg border border-slate-100 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/50"
+                >
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    {col.header}
+                  </p>
+                  <div className="text-sm font-medium text-slate-800 dark:text-white">
+                    {col.render(detailRow)}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
 
             {/* Audit fields */}
             {(detailRow as any).created_at && (
-              <>
-                <div className="h-px bg-slate-100 dark:bg-slate-800" />
-                <div className="flex items-start gap-3">
-                  <span className="w-36 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    Dibuat
-                  </span>
-                  <span className="text-sm text-slate-600 dark:text-slate-300">
-                    {formatDate((detailRow as any).created_at)}
-                    {(detailRow as any).created_by && ` oleh #${(detailRow as any).created_by}`}
-                  </span>
-                </div>
-                {(detailRow as any).updated_at && (
-                  <div className="flex items-start gap-3">
-                    <span className="w-36 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      Diubah
-                    </span>
-                    <span className="text-sm text-slate-600 dark:text-slate-300">
-                      {formatDate((detailRow as any).updated_at)}
-                      {(detailRow as any).updated_by && ` oleh #${(detailRow as any).updated_by}`}
+              <div className="rounded-lg border border-slate-100 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/50">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  Audit Log
+                </p>
+                <div className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center gap-2">
+                    <span className="w-20 shrink-0 font-semibold text-slate-400">Dibuat</span>
+                    <span>
+                      {formatDate((detailRow as any).created_at)}
+                      {(detailRow as any).created_by && (
+                        <span className="ml-1 text-slate-400">oleh #{(detailRow as any).created_by}</span>
+                      )}
                     </span>
                   </div>
-                )}
-              </>
+                  {(detailRow as any).updated_at && (
+                    <div className="flex items-center gap-2">
+                      <span className="w-20 shrink-0 font-semibold text-slate-400">Diubah</span>
+                      <span>
+                        {formatDate((detailRow as any).updated_at)}
+                        {(detailRow as any).updated_by && (
+                          <span className="ml-1 text-slate-400">oleh #{(detailRow as any).updated_by}</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </Modal>

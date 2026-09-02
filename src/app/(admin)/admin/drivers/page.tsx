@@ -52,22 +52,19 @@ function ConfirmModal({ open, title, message, onConfirm, onCancel, loading }: {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={onCancel}>
-      <div className="w-full max-w-md overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-        <div className="h-1 w-full bg-gradient-to-r from-rose-500 to-rose-400" />
-        <div className="px-6 pt-5 pb-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-500/10">
-              <AlertTriangle className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">{title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{message}</p>
-            </div>
+      <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+        <div className="p-6">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-500/10">
+            <AlertTriangle className="h-7 w-7 text-rose-500" />
           </div>
-          <div className="mt-6 flex justify-end gap-2.5">
-            <Button variant="outline" size="sm" onClick={onCancel} className="px-4 text-xs font-semibold">Batal</Button>
-            <Button size="sm" onClick={onConfirm} disabled={loading} className="bg-rose-600 px-4 text-xs font-semibold text-white hover:bg-rose-700">
-              {loading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+          <div className="text-center">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">{title}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{message}</p>
+          </div>
+          <div className="mt-6 flex gap-3">
+            <Button variant="outline" onClick={onCancel} className="flex-1 font-semibold">Batal</Button>
+            <Button onClick={onConfirm} disabled={loading} className="flex-1 bg-rose-600 font-semibold text-white hover:bg-rose-700">
+              {loading && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
               Ya, Nonaktifkan
             </Button>
           </div>
@@ -92,27 +89,29 @@ function Modal({ open, onClose, title, description, icon, size = "md", children,
   if (!open) return null;
   const maxW = size === "sm" ? "max-w-md" : size === "lg" ? "max-w-2xl" : "max-w-xl";
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
-      <div className={cn("flex w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in zoom-in-95 duration-200 max-h-[90vh]", maxW)} onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4" onClick={onClose}>
+      <div className={cn("flex w-full flex-col overflow-hidden bg-white shadow-2xl dark:bg-slate-900 animate-in duration-200 rounded-t-2xl sm:rounded-xl sm:border sm:border-slate-200 sm:dark:border-slate-800 slide-in-from-bottom-4 sm:zoom-in-95 max-h-[92vh] sm:max-h-[90vh]", maxW)} onClick={(e) => e.stopPropagation()}>
         <div className="h-1 w-full shrink-0 bg-gradient-to-r from-[#0c1e3a] to-[#1a3a5c]" />
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
+        {/* Drag handle mobile */}
+        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-slate-200 dark:bg-slate-700 sm:hidden" />
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
           <div className="flex items-center gap-3 min-w-0">
             {icon && (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0c1e3a]/8 text-[#0c1e3a] dark:bg-white/10 dark:text-white">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0c1e3a] text-white dark:bg-white/10">
                 {icon}
               </div>
             )}
             <div className="min-w-0">
-              <h3 className="truncate text-base font-bold text-[#0c1e3a] dark:text-white">{title}</h3>
-              {description && <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{description}</p>}
+              <h3 className="truncate text-base font-bold text-slate-900 dark:text-white">{title}</h3>
+              {description && <p className="mt-0.5 truncate text-xs text-slate-400 dark:text-slate-500">{description}</p>}
             </div>
           </div>
           <button onClick={onClose} className="ml-3 shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
-        <div className="shrink-0 border-t border-slate-100 bg-slate-50/80 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/80">{footer}</div>
+        <div className="flex-1 overflow-y-auto px-5 py-5">{children}</div>
+        <div className="shrink-0 border-t border-slate-100 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-900">{footer}</div>
       </div>
     </div>
   );
@@ -121,9 +120,8 @@ function Modal({ open, onClose, title, description, icon, size = "md", children,
 /* ─────────── SECTION DIVIDER ─────────── */
 function SectionDivider({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-3 pb-1 pt-2">
-      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">{label}</span>
-      <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800" />
+    <div className="-mx-6 border-y border-slate-100 bg-slate-50/80 px-6 py-2.5 dark:border-slate-800 dark:bg-slate-800/50">
+      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
     </div>
   );
 }
@@ -133,17 +131,17 @@ function FieldWrapper({ label, required, hint, error, children }: {
   label: string; required?: boolean; hint?: string; error?: string; children: ReactNode;
 }) {
   return (
-    <div>
-      <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+    <div className="space-y-1.5">
+      <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
         {label}{required && <span className="ml-0.5 text-rose-500">*</span>}
       </label>
       {children}
       {error ? (
-        <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-rose-500">
+        <p className="flex items-center gap-1 text-[11px] font-medium text-rose-500">
           <AlertTriangle className="h-3 w-3 shrink-0" />{error}
         </p>
       ) : hint ? (
-        <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{hint}</p>
+        <p className="text-[11px] text-slate-400 dark:text-slate-500">{hint}</p>
       ) : null}
     </div>
   );
@@ -176,7 +174,7 @@ function CustomSelect({ value, onChange, options, placeholder, hasError }: {
         type="button"
         onClick={() => setOpen((p) => !p)}
         className={cn(
-          "flex h-10 w-full items-center justify-between rounded-lg border bg-white px-3.5 text-sm text-slate-700 outline-none transition-all dark:bg-slate-800 dark:text-white",
+          "flex h-11 w-full items-center justify-between rounded-lg border bg-white px-3.5 text-sm text-slate-700 outline-none transition-all dark:bg-slate-800 dark:text-white",
           open ? "border-[#FEA103] ring-2 ring-[#FEA103]/20"
             : hasError ? "border-rose-400 bg-rose-50/50 dark:bg-rose-500/5"
             : "border-slate-200 hover:border-slate-300 dark:border-slate-700"
@@ -232,7 +230,7 @@ function PasswordInput({ value, onChange, placeholder }: { value: string; onChan
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder ?? "Minimal 6 karakter"}
-        className="h-10 rounded-lg pr-10 text-sm"
+        className="h-11 rounded-lg pr-10 text-sm"
       />
       <button type="button" onClick={() => setShow((p) => !p)}
         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" tabIndex={-1}>
@@ -576,18 +574,20 @@ export default function AdminDriversPage() {
         icon={<UserCog className="h-5 w-5" />}
         size="md"
         footer={
-          <div className="flex items-center justify-between gap-3">
+          <div className="space-y-3">
             {totalErrors > 0 && (
-              <p className="flex items-center gap-1.5 text-[11px] font-medium text-rose-500">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                {totalErrors} field belum terisi dengan benar
-              </p>
+              <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-500/20 dark:bg-rose-500/10">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
+                <p className="text-xs font-medium text-rose-600 dark:text-rose-400">
+                  {totalErrors} field belum terisi dengan benar — periksa kembali sebelum menyimpan
+                </p>
+              </div>
             )}
-            <div className="ml-auto flex items-center gap-2.5">
-              <Button variant="outline" onClick={() => setModalOpen(false)} className="px-4 text-xs font-semibold">Batal</Button>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setModalOpen(false)} className="flex-1 font-semibold">Batal</Button>
               <Button onClick={handleSave} disabled={saving}
-                className="min-w-[130px] bg-[#FEA103] px-5 text-xs font-semibold text-white hover:bg-[#E09102] disabled:opacity-70">
-                {saving ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Menyimpan…</>
+                className="flex-[2] bg-[#0c1e3a] font-semibold text-white hover:bg-[#0c1e3a]/90 disabled:opacity-70">
+                {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Menyimpan…</>
                   : editing ? "Simpan Perubahan"
                   : buatAkun ? "Tambah Driver + Akun"
                   : "Tambah Driver"}
@@ -596,14 +596,14 @@ export default function AdminDriversPage() {
           </div>
         }
       >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           {/* ── Identitas Driver ── */}
           <div className="sm:col-span-2"><SectionDivider label="Identitas Driver" /></div>
 
           <FieldWrapper label="Nama Driver" required error={formErrors.nama_driver} hint="Tampil di dashboard & aplikasi mobile">
             <Input value={form.nama_driver} onChange={(e) => setField("nama_driver", e.target.value)}
               placeholder="Nama lengkap pengemudi"
-              className={cn("h-10 rounded-lg text-sm", formErrors.nama_driver && "border-rose-400 bg-rose-50/50 dark:bg-rose-500/5")} />
+              className={cn("h-11 rounded-lg text-sm", formErrors.nama_driver && "border-rose-400 bg-rose-50/50 dark:bg-rose-500/5")} />
           </FieldWrapper>
 
           <FieldWrapper label="No HP" required error={formErrors.no_hp} hint="Untuk verifikasi reset password di aplikasi">
@@ -611,7 +611,7 @@ export default function AdminDriversPage() {
               <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input value={form.no_hp} onChange={(e) => setField("no_hp", e.target.value)}
                 placeholder="081234567890"
-                className={cn("h-10 rounded-lg pl-9 font-mono text-sm", formErrors.no_hp && "border-rose-400 bg-rose-50/50 dark:bg-rose-500/5")} />
+                className={cn("h-11 rounded-lg pl-9 font-mono text-sm", formErrors.no_hp && "border-rose-400 bg-rose-50/50 dark:bg-rose-500/5")} />
             </div>
           </FieldWrapper>
 
@@ -622,7 +622,7 @@ export default function AdminDriversPage() {
               <FieldWrapper label="No SIM" required error={formErrors.no_sim} hint="Nomor SIM resmi yang diterbitkan Satlantas">
                 <Input value={form.no_sim} onChange={(e) => setField("no_sim", e.target.value)}
                   placeholder="Nomor Lisensi SIM"
-                  className={cn("h-10 rounded-lg text-sm", formErrors.no_sim && "border-rose-400 bg-rose-50/50 dark:bg-rose-500/5")} />
+                  className={cn("h-11 rounded-lg text-sm", formErrors.no_sim && "border-rose-400 bg-rose-50/50 dark:bg-rose-500/5")} />
               </FieldWrapper>
               <FieldWrapper label="Jenis SIM" required error={formErrors.jenis_sim} hint="Pastikan sesuai kelas kendaraan yang dikemudikan">
                 <CustomSelect value={form.jenis_sim} onChange={(v) => setField("jenis_sim", v)} options={SIM_OPTIONS} hasError={!!formErrors.jenis_sim} />
@@ -681,7 +681,7 @@ export default function AdminDriversPage() {
                       value={akunForm.username}
                       onChange={(e) => setAkunField("username", e.target.value)}
                       placeholder="Buat username unik"
-                      className={cn("h-10 rounded-lg text-sm", akunErrors.username && "border-rose-400 bg-rose-50/50 dark:bg-rose-500/5")}
+                      className={cn("h-11 rounded-lg text-sm", akunErrors.username && "border-rose-400 bg-rose-50/50 dark:bg-rose-500/5")}
                     />
                   </FieldWrapper>
                   <FieldWrapper label="Password" required error={akunErrors.password} hint="Minimal 6 karakter">
@@ -724,14 +724,20 @@ export default function AdminDriversPage() {
           description="Informasi lengkap driver"
           icon={<Eye className="h-5 w-5" />}
           footer={
-            <div className="flex justify-end">
-              <Button variant="outline" onClick={() => setDetailOpen(false)} className="px-4 text-xs font-semibold">
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setDetailOpen(false)} className="flex-1 font-semibold">
                 Tutup
+              </Button>
+              <Button
+                onClick={() => { setDetailOpen(false); openEdit(detailRow); }}
+                className="flex-1 bg-[#0c1e3a] font-semibold text-white hover:bg-[#0c1e3a]/90"
+              >
+                <Pencil className="mr-2 h-4 w-4" /> Edit Data
               </Button>
             </div>
           }
         >
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[
               { label: "ID Driver", value: `#${detailRow.id_driver}` },
               { label: "Nama Driver", value: detailRow.nama_driver },
@@ -751,32 +757,28 @@ export default function AdminDriversPage() {
                 ),
               },
             ].map((item) => (
-              <div key={item.label} className="flex items-start gap-3">
-                <span className="w-32 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">{item.label}</span>
-                <span className="text-sm text-slate-800 dark:text-white">{item.value}</span>
+              <div key={item.label} className="rounded-lg border border-slate-100 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/50">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">{item.label}</p>
+                <div className="text-sm font-medium text-slate-800 dark:text-white">{item.value}</div>
               </div>
             ))}
             {/* Audit fields */}
             {detailRow.created_at && (
-              <>
-                <div className="h-px bg-slate-100 dark:bg-slate-800" />
-                <div className="flex items-start gap-3">
-                  <span className="w-32 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Dibuat</span>
-                  <span className="text-sm text-slate-600 dark:text-slate-300">
-                    {new Date(detailRow.created_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}
-                    {detailRow.created_by && ` oleh #${detailRow.created_by}`}
-                  </span>
-                </div>
-                {detailRow.updated_at && (
-                  <div className="flex items-start gap-3">
-                    <span className="w-32 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Diubah</span>
-                    <span className="text-sm text-slate-600 dark:text-slate-300">
-                      {new Date(detailRow.updated_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}
-                      {detailRow.updated_by && ` oleh #${detailRow.updated_by}`}
-                    </span>
+              <div className="col-span-full rounded-lg border border-slate-100 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/50">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Audit Log</p>
+                <div className="space-y-1.5 text-xs text-slate-500">
+                  <div className="flex gap-2">
+                    <span className="w-16 shrink-0 font-semibold text-slate-400">Dibuat</span>
+                    <span>{new Date(detailRow.created_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}{detailRow.created_by && ` · #${detailRow.created_by}`}</span>
                   </div>
-                )}
-              </>
+                  {detailRow.updated_at && (
+                    <div className="flex gap-2">
+                      <span className="w-16 shrink-0 font-semibold text-slate-400">Diubah</span>
+                      <span>{new Date(detailRow.updated_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}{detailRow.updated_by && ` · #${detailRow.updated_by}`}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </Modal>

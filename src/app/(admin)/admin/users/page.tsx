@@ -79,7 +79,6 @@ function Modal({
   children: ReactNode;
   footer: ReactNode;
 }) {
-  // Lock body scroll when open
   useEffect(() => {
     if (open) {
       const prev = document.body.style.overflow;
@@ -92,28 +91,29 @@ function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="flex w-full max-w-lg flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in zoom-in-95 duration-200 max-h-[90vh]"
+        className="flex w-full max-w-lg flex-col overflow-hidden bg-white shadow-2xl dark:bg-slate-900 animate-in duration-200 rounded-t-2xl sm:rounded-xl sm:border sm:border-slate-200 sm:dark:border-slate-800 slide-in-from-bottom-4 sm:zoom-in-95 max-h-[92vh] sm:max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Accent bar */}
         <div className="h-1 w-full shrink-0 bg-gradient-to-r from-[#0c1e3a] to-[#1a3a5c]" />
-
+        {/* Drag handle mobile */}
+        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-slate-200 dark:bg-slate-700 sm:hidden" />
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
           <div className="flex items-center gap-3 min-w-0">
             {icon && (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0c1e3a]/8 text-[#0c1e3a] dark:bg-white/10 dark:text-white">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0c1e3a] text-white dark:bg-white/10">
                 {icon}
               </div>
             )}
             <div className="min-w-0">
-              <h3 className="truncate text-base font-bold text-[#0c1e3a] dark:text-white">{title}</h3>
+              <h3 className="truncate text-base font-bold text-slate-900 dark:text-white">{title}</h3>
               {description && (
-                <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{description}</p>
+                <p className="mt-0.5 truncate text-xs text-slate-400 dark:text-slate-500">{description}</p>
               )}
             </div>
           </div>
@@ -124,12 +124,10 @@ function Modal({
             <X className="h-5 w-5" />
           </button>
         </div>
-
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
-
+        <div className="flex-1 overflow-y-auto px-5 py-5">{children}</div>
         {/* Sticky footer */}
-        <div className="shrink-0 border-t border-slate-100 bg-slate-50/80 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/80">
+        <div className="shrink-0 border-t border-slate-100 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-900">
           {footer}
         </div>
       </div>
@@ -140,11 +138,10 @@ function Modal({
 /* ─────────── SECTION DIVIDER ─────────── */
 function SectionDivider({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-3 pb-1 pt-2">
-      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+    <div className="-mx-5 border-y border-slate-100 bg-slate-50/80 px-5 py-2.5 dark:border-slate-800 dark:bg-slate-800/50">
+      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
         {label}
       </span>
-      <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800" />
     </div>
   );
 }
@@ -164,19 +161,19 @@ function FieldWrapper({
   children: ReactNode;
 }) {
   return (
-    <div>
-      <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+    <div className="space-y-1.5">
+      <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
         {label}
         {required && <span className="ml-0.5 text-rose-500">*</span>}
       </label>
       {children}
       {error ? (
-        <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-rose-500">
+        <p className="flex items-center gap-1 text-[11px] font-medium text-rose-500">
           <AlertTriangle className="h-3 w-3 shrink-0" />
           {error}
         </p>
       ) : hint ? (
-        <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{hint}</p>
+        <p className="text-[11px] text-slate-400 dark:text-slate-500">{hint}</p>
       ) : null}
     </div>
   );
@@ -208,7 +205,7 @@ function RoleSelect({ value, onChange }: { value: string; onChange: (v: string) 
         type="button"
         onClick={() => setOpen((p) => !p)}
         className={cn(
-          "flex h-10 w-full items-center justify-between rounded-lg border bg-white px-3.5 text-sm text-slate-700 outline-none transition-all dark:bg-slate-800 dark:text-white",
+          "flex h-11 w-full items-center justify-between rounded-lg border bg-white px-3.5 text-sm text-slate-700 outline-none transition-all dark:bg-slate-800 dark:text-white",
           open
             ? "border-[#FEA103] ring-2 ring-[#FEA103]/20"
             : "border-slate-200 hover:border-slate-300 dark:border-slate-700"
@@ -261,7 +258,7 @@ function PasswordInput({ value, onChange, placeholder }: { value: string; onChan
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder ?? "Minimal 6 karakter"}
-        className="h-10 rounded-lg pr-10 text-sm"
+        className="h-11 rounded-lg pr-10 text-sm"
       />
       <button
         type="button"
@@ -590,37 +587,39 @@ export default function AdminUsersPage() {
         description="Isi form berikut · 4 field wajib diisi"
         icon={<UserPlus className="h-5 w-5" />}
         footer={
-          <div className="flex items-center justify-between gap-3">
+          <div className="space-y-3">
             {hasErrors && (
-              <p className="flex items-center gap-1.5 text-[11px] font-medium text-rose-500">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                {Object.keys(formErrors).length} field belum terisi dengan benar
-              </p>
+              <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-500/20 dark:bg-rose-500/10">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
+                <p className="text-xs font-medium text-rose-600 dark:text-rose-400">
+                  {Object.keys(formErrors).length} field belum terisi dengan benar
+                </p>
+              </div>
             )}
-            <div className="ml-auto flex items-center gap-2.5">
-              <Button variant="outline" onClick={() => setCreateOpen(false)} className="px-4 text-xs font-semibold">
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setCreateOpen(false)} className="flex-1 font-semibold">
                 Batal
               </Button>
               <Button
                 onClick={handleCreate}
                 disabled={saving}
-                className="min-w-[120px] bg-[#FEA103] px-5 text-xs font-semibold text-white hover:bg-[#E09102] disabled:opacity-70"
+                className="flex-[2] bg-[#0c1e3a] font-semibold text-white hover:bg-[#0c1e3a]/90 disabled:opacity-70"
               >
-                {saving ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Menyimpan…</> : "Tambah User"}
+                {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Menyimpan…</> : "Tambah User"}
               </Button>
             </div>
           </div>
         }
       >
-        <div className="space-y-4">
+        <div className="space-y-5">
           <SectionDivider label="Kredensial Login" />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <FieldWrapper label="Username" required error={formErrors.username} hint="Digunakan untuk login ke sistem">
               <Input
                 value={form.username}
                 onChange={(e) => setField("username", e.target.value)}
                 placeholder="Username untuk login"
-                className={cn("h-10 rounded-lg text-sm", formErrors.username && "border-rose-400 bg-rose-50/50 focus:border-rose-500 dark:bg-rose-500/5")}
+                className={cn("h-11 rounded-lg text-sm", formErrors.username && "border-rose-400 bg-rose-50/50 focus:border-rose-500 dark:bg-rose-500/5")}
               />
             </FieldWrapper>
             <FieldWrapper label="Password" required error={formErrors.password} hint="Minimal 6 karakter">
@@ -629,13 +628,13 @@ export default function AdminUsersPage() {
           </div>
 
           <SectionDivider label="Data Pengguna" />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <FieldWrapper label="Nama Lengkap" required error={formErrors.name}>
               <Input
                 value={form.name}
                 onChange={(e) => setField("name", e.target.value)}
                 placeholder="Nama lengkap pengoperasi"
-                className={cn("h-10 rounded-lg text-sm", formErrors.name && "border-rose-400 bg-rose-50/50 focus:border-rose-500 dark:bg-rose-500/5")}
+                className={cn("h-11 rounded-lg text-sm", formErrors.name && "border-rose-400 bg-rose-50/50 focus:border-rose-500 dark:bg-rose-500/5")}
               />
             </FieldWrapper>
             <FieldWrapper label="Karyawan ID" hint="Opsional — hubungkan ke ID karyawan">
@@ -644,7 +643,7 @@ export default function AdminUsersPage() {
                 value={form.karyawan_id}
                 onChange={(e) => setField("karyawan_id", e.target.value)}
                 placeholder="cth: 101"
-                className="h-10 rounded-lg text-sm"
+                className="h-11 rounded-lg text-sm"
               />
             </FieldWrapper>
           </div>
@@ -664,16 +663,16 @@ export default function AdminUsersPage() {
         description={`Atur ulang password untuk ${resetTarget?.username ?? "—"}`}
         icon={<LockKeyhole className="h-5 w-5" />}
         footer={
-          <div className="flex items-center justify-end gap-2.5">
-            <Button variant="outline" onClick={() => setResetOpen(false)} className="px-4 text-xs font-semibold">
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => setResetOpen(false)} className="flex-1 font-semibold">
               Batal
             </Button>
             <Button
               onClick={handleResetPassword}
               disabled={saving || !newPw}
-              className="min-w-[130px] bg-[#FEA103] px-5 text-xs font-semibold text-white hover:bg-[#E09102] disabled:opacity-70"
+              className="flex-[2] bg-[#0c1e3a] font-semibold text-white hover:bg-[#0c1e3a]/90 disabled:opacity-70"
             >
-              {saving ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Menyimpan…</> : "Reset Password"}
+              {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Menyimpan…</> : "Reset Password"}
             </Button>
           </div>
         }
@@ -709,14 +708,25 @@ export default function AdminUsersPage() {
           description="Informasi lengkap akun user"
           icon={<Eye className="h-5 w-5" />}
           footer={
-            <div className="flex justify-end">
-              <Button variant="outline" onClick={() => setDetailOpen(false)} className="px-4 text-xs font-semibold">
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setDetailOpen(false)} className="flex-1 font-semibold">
                 Tutup
+              </Button>
+              <Button
+                onClick={() => { setDetailOpen(false); handleToggleStatus(detailRow); }}
+                className={cn(
+                  "flex-1 font-semibold",
+                  detailRow.status === "aktif"
+                    ? "bg-rose-600 text-white hover:bg-rose-700"
+                    : "bg-emerald-600 text-white hover:bg-emerald-700"
+                )}
+              >
+                {detailRow.status === "aktif" ? "Nonaktifkan" : "Aktifkan"}
               </Button>
             </div>
           }
         >
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[
               { label: "Username", value: <span className="font-mono font-bold">{detailRow.username}</span> },
               { label: "Nama", value: detailRow.name },
@@ -746,32 +756,35 @@ export default function AdminUsersPage() {
                 ),
               },
             ].map((item) => (
-              <div key={item.label} className="flex items-start gap-3">
-                <span className="w-32 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">{item.label}</span>
-                <span className="text-sm text-slate-800 dark:text-white">{item.value}</span>
+              <div key={item.label} className="rounded-lg border border-slate-100 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/50">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">{item.label}</p>
+                <div className="text-sm font-medium text-slate-800 dark:text-white">{item.value}</div>
               </div>
             ))}
+
             {/* Audit fields */}
             {detailRow.created_at && (
-              <>
-                <div className="h-px bg-slate-100 dark:bg-slate-800" />
-                <div className="flex items-start gap-3">
-                  <span className="w-32 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Dibuat</span>
-                  <span className="text-sm text-slate-600 dark:text-slate-300">
-                    {new Date(detailRow.created_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}
-                    {detailRow.created_by && ` oleh #${detailRow.created_by}`}
-                  </span>
-                </div>
-                {detailRow.updated_at && (
-                  <div className="flex items-start gap-3">
-                    <span className="w-32 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Diubah</span>
-                    <span className="text-sm text-slate-600 dark:text-slate-300">
-                      {new Date(detailRow.updated_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}
-                      {detailRow.updated_by && ` oleh #${detailRow.updated_by}`}
+              <div className="col-span-full rounded-lg border border-slate-100 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/50">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Audit Log</p>
+                <div className="space-y-1.5 text-xs text-slate-500">
+                  <div className="flex gap-2">
+                    <span className="w-16 shrink-0 font-semibold text-slate-400">Dibuat</span>
+                    <span>
+                      {new Date(detailRow.created_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}
+                      {detailRow.created_by && ` · #${detailRow.created_by}`}
                     </span>
                   </div>
-                )}
-              </>
+                  {detailRow.updated_at && (
+                    <div className="flex gap-2">
+                      <span className="w-16 shrink-0 font-semibold text-slate-400">Diubah</span>
+                      <span>
+                        {new Date(detailRow.updated_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}
+                        {detailRow.updated_by && ` · #${detailRow.updated_by}`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </Modal>

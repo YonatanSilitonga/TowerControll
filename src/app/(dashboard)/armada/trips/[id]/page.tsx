@@ -271,6 +271,51 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
               </div>
             </CardContent>
           </Card>
+
+          {/* Riwayat Perubahan */}
+          {data.created_at && (
+            <Card>
+              <CardHeader className="border-b px-4 py-3">
+                <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
+                  Riwayat Perubahan
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="space-y-2 text-xs text-slate-500">
+                  <div className="flex items-start gap-2">
+                    <span className="w-20 shrink-0 font-semibold text-slate-400 pt-0.5">Dibuat</span>
+                    <div>
+                      <span className="text-slate-600 dark:text-slate-300">
+                        {new Date(data.created_at).toLocaleString("id-ID", {
+                          day: "2-digit", month: "2-digit", year: "2-digit",
+                          hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
+                        })}
+                      </span>
+                      {data.created_by && (
+                        <span className="ml-1 text-slate-400">oleh #{data.created_by}</span>
+                      )}
+                    </div>
+                  </div>
+                  {data.updated_at && (
+                    <div className="flex items-start gap-2">
+                      <span className="w-20 shrink-0 font-semibold text-slate-400 pt-0.5">Diubah</span>
+                      <div>
+                        <span className="text-slate-600 dark:text-slate-300">
+                          {new Date(data.updated_at).toLocaleString("id-ID", {
+                            day: "2-digit", month: "2-digit", year: "2-digit",
+                            hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
+                          })}
+                        </span>
+                        {data.updated_by && (
+                          <span className="ml-1 text-slate-400">oleh #{data.updated_by}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 

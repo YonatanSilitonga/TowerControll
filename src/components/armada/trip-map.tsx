@@ -82,7 +82,7 @@ export function TripMap({ stops, events }: { stops: RitaseStop[]; events?: Ritas
   }
 
   return (
-    <div className="relative h-[300px] w-full rounded-lg overflow-hidden border lg:h-[400px]">
+    <div className="relative h-[300px] w-full rounded-lg overflow-hidden border lg:h-[400px] z-0 isolate">
       <MapContainer
         bounds={bounds}
         minZoom={11}

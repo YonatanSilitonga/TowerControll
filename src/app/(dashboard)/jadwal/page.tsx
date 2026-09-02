@@ -1350,14 +1350,46 @@ const askCancelGenerate = () => {
                 </div>
               </div>
 
-              {/* Footer: Tujuan Akhir + Tanggal */}
-              <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-[11px] text-slate-400 dark:border-slate-800">
-                <span>
-                  Tanggal:{" "}
-                  <span className="font-medium text-slate-600 dark:text-slate-300">
-                    {formatDateDMY(r.tanggal)}
+              {/* Footer: Tanggal + Audit */}
+              <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span>
+                    Tanggal:{" "}
+                    <span className="font-medium text-slate-600 dark:text-slate-300">
+                      {formatDateDMY(r.tanggal)}
+                    </span>
                   </span>
-                </span>
+                  {r.created_at && (
+                    <span className="text-slate-400">
+                      Dibuat{" "}
+                      <span className="font-medium text-slate-500">
+                        {new Date(r.created_at).toLocaleString("id-ID", {
+                          day: "2-digit", month: "2-digit",
+                          hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
+                        })}
+                      </span>
+                      {r.created_by && (
+                        <span className="ml-0.5">#{r.created_by}</span>
+                      )}
+                    </span>
+                  )}
+                </div>
+                {r.updated_at && (
+                  <div className="mt-0.5 flex items-center justify-end text-[11px] text-slate-400">
+                    <span>
+                      Diubah{" "}
+                      <span className="font-medium text-slate-500">
+                        {new Date(r.updated_at).toLocaleString("id-ID", {
+                          day: "2-digit", month: "2-digit",
+                          hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
+                        })}
+                      </span>
+                      {r.updated_by && (
+                        <span className="ml-0.5">#{r.updated_by}</span>
+                      )}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -2417,6 +2449,43 @@ const askCancelGenerate = () => {
 
               {updateMutation.error && (
                 <MutationError error={updateMutation.error} />
+              )}
+
+              {/* Audit Fields */}
+              {editingRitase.created_at && (
+                <div className="rounded-lg border border-slate-100 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/50">
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Riwayat Perubahan
+                  </p>
+                  <div className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    <div className="flex items-center gap-2">
+                      <span className="w-20 shrink-0 font-semibold text-slate-400">Dibuat</span>
+                      <span>
+                        {new Date(editingRitase.created_at).toLocaleString("id-ID", {
+                          day: "2-digit", month: "2-digit", year: "2-digit",
+                          hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
+                        })}
+                        {editingRitase.created_by && (
+                          <span className="ml-1 text-slate-400">oleh #{editingRitase.created_by}</span>
+                        )}
+                      </span>
+                    </div>
+                    {editingRitase.updated_at && (
+                      <div className="flex items-center gap-2">
+                        <span className="w-20 shrink-0 font-semibold text-slate-400">Diubah</span>
+                        <span>
+                          {new Date(editingRitase.updated_at).toLocaleString("id-ID", {
+                            day: "2-digit", month: "2-digit", year: "2-digit",
+                            hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
+                          })}
+                          {editingRitase.updated_by && (
+                            <span className="ml-1 text-slate-400">oleh #{editingRitase.updated_by}</span>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
 
               <div className="mt-6 flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
