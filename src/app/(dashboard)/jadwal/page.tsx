@@ -2419,6 +2419,43 @@ const askCancelGenerate = () => {
                 <MutationError error={updateMutation.error} />
               )}
 
+              {/* Audit Fields */}
+              {editingRitase.created_at && (
+                <div className="rounded-lg border border-slate-100 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/50">
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Riwayat Perubahan
+                  </p>
+                  <div className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    <div className="flex items-center gap-2">
+                      <span className="w-20 shrink-0 font-semibold text-slate-400">Dibuat</span>
+                      <span>
+                        {new Date(editingRitase.created_at).toLocaleString("id-ID", {
+                          day: "2-digit", month: "2-digit", year: "2-digit",
+                          hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
+                        })}
+                        {editingRitase.created_by && (
+                          <span className="ml-1 text-slate-400">oleh #{editingRitase.created_by}</span>
+                        )}
+                      </span>
+                    </div>
+                    {editingRitase.updated_at && (
+                      <div className="flex items-center gap-2">
+                        <span className="w-20 shrink-0 font-semibold text-slate-400">Diubah</span>
+                        <span>
+                          {new Date(editingRitase.updated_at).toLocaleString("id-ID", {
+                            day: "2-digit", month: "2-digit", year: "2-digit",
+                            hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
+                          })}
+                          {editingRitase.updated_by && (
+                            <span className="ml-1 text-slate-400">oleh #{editingRitase.updated_by}</span>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="mt-6 flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"

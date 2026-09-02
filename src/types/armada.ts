@@ -104,6 +104,10 @@ export interface AdminRitaseItem {
   total_eceran?: number | null;
   total_high_value?: number | null;
   stops: AdminRitaseStop[];
+  created_at?: string | null;
+  updated_at?: string | null;
+  created_by?: number | null;
+  updated_by?: number | null;
 }
 
 export interface TrackingVehicle {
@@ -257,6 +261,10 @@ export interface Ritase {
   jam_mulai?: string | null;   // jadwal RIT mulai
   jam_selesai?: string | null; // jadwal RIT selesai
   status: string;
+  created_at?: string | null;
+  updated_at?: string | null;
+  created_by?: number | null;
+  updated_by?: number | null;
 }
 
 export interface RitaseStop {
