@@ -24,7 +24,7 @@ export function InfoTip({ text, position = "bottom", align = "left" }: InfoTipPr
         <Info className="h-3.5 w-3.5" strokeWidth={2} />
       </span>
       <span
-        className={`pointer-events-none absolute ${alignClasses} ${posClasses} z-50 hidden max-w-[220px] whitespace-normal rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-normal leading-relaxed text-slate-600 shadow-lg opacity-0 transition-opacity duration-150 group-hover:block group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200`}
+        className={`pointer-events-none absolute ${alignClasses} ${posClasses} z-50 hidden w-max max-w-[220px] whitespace-normal rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-normal leading-relaxed text-slate-600 shadow-lg opacity-0 transition-opacity duration-150 group-hover:block group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200`}
       >
         {text}
       </span>
