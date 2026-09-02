@@ -84,7 +84,7 @@ export default function ArmadaOverviewPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              Status Kendaraan <InfoTip text="Status registrasi kendaraan di database (tersedia, maintenance, nonaktif, dst) — BUKAN penanda online/offline realtime." />
+              Status Kendaraan <InfoTip text="Status di database, bukan GPS" />
               <span className="ml-auto text-xs font-normal text-slate-400">
                 {kendaraan?.length ?? 0} total
               </span>
@@ -122,7 +122,7 @@ export default function ArmadaOverviewPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              Status Driver <InfoTip text="Status kepegawaian driver (bertugas, libur, dst) — BUKAN penanda online/offline realtime. Yang online beneran dihitung dari GPS terbaru (baris 'Sedang online' di bawah)." />
+              Status Driver <InfoTip text="Status kepegawaian, bukan GPS" />
               <span className="ml-auto text-xs font-normal text-slate-400">
                 {driver?.length ?? 0} total
               </span>
@@ -154,7 +154,7 @@ export default function ArmadaOverviewPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              Status Ritase <InfoTip text="Ringkasan jumlah ritase per status (direncanakan, berjalan, selesai)." />
+              Status Ritase <InfoTip text="Ringkasan ritase per status" />
               <span className="ml-auto text-xs font-normal text-slate-400">
                 {ritase?.length ?? 0} total
               </span>

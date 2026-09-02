@@ -19,7 +19,7 @@ export function InfoTip({ text, position = "bottom" }: InfoTipProps) {
         <Info className="h-3.5 w-3.5" strokeWidth={2} />
       </span>
       <span
-        className={`pointer-events-none absolute left-1/2 ${posClasses} z-50 hidden w-72 -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-normal leading-relaxed text-slate-600 shadow-lg opacity-0 transition-opacity duration-150 group-hover:block group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200`}
+        className={`pointer-events-none absolute left-0 ${posClasses} z-50 hidden w-56 translate-x-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-normal leading-relaxed text-slate-600 shadow-lg opacity-0 transition-opacity duration-150 group-hover:block group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200`}
       >
         {text}
       </span>

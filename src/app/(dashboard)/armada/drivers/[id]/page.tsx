@@ -135,7 +135,7 @@ export default function DriverDetailPage({ params }: { params?: { id?: string } 
           <CardHeader className="border-b px-3 py-2 lg:pb-2 lg:px-3">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
               <Truck className="h-4 w-4 text-[#0c1e3a]" /> Riwayat Tracking
-              <InfoTip text="Timeline status kendaraan yang dikendarai driver ini." />
+              <InfoTip text="Timeline status kendaraan" />
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3 lg:p-2">
@@ -218,7 +218,7 @@ export default function DriverDetailPage({ params }: { params?: { id?: string } 
             <CardHeader className="border-b px-3 py-2 lg:pb-2 lg:px-3">
               <CardTitle className="text-sm font-semibold">
                 Riwayat Ritase
-                <InfoTip text="Semua penugasan driver ini — klik untuk detail." />
+                <InfoTip text="Riwayat penugasan driver" />
               </CardTitle>
             </CardHeader>
             <CardContent className="p-2 lg:p-2">
@@ -280,7 +280,7 @@ export default function DriverDetailPage({ params }: { params?: { id?: string } 
           <CardHeader className="border-b px-4 py-3">
             <CardTitle className="text-sm font-semibold">
               Riwayat Ritase
-              <InfoTip text="Semua penugasan driver ini — klik untuk detail." />
+              <InfoTip text="Riwayat penugasan driver" />
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3">

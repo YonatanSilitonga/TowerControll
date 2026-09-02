@@ -329,7 +329,7 @@ export default function DashboardPage() {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                 <Truck className="h-4 w-4 text-[#0c1e3a]" /> Armada Aktif
-                <InfoTip text="Aktif = GPS terbaru ≤ 15 menit. Klik armada untuk lihat riwayat & durasi; peta zoom ke truknya." />
+                <InfoTip text="Aktif = GPS ≤ 15 mnt. Klik untuk detail" />
                 <span className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   {onlineVehicles.length} LIVE
@@ -426,7 +426,7 @@ export default function DashboardPage() {
           Focus
         </span>
       )}
-      <InfoTip text="Status terkini + riwayat log kendaraan. Isi tanggal untuk filter per hari (kosong = semua)." />
+      <InfoTip text="Log status kendaraan + riwayat" />
       {selectedVehicle && (
         <span className="ml-auto shrink-0 text-xs font-normal text-slate-400">
           {selectedVehicle.nama_driver || "-"}
@@ -571,7 +571,7 @@ export default function DashboardPage() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
               <Clock className="h-4 w-4 text-slate-400" /> Durasi Proses
-              <InfoTip text="Rata-rata durasi Loading & Perjalanan dari ritase aktif — buat lihat bottleneck." />
+              <InfoTip text="Rata-rata durasi dari ritase aktif" />
               <span className="ml-auto text-xs font-normal text-slate-400">
                 {allHist.length} ritase
               </span>

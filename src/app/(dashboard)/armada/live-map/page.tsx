@@ -174,7 +174,7 @@ function LiveMapBody() {
             <CardHeader className="pb-3 shrink-0">
               <CardTitle className="flex items-center gap-2 text-base">
                 <RadioTower className="h-4 w-4 text-[#0c1e3a]" />
-                Armada Aktif <InfoTip text="Posisi realtime armada. LIVE = app masih kirim posisi; layar HP mati tetap LIVE (service jalan). Klik marker untuk popup & riwayat di bawah." />
+                Armada Aktif <InfoTip text="Posisi realtime. LIVE = app aktif" />
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 min-h-0 space-y-2 overflow-y-auto">
@@ -237,7 +237,7 @@ function LiveMapBody() {
                 <CardTitle className="flex items-center gap-2 text-base">
                   <MapPin className="h-4 w-4 text-amber-600" />
                   Detail Armada · {selectedVehicle.plat_nomor || "-"}
-                  <InfoTip text="Status terkini + riwayat log kendaraan. Kosongkan tanggal untuk lihat semua." />
+                  <InfoTip text="Log status kendaraan" />
                   <button
                     type="button"
                     onClick={() => setSelectedId(null)}

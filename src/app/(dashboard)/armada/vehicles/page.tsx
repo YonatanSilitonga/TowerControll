@@ -147,7 +147,7 @@ export default function KendaraanPage() {
             <CardHeader className="border-b py-3">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                 <MapPin className="h-4 w-4 text-[#0c1e3a]" /> Peta Armada
-                <InfoTip text="Posisi realtime kendaraan. Klik tombol Map di tabel untuk zoom ke truk." />
+                <InfoTip text="Posisi realtime kendaraan" />
                 <span className="ml-auto text-xs font-normal text-slate-400">
                   {liveVehicles.length} live
                 </span>
