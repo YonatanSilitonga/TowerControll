@@ -99,7 +99,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
     if (!iso) return null;
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return null;
-    const h = String(d.getUTCHours() + 7).padStart(2, "0");
+    const h = String((d.getUTCHours() + 7) % 24).padStart(2, "0");
     const m = String(d.getUTCMinutes()).padStart(2, "0");
     return `${h}:${m}`;
   };
