@@ -21,18 +21,27 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import dynamic from "next/dynamic";
+
+// Grafik di-load secara dinamis agar unmount-nya tidak memblokir main thread
+// saat user berpindah halaman
+const ChartSkeleton = () => <div className="h-full w-full animate-pulse rounded-md bg-slate-100" />;
+const TrendAreaChart = dynamic(
+  () => import("@/components/charts/analitik-charts").then((m) => m.TrendAreaChart),
+  { ssr: false, loading: ChartSkeleton }
+);
+const TrendDirectionChart = dynamic(
+  () => import("@/components/charts/analitik-charts").then((m) => m.TrendDirectionChart),
+  { ssr: false, loading: ChartSkeleton }
+);
+const DriverBarChart = dynamic(
+  () => import("@/components/charts/analitik-charts").then((m) => m.DriverBarChart),
+  { ssr: false, loading: ChartSkeleton }
+);
+const SellerBarChart = dynamic(
+  () => import("@/components/charts/analitik-charts").then((m) => m.SellerBarChart),
+  { ssr: false, loading: ChartSkeleton }
+);
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -419,28 +428,8 @@ export default function AnalitikPage() {
                 ) : trendData.length === 0 ? (
                   <EmptyNote />
                 ) : (
-                  <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={trendData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="gTotal" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#0c1e3a" stopOpacity={0.25} />
-                            <stop offset="100%" stopColor="#0c1e3a" stopOpacity={0} />
-                          </linearGradient>
-                          <linearGradient id="gSelesai" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#64748b" stopOpacity={0.28} />
-                            <stop offset="100%" stopColor="#64748b" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                        <XAxis dataKey="tanggal" tickFormatter={fmtTick} minTickGap={28} tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
-                        <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} allowDecimals={false} />
-                        <Tooltip labelFormatter={(l) => fmtFullDate(String(l))} />
-                        <Legend />
-                        <Area type="monotone" dataKey="ritase_total" name="Total" stroke="#0c1e3a" strokeWidth={2} fill="url(#gTotal)" />
-                        <Area type="monotone" dataKey="ritase_selesai" name="Selesai" stroke="#64748b" strokeWidth={2} fill="url(#gSelesai)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
+                <div className="h-[300px] w-full">
+                    <TrendAreaChart data={trendData} />
                   </div>
                 )}
               </CardContent>
@@ -459,18 +448,8 @@ export default function AnalitikPage() {
                 ) : trendData.length === 0 ? (
                   <EmptyNote />
                 ) : (
-                  <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={trendData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                        <XAxis dataKey="tanggal" tickFormatter={fmtTick} minTickGap={28} tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
-                        <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} allowDecimals={false} />
-                        <Tooltip labelFormatter={(l) => fmtFullDate(String(l))} />
-                        <Legend />
-                        <Bar dataKey="outgoing" name="Outgoing (JKT)" stackId="a" fill="#0c1e3a" />
-                        <Bar dataKey="incoming" name="Incoming (SEG)" stackId="a" fill="#cbd5e1" />
-                      </BarChart>
-                    </ResponsiveContainer>
+                <div className="h-[300px] w-full">
+                    <TrendDirectionChart data={trendData} />
                   </div>
                 )}
               </CardContent>
@@ -499,16 +478,8 @@ export default function AnalitikPage() {
                 <EmptyNote />
               ) : (
                 <div className="h-[260px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={topDrivers} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} allowDecimals={false} />
-                      <YAxis type="category" dataKey="nama_driver" width={120} tick={{ fontSize: 11, fill: "#334155" }} tickLine={false} axisLine={false} />
-                      <Tooltip />
-                      <Bar dataKey="ritase_total" name="Ritase" fill="#0c1e3a" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                    <DriverBarChart data={topDrivers} />
+                  </div>
               )}
             </CardContent>
           </Card>
@@ -565,16 +536,8 @@ export default function AnalitikPage() {
                 <EmptyNote />
               ) : (
                 <div className="h-[260px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={topSellers} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} allowDecimals={false} />
-                      <YAxis type="category" dataKey="nama_seller" width={130} tick={{ fontSize: 11, fill: "#334155" }} tickLine={false} axisLine={false} />
-                      <Tooltip />
-                      <Bar dataKey="kunjungan" name="Kunjungan" fill="#0c1e3a" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                    <SellerBarChart data={topSellers} />
+                  </div>
               )}
             </CardContent>
           </Card>
