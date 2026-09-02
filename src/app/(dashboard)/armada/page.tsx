@@ -154,7 +154,7 @@ export default function ArmadaOverviewPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              Status Ritase <InfoTip text="Ringkasan ritase per status" />
+              Status Ritase <InfoTip text="Ringkasan ritase per status" align="right" />
               <span className="ml-auto text-xs font-normal text-slate-400">
                 {ritase?.length ?? 0} total
               </span>

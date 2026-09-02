@@ -132,6 +132,7 @@ function KpiCard({
   sub,
   progress,
   isText,
+  infoAlign,
 }: {
   label: string;
   value: number | string;
@@ -142,13 +143,14 @@ function KpiCard({
   sub?: string;
   progress?: number;
   isText?: boolean;
+  infoAlign?: "left" | "right";
 }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4">
       <div className="flex items-center justify-between">
         <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">
           {label}
-          {info && <InfoTip text={info} />}
+          {info && <InfoTip text={info} align={infoAlign} />}
         </p>
         <Icon className={cn("h-4 w-4", tone ?? "text-slate-300")} />
       </div>
@@ -361,15 +363,15 @@ export default function AnalitikPage() {
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <KpiCard label="Total Ritase" value={kpi.ritase} icon={Truck} loading={loading} info="Jumlah ritase pada periode (tanggal jadwal)." sub={insight.days > 0 ? `${insight.rataHari.toFixed(1)}/hari` : undefined} />
-            <KpiCard label="Selesai" value={kpi.selesai} icon={CheckCircle2} loading={loading} info="Ritase berstatus selesai." sub={`${insight.pctSelesai}% dari total`} progress={insight.pctSelesai} />
+            <KpiCard label="Selesai" value={kpi.selesai} icon={CheckCircle2} loading={loading} info="Ritase berstatus selesai." sub={`${insight.pctSelesai}% dari total`} progress={insight.pctSelesai} infoAlign="right" />
             <KpiCard label="Total AWB" value={kpi.awb} icon={Boxes} loading={loading} sub={kpi.ritase > 0 ? `${Math.round(kpi.awb / kpi.ritase)} AWB/ritase` : undefined} />
             <KpiCard label="Total Koli" value={kpi.koli} icon={Package} loading={loading} sub={kpi.awb > 0 ? `${(kpi.koli / kpi.awb).toFixed(2)} koli/AWB` : undefined} />
             <KpiCard label="High Value" value={kpi.hv} icon={Sparkles} loading={loading} sub={kpi.koli > 0 ? `${((kpi.hv / kpi.koli) * 100).toFixed(1)}% dari koli` : undefined} />
             <KpiCard label="Eceran" value={kpi.ecer} icon={Gift} loading={loading} sub={kpi.koli > 0 ? `${((kpi.ecer / kpi.koli) * 100).toFixed(1)}% dari koli` : undefined} />
             <KpiCard label="Outgoing" value={kpi.out} icon={TrendingUp} loading={loading} info="Ritase ke Gateway JKT (barang keluar)." sub={`${insight.outPct}% arah`} />
-            <KpiCard label="Incoming" value={kpi.inc} icon={TrendingDown} loading={loading} info="Ritase ke Gateway SEG (barang masuk)." sub={`${100 - insight.outPct}% arah`} />
+            <KpiCard label="Incoming" value={kpi.inc} icon={TrendingDown} loading={loading} info="Ritase ke Gateway SEG (barang masuk)." sub={`${100 - insight.outPct}% arah`} infoAlign="right" />
             <KpiCard label="Rata² Loading (Total)" value={fmtDurStr(analisis.data?.durasi?.rata_rata_loading)} icon={PackageCheck} loading={analisis.isLoading} info="Rata-rata durasi bongkar muat dari seluruh data ritase." isText />
-            <KpiCard label="Rata² Perjalanan (Total)" value={fmtDurStr(analisis.data?.durasi?.rata_rata_perjalanan)} icon={RouteIcon} loading={analisis.isLoading} info="Rata-rata durasi perjalanan dari seluruh data ritase." isText />
+            <KpiCard label="Rata² Perjalanan (Total)" value={fmtDurStr(analisis.data?.durasi?.rata_rata_perjalanan)} icon={RouteIcon} loading={analisis.isLoading} info="Rata-rata durasi perjalanan dari seluruh data ritase." isText infoAlign="right" />
           </div>
 
           {/* Strip insight — ringkasan operasional periode */}
@@ -419,7 +421,7 @@ export default function AnalitikPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                   <Truck className="h-4 w-4 text-[#0c1e3a]" /> Ritase per Hari
-                  <InfoTip text="Navy = total, Emerald = selesai" />
+                  <InfoTip text="Navy = total, Slate = selesai" align="right" />
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -439,7 +441,7 @@ export default function AnalitikPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                   <ArrowUpFromLine className="h-4 w-4 text-[#0c1e3a]" /> Arah Operasional
-                  <InfoTip text="Out = JKT, In = SEG" />
+                  <InfoTip text="Out = JKT, In = SEG" align="right" />
                 </CardTitle>
               </CardHeader>
               <CardContent>
