@@ -22,6 +22,9 @@ function useAnalytics<T>(
     queryKey: [key, from, to],
     queryFn: () => get<T>(path, { token, query: { from, to } }),
     enabled: !!token && !!from && !!to,
+    staleTime: 60_000, // Simpan cache 1 menit agar tidak spam backend
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
   });
 }
 
