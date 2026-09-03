@@ -107,11 +107,9 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
   const evSorted = [...events].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   const evBerangkat = evSorted.find((e) => e.status?.includes("berangkat") || e.status?.includes("mulai_loading"));
   const evTiba = [...evSorted].reverse().find((e) => e.status?.includes("tiba") || e.status?.includes("selesai") || e.status?.includes("sampai"));
-  const firstEvent = evSorted[0];
-  const lastEvent = evSorted[evSorted.length - 1];
 
-  const realisasiBerangkat = data.jam_berangkat || fmtTime(evBerangkat?.created_at) || fmtTime(firstEvent?.created_at);
-  const realisasiTiba = data.jam_tiba || fmtTime(evTiba?.created_at) || fmtTime(lastEvent?.created_at);
+  const realisasiBerangkat = data.jam_berangkat || fmtTime(evBerangkat?.created_at);
+  const realisasiTiba = data.jam_tiba || fmtTime(evTiba?.created_at);
 
   return (
     <div className="space-y-3">
