@@ -249,6 +249,7 @@ export interface Ritase {
   id_drop_point: number;
   nama_drop_point: string;
   ritase_ke?: number | null;
+  jabatan_driver?: string;
   jenis_ritase?: string; // "outgoing" | "incoming"
   total_awb?: number | null;
   total_koli?: number | null;
