@@ -325,7 +325,7 @@ export type UserAdmin = {
   username: string;
   name: string;
   role: string;
-  karyawan_id?: number;
+  id_driver?: number;
   is_active: boolean;
   status: string;
   created_at?: string;
@@ -335,10 +335,10 @@ export type UserAdmin = {
 };
 
 const defaultUsers: UserAdmin[] = [
-  { id_user: 1, username: "admin", name: "Administrator System", role: "admin", karyawan_id: 101, is_active: true, status: "aktif" },
-  { id_user: 2, username: "direktur", name: "Bapak Direktur", role: "direktur", karyawan_id: 102, is_active: true, status: "aktif" },
-  { id_user: 3, username: "tower_control", name: "Tower Control", role: "tower_control", karyawan_id: 103, is_active: true, status: "aktif" },
-  { id_user: 4, username: "driver1", name: "Budi Santoso", role: "driver", karyawan_id: 104, is_active: true, status: "aktif" },
+  { id_user: 1, username: "admin", name: "Administrator System", role: "admin", is_active: true, status: "aktif" },
+  { id_user: 2, username: "direktur", name: "Bapak Direktur", role: "direktur", is_active: true, status: "aktif" },
+  { id_user: 3, username: "tower_control", name: "Tower Control", role: "tower_control", is_active: true, status: "aktif" },
+  { id_user: 4, username: "driver1", name: "Budi Santoso", role: "driver", is_active: true, status: "aktif" },
 ];
 
 export const adminUser = {
@@ -347,14 +347,14 @@ export const adminUser = {
     try { return await adminFetch<UserAdmin[]>("/admin/users"); }
     catch { return getStorage("users", defaultUsers); }
   },
-  create: async (data: { username: string; password: string; name: string; role: string; karyawan_id?: number }) => {
+  create: async (data: { username: string; password: string; name: string; role: string; id_driver?: number }) => {
     const list = getStorage("users", defaultUsers);
     const newObj: UserAdmin = {
       id_user: Date.now(),
       username: data.username,
       name: data.name,
       role: data.role,
-      karyawan_id: data.karyawan_id,
+      id_driver: data.id_driver,
       is_active: true,
       status: "aktif",
     };

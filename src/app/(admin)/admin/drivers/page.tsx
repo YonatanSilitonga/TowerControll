@@ -373,7 +373,7 @@ export default function AdminDriversPage() {
               password: akunForm.password,
               name: form.nama_driver,
               role: "driver",
-              karyawan_id: driverId,
+              id_driver: driverId,
             });
             swal.success(
               "Driver + Akun Berhasil Dibuat",
@@ -759,6 +759,31 @@ export default function AdminDriversPage() {
           </div>
         </Modal>
       )}
+
+      {/* ── Confirm Delete Modal ── */}
+      <Modal
+        open={confirmState.open}
+        onClose={() => setConfirmState({ open: false, id: null })}
+        title="Nonaktifkan Driver"
+        description="Driver akan dinonaktifkan, bukan dihapus permanen"
+        icon={<Trash2 className="h-5 w-5" />}
+        footer={
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => setConfirmState({ open: false, id: null })} className="flex-1 font-semibold">
+              Batal
+            </Button>
+            <Button onClick={executeDelete} disabled={saving}
+              className="flex-[2] bg-rose-600 font-semibold text-white hover:bg-rose-700 disabled:opacity-70">
+              {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Memproses…</> : "Ya, Nonaktifkan"}
+            </Button>
+          </div>
+        }
+      >
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400">
+          <AlertTriangle className="mb-1 h-4 w-4" />
+          Driver tidak akan bisa login atau ditugaskan lagi setelah dinonaktifkan.
+        </div>
+      </Modal>
 
       {/* ── Toast ── */}
       <Toast
