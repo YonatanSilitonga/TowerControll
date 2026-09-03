@@ -379,7 +379,7 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Filter Role chips */}
-        <div className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex items-center gap-1.5 overflow-x-auto flex-nowrap rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
           <Filter className="ml-1 h-3.5 w-3.5 text-slate-400" />
           <button
             onClick={() => setRoleFilter("ALL")}
@@ -410,7 +410,7 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Filter Status chips */}
-        <div className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex items-center gap-1.5 overflow-x-auto flex-nowrap rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
           {[
             { value: "ALL", label: "Semua Status" },
             { value: "aktif", label: "Aktif" },
