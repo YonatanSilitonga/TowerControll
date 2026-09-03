@@ -88,7 +88,7 @@ export default function RitasePage() {
       <ArmadaTabs />
 
       {/* ── FILTER BAR (full width) ── */}
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+      <div className="grid grid-cols-2 items-end gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-3 lg:grid-cols-5 dark:border-slate-800 dark:bg-slate-900">
         {/* Tanggal */}
         <div className="flex flex-col gap-1">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</span>
@@ -96,14 +96,14 @@ export default function RitasePage() {
             type="date"
             value={tanggal}
             onChange={(e) => setTanggal(e.target.value)}
-            className="w-auto"
+            className="w-full"
           />
         </div>
 
         {/* Status */}
         <div className="flex flex-col gap-1">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</span>
-          <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex flex-wrap items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800">
             {statusOptions.map((s) => (
               <button
                 key={s.value}
@@ -150,7 +150,7 @@ export default function RitasePage() {
           <select
             value={driverFilter}
             onChange={(e) => setDriverFilter(e.target.value)}
-            className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
           >
             <option value="all">Semua Driver</option>
             {uniqueDrivers.map((d) => (
@@ -162,28 +162,28 @@ export default function RitasePage() {
         {/* Drop Point */}
         <div className="flex flex-col gap-1">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Drop Point</span>
-          <select
-            value={dropPointFilter}
-            onChange={(e) => setDropPointFilter(e.target.value)}
-            className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-          >
-            <option value="all">Semua Drop Point</option>
-            {uniqueDropPoints.map((dp) => (
-              <option key={dp} value={dp}>{dp}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              value={dropPointFilter}
+              onChange={(e) => setDropPointFilter(e.target.value)}
+              className="h-8 flex-1 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            >
+              <option value="all">Semua Drop Point</option>
+              {uniqueDropPoints.map((dp) => (
+                <option key={dp} value={dp}>{dp}</option>
+              ))}
+            </select>
+            {hasFilter && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="h-8 shrink-0 rounded-md border border-rose-200 bg-rose-50 px-2.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-400"
+              >
+                Reset
+              </button>
+            )}
+          </div>
         </div>
-
-        {/* Reset */}
-        {hasFilter && (
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="h-8 rounded-md border border-rose-200 bg-rose-50 px-2.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-400"
-          >
-            Reset
-          </button>
-        )}
       </div>
 
       <DataTable<Ritase>
