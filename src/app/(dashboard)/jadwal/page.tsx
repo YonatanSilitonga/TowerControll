@@ -1433,8 +1433,8 @@ const askCancelGenerate = async () => {
                       <span className="font-medium text-slate-500">
                         {formatAuditTime(r.created_at)}
                       </span>
-                      {r.created_by && (
-                        <span className="ml-0.5">#{r.created_by}</span>
+                      {r.created_by_name && (
+                        <span className="ml-0.5">oleh {r.created_by_name}</span>
                       )}
                     </span>
                   )}
@@ -1446,8 +1446,8 @@ const askCancelGenerate = async () => {
                       <span className="font-medium text-slate-500">
                         {formatAuditTime(r.updated_at)}
                       </span>
-                      {r.updated_by && (
-                        <span className="ml-0.5">#{r.updated_by}</span>
+                      {r.updated_by_name && (
+                        <span className="ml-0.5">oleh {r.updated_by_name}</span>
                       )}
                     </span>
                   </div>
@@ -2519,8 +2519,8 @@ const askCancelGenerate = async () => {
                       <span className="w-20 shrink-0 font-semibold text-slate-400">Dibuat</span>
                       <span>
                         {formatAuditTime(editingRitase.created_at)}
-                        {editingRitase.created_by && (
-                          <span className="ml-1 text-slate-400">oleh #{editingRitase.created_by}</span>
+                        {editingRitase.created_by_name && (
+                          <span className="ml-1 text-slate-400">oleh {editingRitase.created_by_name}</span>
                         )}
                       </span>
                     </div>
@@ -2529,8 +2529,8 @@ const askCancelGenerate = async () => {
                         <span className="w-20 shrink-0 font-semibold text-slate-400">Diubah</span>
                         <span>
                           {formatAuditTime(editingRitase.updated_at)}
-                          {editingRitase.updated_by && (
-                            <span className="ml-1 text-slate-400">oleh #{editingRitase.updated_by}</span>
+                          {editingRitase.updated_by_name && (
+                            <span className="ml-1 text-slate-400">oleh {editingRitase.updated_by_name}</span>
                           )}
                         </span>
                       </div>
