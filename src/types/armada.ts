@@ -268,6 +268,8 @@ export interface Ritase {
   updated_at?: string | null;
   created_by?: number | null;
   updated_by?: number | null;
+  created_by_name?: string;
+  updated_by_name?: string;
 }
 
 export interface RitaseStop {
