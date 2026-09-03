@@ -38,42 +38,6 @@ function Toast({ show, title, message, type, onClose }: {
   );
 }
 
-/* ─────────── CONFIRM MODAL ─────────── */
-function ConfirmModal({ open, title, message, onConfirm, onCancel, loading }: {
-  open: boolean; title: string; message: string;
-  onConfirm: () => void; onCancel: () => void; loading?: boolean;
-}) {
-  useEffect(() => {
-    if (open) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = prev; };
-    }
-  }, [open]);
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={onCancel}>
-      <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-        <div className="p-6">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-500/10">
-            <AlertTriangle className="h-7 w-7 text-rose-500" />
-          </div>
-          <div className="text-center">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">{title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{message}</p>
-          </div>
-          <div className="mt-6 flex gap-3">
-            <Button variant="outline" onClick={onCancel} className="flex-1 font-semibold">Batal</Button>
-            <Button onClick={onConfirm} disabled={loading} className="flex-1 bg-rose-600 font-semibold text-white hover:bg-rose-700">
-              {loading && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-              Ya, Nonaktifkan
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ─────────── MODAL ─────────── */
 function Modal({ open, onClose, title, description, icon, size = "md", children, footer }: {
@@ -267,7 +231,6 @@ export default function AdminDriversPage() {
   const [akunForm, setAkunForm]   = useState({ ...INIT_AKUN });
   const [akunErrors, setAkunErrors] = useState<Record<string, string>>({});
 
-  const [confirmState, setConfirmState] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
   const [toast, setToast] = useState<{ show: boolean; title: string; message?: string; type: "success" | "error" | "info" }>({
     show: false, title: "", type: "success",
   });
@@ -711,15 +674,6 @@ export default function AdminDriversPage() {
         </div>
       </Modal>
 
-      {/* ── Confirm Delete ── */}
-      <ConfirmModal
-        open={confirmState.open}
-        title="Nonaktifkan Driver?"
-        message="Data driver akan dinonaktifkan dan tidak lagi tampil di operasional aktif. Tindakan ini dapat diaktifkan kembali oleh admin."
-        onConfirm={executeDelete}
-        onCancel={() => setConfirmState({ open: false, id: null })}
-        loading={saving}
-      />
 
       {/* ── Detail Modal ── */}
       {detailRow && (
