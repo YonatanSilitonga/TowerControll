@@ -8,7 +8,7 @@ import { ChevronDown, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROLE_LABEL } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth-store";
-import { filterNav } from "@/components/layout/sidebar";
+import { filterNav, ADMIN_NAV } from "@/components/layout/sidebar";
 
 /** Navigasi mobile (hamburger drawer) — sidebar di HP. Hanya muncul < lg. */
 export function MobileNav() {
@@ -19,7 +19,8 @@ export function MobileNav() {
   const pathname = usePathname();
   const role = useAuthStore((s) => s.user?.role);
   const user = useAuthStore((s) => s.user);
-  const nav = filterNav(role);
+  const isAdminRoute = pathname.startsWith("/admin");
+  const nav = isAdminRoute ? ADMIN_NAV : filterNav(role);
 
   const toggleDropdown = (key: string) => {
     setOpenDropdowns((prev) => ({ ...prev, [key]: !prev[key] }));

@@ -52,7 +52,7 @@ const NAV: NavItem[] = [
   { label: "Absensi", href: "/absensi", icon: ClipboardCheck, key: "absensi" },
 ];
 
-const ADMIN_NAV: NavItem[] = [
+export const ADMIN_NAV: NavItem[] = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard, key: "admin-dashboard" },
   { label: "Driver", href: "/admin/drivers", icon: Users, key: "admin-drivers" },
   { label: "Kendaraan", href: "/admin/vehicles", icon: Car, key: "admin-vehicles" },
