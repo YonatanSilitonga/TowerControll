@@ -148,12 +148,13 @@ export default function JadwalPage() {
     return filtered.length > 0 ? filtered : masterOptions.kendaraan;
   }, [masterOptions?.kendaraan]);
 
-  const [newRitase, setNewRitase] = useState<{
+    const [newRitase, setNewRitase] = useState<{
     tanggal: string;
     id_driver: number;
     id_kendaraan: number;
     id_drop_point: number;
     ritase_ke: number;
+    jenis_ritase: string;
     stops: AdminRitaseStop[];
   }>({
     tanggal: todayStr,
@@ -161,6 +162,7 @@ export default function JadwalPage() {
     id_kendaraan: 1,
     id_drop_point: 1,
     ritase_ke: 1,
+    jenis_ritase: "outgoing",
     stops: [
       {
         id_stop: 1,
@@ -381,6 +383,13 @@ const askCancelGenerate = async () => {
     };
     setEditableRoutes(updated);
   };
+  const handleJenisChange = (routeIdx: number, newJenis: string) => {
+    const validDriver = activeDrivers.find(
+      (d) => getDriverJenis(d.id_driver) === newJenis,
+    );
+    if (!validDriver) return;
+    handleDriverChange(routeIdx, validDriver.id_driver);
+  };
 
   const handleVehicleChange = (routeIdx: number, vehicleId: number) => {
     const vehicle = masterOptions?.kendaraan.find(
@@ -430,18 +439,23 @@ const askCancelGenerate = async () => {
     }
   };
 
-  const handleAddRoute = () => {
+    const handleAddRoute = () => {
     const defaultDriver = activeDrivers[0];
     const defaultVehicle = activeVehicles[0];
     const defaultGudang = masterOptions?.gudangs[0];
     const defaultDp = masterOptions?.drop_points[0];
-
+    const jenis = defaultDriver ? getDriverJenis(defaultDriver.id_driver) : "outgoing";
+    const jamConfig = masterOptions?.jam_ritase?.find(
+      (j) => j.jenis === jenis && j.ritase_ke === 1,
+    );
     const newRoute: PreviewRoute = {
       id_driver: defaultDriver?.id_driver ?? 1,
       nama_driver: defaultDriver?.nama_driver ?? "Driver 1",
       id_kendaraan: defaultVehicle?.id_kendaraan ?? 1,
       plat_nomor: defaultVehicle?.plat_nomor ?? "B 1234 XXX",
-      ritase_ke: editableRoutes.length + 1,
+      ritase_ke: 1,
+      jam_mulai: jamConfig?.jam_mulai,
+      jam_selesai: jamConfig?.jam_selesai,
       stops: [
         {
           urutan: 1,
@@ -696,13 +710,14 @@ const askCancelGenerate = async () => {
     );
     if (!confirmed) return;
 
-    createMutation.mutate(
+        createMutation.mutate(
       {
         tanggal: newRitase.tanggal,
         id_driver: newRitase.id_driver,
         id_kendaraan: newRitase.id_kendaraan,
         id_drop_point: [...newRitase.stops].reverse().find((s) => s.jenis_stop === "gateway")?.id_drop_point ?? masterOptions?.drop_points[0]?.id_drop_point ?? newRitase.id_drop_point,
         ritase_ke: newRitase.ritase_ke,
+        jenis_ritase: newRitase.jenis_ritase,
         stops: reindexedStops,
       },
       {
@@ -932,13 +947,17 @@ const askCancelGenerate = async () => {
     }
   };
 
-  const resetNewRitase = () => {
+    const resetNewRitase = () => {
+    const defaultDriver =
+      activeDrivers.find((d) => getDriverJenis(d.id_driver) === "outgoing") ??
+      activeDrivers[0];
     const fresh: typeof newRitase = {
       tanggal: selectedDate,
-      id_driver: activeDrivers[0]?.id_driver ?? 1,
+      id_driver: defaultDriver?.id_driver ?? 1,
       id_kendaraan: activeVehicles[0]?.id_kendaraan ?? 1,
       id_drop_point: masterOptions?.drop_points[0]?.id_drop_point ?? 1,
       ritase_ke: 1,
+      jenis_ritase: "outgoing",
       stops: [
         {
           id_stop: 1,
@@ -1504,27 +1523,38 @@ const askCancelGenerate = async () => {
                             {/* Route Header Edit Controls */}
                             <div className="mb-4 border-b border-slate-100 pb-3.5 dark:border-slate-700/50">
                               <div className="flex items-center justify-between gap-2 mb-2">
-                                <div className="flex items-center gap-2">
-                                  <JenisBadge jenis={getRouteJenis(route)} />
-                                  <div className="flex items-center gap-1.5 font-bold text-xs text-[#0c1e3a] dark:text-blue-300">
-                                    <span>R-</span>
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      max={
-                                        getRouteJenis(route) === "outgoing"
-                                          ? 3
-                                          : 4
-                                      }
+                                                                <div className="flex items-center gap-2">
+                                  <select
+                                    value={getRouteJenis(route)}
+                                    onChange={(e) =>
+                                      handleJenisChange(rIdx, e.target.value)
+                                    }
+                                    className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-700 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                  >
+                                    <option value="outgoing">Outgoing</option>
+                                    <option value="incoming">Incoming</option>
+                                  </select>
+                                                                   <div className="flex items-center gap-1.5 font-bold text-xs text-[#0c1e3a] dark:text-blue-300">
+                                    <span>Ritase</span>
+                                    <select
                                       value={route.ritase_ke}
                                       onChange={(e) =>
                                         handleRitaseKeChange(
                                           rIdx,
-                                          parseInt(e.target.value) || 1,
+                                          parseInt(e.target.value),
                                         )
                                       }
-                                      className="w-12 rounded border border-[#0c1e3a]/20 bg-[#0c1e3a]/5 px-1.5 py-0.5 text-center font-extrabold dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-200"
-                                    />
+                                      className="rounded border border-[#0c1e3a]/20 bg-[#0c1e3a]/5 px-1.5 py-0.5 text-center font-extrabold outline-none dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-200"
+                                    >
+                                      {(getRouteJenis(route) === "outgoing"
+                                        ? [1, 2, 3]
+                                        : [1, 2, 3, 4]
+                                      ).map((r) => (
+                                        <option key={r} value={r}>
+                                          {r}
+                                        </option>
+                                      ))}
+                                    </select>
                                   </div>
                                 </div>
                                 <button
@@ -1758,7 +1788,7 @@ const askCancelGenerate = async () => {
                             </div>
                           </div>
                         </div>
-                      ))}; 
+                      ))}
                   </div>
 
                   <div className="flex justify-center pt-2">
@@ -1884,7 +1914,7 @@ const askCancelGenerate = async () => {
               className="flex-1 overflow-y-auto mt-4 space-y-4 pr-1"
             >
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                                <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
                     Tanggal Perjalanan
                   </label>
@@ -1897,6 +1927,32 @@ const askCancelGenerate = async () => {
                     }
                     className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Jenis
+                  </label>
+                  <select
+                    value={newRitase.jenis_ritase}
+                    onChange={(e) => {
+                      const newJenis = e.target.value;
+                      const validDriver = activeDrivers.find(
+                        (d) => getDriverJenis(d.id_driver) === newJenis,
+                      );
+                      const maxR = newJenis === "incoming" ? 4 : 3;
+                      setNewRitase({
+                        ...newRitase,
+                        jenis_ritase: newJenis,
+                        id_driver: validDriver?.id_driver ?? newRitase.id_driver,
+                        ritase_ke: Math.min(maxR, newRitase.ritase_ke),
+                      });
+                    }}
+                    className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  >
+                    <option value="outgoing">Outgoing</option>
+                    <option value="incoming">Incoming</option>
+                  </select>
                 </div>
 
                 <div>
@@ -1918,11 +1974,13 @@ const askCancelGenerate = async () => {
                     }}
                     className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                   >
-                    {activeDrivers.map((d) => (
-                      <option key={d.id_driver} value={d.id_driver}>
-                        {d.nama_driver} ({d.jabatan})
-                      </option>
-                    ))}
+                    {activeDrivers
+                      .filter((d) => getDriverJenis(d.id_driver) === newRitase.jenis_ritase)
+                      .map((d) => (
+                        <option key={d.id_driver} value={d.id_driver}>
+                          {d.nama_driver} ({d.jabatan})
+                        </option>
+                      ))}
                   </select>
                 </div>
 
