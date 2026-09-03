@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye } from "lucide-react";
@@ -10,16 +10,73 @@ import { DataTable } from "@/components/ui/data-table";
 import { PageHeader } from "@/components/layout/page-header";
 import { ArmadaTabs } from "@/components/armada/armada-tabs";
 import { useRitase } from "@/hooks/use-armada";
-import { formatDateDMY, formatNumber } from "@/lib/utils";
-import { isRitaseExpired } from "@/lib/constants";
+import { cn, formatDateDMY, formatNumber } from "@/lib/utils";
+import { isRitaseExpired, statusLabel } from "@/lib/constants";
 import type { Ritase } from "@/types/armada";
 
 export default function RitasePage() {
   const { data, isLoading } = useRitase();
-  const [tanggal, setTanggal] = useState("");
   const router = useRouter();
 
-  const rows = (data ?? []).filter((r) => (tanggal ? r.tanggal === tanggal : true));
+  // ── Filters ──
+  const [tanggal, setTanggal] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [jenisFilter, setJenisFilter] = useState("all");
+  const [driverFilter, setDriverFilter] = useState("all");
+  const [dropPointFilter, setDropPointFilter] = useState("all");
+
+  // ── Unique values for dropdowns ──
+  const uniqueDrivers = useMemo(
+    () => [...new Set((data ?? []).map((r) => r.nama_driver))].sort(),
+    [data],
+  );
+  const uniqueDropPoints = useMemo(
+    () =>
+      [...new Set((data ?? []).map((r) => r.nama_drop_point).filter(Boolean))].sort(),
+    [data],
+  );
+
+  // ── Status options with counts ──
+  const statusOptions = useMemo(() => {
+    const base = data ?? [];
+    return [
+      { value: "all", label: "Semua", count: base.length },
+      { value: "direncanakan", label: "Direncanakan", count: base.filter((r) => r.status === "direncanakan").length },
+      { value: "berjalan", label: "Berjalan", count: base.filter((r) => r.status === "berjalan").length },
+      { value: "selesai", label: "Selesai", count: base.filter((r) => r.status === "selesai").length },
+    ];
+  }, [data]);
+
+  const jenisOptions = useMemo(() => {
+    const base = data ?? [];
+    return [
+      { value: "all", label: "Semua" },
+      { value: "outgoing", label: "Outgoing" },
+      { value: "incoming", label: "Incoming" },
+    ];
+  }, [data]);
+
+  // ── Filter logic ──
+  const rows = useMemo(
+    () =>
+      (data ?? [])
+        .filter((r) => !tanggal || r.tanggal === tanggal)
+        .filter((r) => statusFilter === "all" || r.status === statusFilter)
+        .filter((r) => jenisFilter === "all" || r.jenis_ritase === jenisFilter)
+        .filter((r) => driverFilter === "all" || r.nama_driver === driverFilter)
+        .filter((r) => dropPointFilter === "all" || r.nama_drop_point === dropPointFilter),
+    [data, tanggal, statusFilter, jenisFilter, driverFilter, dropPointFilter],
+  );
+
+  const hasFilter = tanggal || statusFilter !== "all" || jenisFilter !== "all" || driverFilter !== "all" || dropPointFilter !== "all";
+
+  const resetFilters = () => {
+    setTanggal("");
+    setStatusFilter("all");
+    setJenisFilter("all");
+    setDriverFilter("all");
+    setDropPointFilter("all");
+  };
 
   return (
     <div>
@@ -37,19 +94,103 @@ export default function RitasePage() {
         searchPlaceholder="Cari kode / driver / plat..."
         showRowIndex
         toolbar={
-          <>
-            <Input
-              type="date"
-              value={tanggal}
-              onChange={(e) => setTanggal(e.target.value)}
-              className="w-auto"
-            />
-            {tanggal && (
-              <button onClick={() => setTanggal("")} className="text-xs font-semibold text-primary hover:underline">
+          <div className="flex flex-wrap items-end gap-2">
+            {/* Tanggal */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</span>
+              <Input
+                type="date"
+                value={tanggal}
+                onChange={(e) => setTanggal(e.target.value)}
+                className="w-auto"
+              />
+            </div>
+
+            {/* Status */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</span>
+              <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800">
+                {statusOptions.map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => setStatusFilter(s.value)}
+                    className={cn(
+                      "rounded-md px-2 py-1 text-[11px] font-semibold transition-all",
+                      statusFilter === s.value
+                        ? "bg-[#FEA103] text-white"
+                        : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white",
+                    )}
+                  >
+                    {s.label} ({s.count})
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Jenis */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Jenis</span>
+              <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800">
+                {jenisOptions.map((j) => (
+                  <button
+                    key={j.value}
+                    type="button"
+                    onClick={() => setJenisFilter(j.value)}
+                    className={cn(
+                      "rounded-md px-2 py-1 text-[11px] font-semibold transition-all",
+                      jenisFilter === j.value
+                        ? "bg-[#FEA103] text-white"
+                        : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white",
+                    )}
+                  >
+                    {j.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Driver */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Driver</span>
+              <select
+                value={driverFilter}
+                onChange={(e) => setDriverFilter(e.target.value)}
+                className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              >
+                <option value="all">Semua Driver</option>
+                {uniqueDrivers.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Drop Point */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Drop Point</span>
+              <select
+                value={dropPointFilter}
+                onChange={(e) => setDropPointFilter(e.target.value)}
+                className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              >
+                <option value="all">Semua Drop Point</option>
+                {uniqueDropPoints.map((dp) => (
+                  <option key={dp} value={dp}>{dp}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Reset */}
+            {hasFilter && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="h-8 rounded-md border border-rose-200 bg-rose-50 px-2.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-400"
+              >
                 Reset
               </button>
             )}
-          </>
+          </div>
         }
         searchFilter={(r, q) =>
           r.kode_ritase.toLowerCase().includes(q.toLowerCase()) ||

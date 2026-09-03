@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, ReactNode } from "react";
+import { useState, useEffect, useRef, useCallback, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { swal } from "@/lib/swal";
 import {
@@ -165,6 +165,15 @@ const ROLE_COLORS: Record<string, string> = {
 function RoleSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false);
   const selected = ROLE_OPTIONS.find((o) => o.value === value);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (open && dropdownRef.current) {
+      requestAnimationFrame(() => {
+        dropdownRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+    }
+  }, [open]);
 
   return (
     <div className="relative">
@@ -188,7 +197,7 @@ function RoleSelect({ value, onChange }: { value: string; onChange: (v: string) 
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800 animate-in fade-in zoom-in-95 duration-150">
+          <div ref={dropdownRef} className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800 animate-in fade-in zoom-in-95 duration-150">
             <div className="p-1">
               {ROLE_OPTIONS.map((opt) => (
                 <button

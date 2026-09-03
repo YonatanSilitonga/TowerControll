@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, ReactNode } from "react";
+import { useEffect, useRef, useState, useCallback, ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import { swal } from "@/lib/swal";
@@ -153,6 +153,15 @@ function SelectField({
 }) {
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (open && dropdownRef.current) {
+      requestAnimationFrame(() => {
+        dropdownRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+    }
+  }, [open]);
 
   return (
     <div className="relative">
@@ -191,7 +200,7 @@ function SelectField({
           {/* Backdrop */}
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           {/* Dropdown */}
-          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800 animate-in fade-in zoom-in-95 duration-150">
+          <div ref={dropdownRef} className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800 animate-in fade-in zoom-in-95 duration-150">
             <div className="p-1">
               {options.map((opt) => (
                 <button

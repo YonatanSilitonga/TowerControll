@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, ReactNode } from "react";
+import { useState, useEffect, useRef, useCallback, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { swal } from "@/lib/swal";
 import {
@@ -133,6 +133,15 @@ function CustomSelect({ value, onChange, options, placeholder, hasError }: {
 }) {
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (open && dropdownRef.current) {
+      requestAnimationFrame(() => {
+        dropdownRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+    }
+  }, [open]);
   return (
     <div className="relative">
       <button
@@ -158,7 +167,7 @@ function CustomSelect({ value, onChange, options, placeholder, hasError }: {
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800 animate-in fade-in zoom-in-95 duration-150">
+          <div ref={dropdownRef} className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800 animate-in fade-in zoom-in-95 duration-150">
             <div className="p-1">
               {options.map((opt) => (
                 <button
@@ -235,6 +244,7 @@ export default function AdminDriversPage() {
     show: false, title: "", type: "success",
   });
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [confirmState, setConfirmState] = useState<{ open: boolean; id: number | null }>({ open: false, id: null });
   // Detail Modal
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailRow, setDetailRow] = useState<DriverAdmin | null>(null);
@@ -383,24 +393,22 @@ export default function AdminDriversPage() {
     setSaving(false);
   };
 
-  const handleDeleteClick = async (id: number) => {
-    const confirmed = await swal.confirm(
-      "Nonaktifkan Driver?",
-      "Data driver akan dinonaktifkan dan tidak lagi tampil di operasional aktif. Tindakan ini dapat diaktifkan kembali oleh admin.",
-      "Ya, Nonaktifkan",
-    );
-    if (!confirmed) return;
-    setDeleteTargetId(id);
+  const handleDeleteClick = (id: number) => {
+    setConfirmState({ open: true, id });
+  };
+
+  const executeDelete = async () => {
+    if (!confirmState.id) return;
     setSaving(true);
     try {
-      await adminDriver.delete(id);
+      await adminDriver.delete(confirmState.id);
       swal.success("Driver Dinonaktifkan", "Data berhasil dinonaktifkan.");
+      setConfirmState({ open: false, id: null });
       await refresh();
     } catch (err: any) {
       swal.error("Gagal", err?.message || "Gagal mengnonaktifkan data");
     }
     setSaving(false);
-    setDeleteTargetId(null);
   };
 
   const setField = (key: string, val: string) => {
