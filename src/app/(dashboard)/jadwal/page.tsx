@@ -45,8 +45,12 @@ import { KPICard } from "@/components/ui/kpi-card";
 import { GAPS } from "@/lib/design-tokens";
 import { ApiError } from "@/types/api";
 import type { AdminRitaseItem, AdminRitaseStop } from "@/types/armada";
+import { useAuthStore } from "@/stores/auth-store";
 
 export default function JadwalPage() {
+  const currentUser = useAuthStore((s) => s.user);
+  const isWhisnu = currentUser?.username?.toLowerCase() === "whisnu";
+
   const getNDaysAgo = (n: number) => {
     const d = new Date();
     d.setDate(d.getDate() - n);
@@ -600,16 +604,17 @@ const askCancelGenerate = async () => {
     updateMutation.mutate(
       {
         idRitase: editingRitase.id_ritase,
-        data: isBerjalan
-          ? { stops: reindexedStops }
-          : {
-              id_driver: editingRitase.id_driver,
-              id_kendaraan: editingRitase.id_kendaraan,
-              id_drop_point: editingRitase.id_drop_point,
-              ritase_ke: editingRitase.ritase_ke,
-              status: editingRitase.status,
-              stops: reindexedStops,
-            },
+        data:
+          isBerjalan && !isWhisnu
+            ? { stops: reindexedStops }
+            : {
+                id_driver: editingRitase.id_driver,
+                id_kendaraan: editingRitase.id_kendaraan,
+                id_drop_point: editingRitase.id_drop_point,
+                ritase_ke: editingRitase.ritase_ke,
+                status: editingRitase.status,
+                stops: reindexedStops,
+              },
       },
       {
         onSuccess: () => {
@@ -1312,12 +1317,13 @@ const askCancelGenerate = async () => {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    {/* Action Edit — direncanakan (belum expired) & berjalan saja */}
-                    {r.status !== "selesai" &&
-                      !(
-                        r.status === "direncanakan" &&
-                        isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai)
-                      ) && (
+                    {/* Action Edit — direncanakan (belum expired) & berjalan saja (KECUALI whisnu/admin yang selalu bisa edit) */}
+                    {(isWhisnu ||
+                      (r.status !== "selesai" &&
+                        !(
+                          r.status === "direncanakan" &&
+                          isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai)
+                        ))) && (
                         <button
                           type="button"
                           onClick={() => {
@@ -1331,9 +1337,10 @@ const askCancelGenerate = async () => {
                         </button>
                       )}
 
-                    {/* Delete action — direncanakan saja (belum expired) */}
-                    {r.status === "direncanakan" &&
-                      !isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai) && (
+                    {/* Delete action — direncanakan saja (belum expired) (KECUALI whisnu/admin yang selalu bisa hapus) */}
+                    {(isWhisnu ||
+                      (r.status === "direncanakan" &&
+                        !isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai))) && (
                         <button
                           type="button"
                           onClick={() =>
@@ -2221,12 +2228,20 @@ const askCancelGenerate = async () => {
               onSubmit={handleSaveEdit}
               className="flex-1 overflow-y-auto mt-4 space-y-5 pr-1"
             >
-              {editingRitase.status === "berjalan" && (
+              {editingRitase.status === "berjalan" && !isWhisnu && (
                 <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-800 dark:bg-amber-950/40">
                   <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
                   <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
                     Ritase sedang berjalan. Hanya perhentian (stops) yang bisa
                     diubah.
+                  </p>
+                </div>
+              )}
+              {isWhisnu && (
+                <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-800 dark:bg-blue-950/40">
+                  <Zap className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                  <p className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                    <span className="font-bold">Akses Khusus (Whisnu):</span> Anda dapat mengubah status (misal: selesai kembali ke direncanakan), driver, armada, dan rute secara leluasa.
                   </p>
                 </div>
               )}
@@ -2237,7 +2252,7 @@ const askCancelGenerate = async () => {
                   </label>
                   <select
                     value={editingRitase.id_driver}
-                    disabled={editingRitase.status === "berjalan"}
+                    disabled={!isWhisnu && editingRitase.status === "berjalan"}
                     onChange={(e) =>
                       setEditingRitase({
                         ...editingRitase,
@@ -2268,7 +2283,7 @@ const askCancelGenerate = async () => {
                   </label>
                   <select
                     value={editingRitase.id_kendaraan}
-                    disabled={editingRitase.status === "berjalan"}
+                    disabled={!isWhisnu && editingRitase.status === "berjalan"}
                     onChange={(e) =>
                       setEditingRitase({
                         ...editingRitase,
@@ -2297,11 +2312,11 @@ const askCancelGenerate = async () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Status Perjalanan
+                    Status Perjalanan {isWhisnu && <span className="text-blue-600 dark:text-blue-400 font-semibold">(Bisa Diedit)</span>}
                   </label>
                   <select
                     value={editingRitase.status}
-                    disabled
+                    disabled={!isWhisnu}
                     onChange={(e) =>
                       setEditingRitase({
                         ...editingRitase,
@@ -2323,7 +2338,7 @@ const askCancelGenerate = async () => {
                   <input
                     type="number"
                     value={editingRitase.ritase_ke}
-                    disabled={editingRitase.status === "berjalan"}
+                    disabled={!isWhisnu && editingRitase.status === "berjalan"}
                     onChange={(e) =>
                       setEditingRitase({
                         ...editingRitase,
