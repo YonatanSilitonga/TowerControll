@@ -108,7 +108,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
   };
 
   const evSorted = [...events].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  const evBerangkat = evSorted.find((e) => e.status?.includes("berangkat") || e.status?.includes("mulai_loading"));
+  const evBerangkat = evSorted.find((e) => e.status?.includes("berangkat") || e.status?.includes("mulai_loading") || e.status?.includes("bongkar muat"));
   const evTiba = [...evSorted].reverse().find((e) => e.status?.includes("tiba") || e.status?.includes("selesai") || e.status?.includes("sampai"));
 
   const realisasiBerangkat = fmtTime(data.jam_berangkat) || fmtTime(evBerangkat?.created_at);
