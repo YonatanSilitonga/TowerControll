@@ -68,12 +68,16 @@ export default function ManifestFotoPage() {
   });
   const [selectedDriverId, setSelectedDriverId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPhoto, setSelectedPhoto] = useState<ManifestPhotoItem | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<ManifestPhotoItem | null>(
+    null,
+  );
   const [zoomLevel, setZoomLevel] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>("ritase");
   const [expandedRitase, setExpandedRitase] = useState<Set<number>>(new Set());
-  const [expandedDrivers, setExpandedDrivers] = useState<Set<number>>(new Set());
+  const [expandedDrivers, setExpandedDrivers] = useState<Set<number>>(
+    new Set(),
+  );
 
   const { data: drivers = [] } = useDriver();
 
@@ -86,39 +90,67 @@ export default function ManifestFotoPage() {
     [selectedDate, selectedDriverId, searchQuery],
   );
 
-  const { data: photos = [], isLoading, isRefetching, refetch } = useManifestPhotos(filterParam);
+  const {
+    data: photos = [],
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useManifestPhotos(filterParam);
 
   /* ── stats ── */
   const stats = useMemo(() => {
-    const uniquePhotoUrls = new Set(photos.map((p) => p.foto_manifest_url).filter(Boolean));
+    const uniquePhotoUrls = new Set(
+      photos.map((p) => p.foto_manifest_url).filter(Boolean),
+    );
     const totalPhotos = uniquePhotoUrls.size;
     const uniqueDrivers = new Set(photos.map((p) => p.id_driver)).size;
 
     // Deduplikasi untuk hitung total muatan agar tidak terhitung ganda
-    const uniquePhotos = photos.filter((p, i, self) =>
-      i === self.findIndex((t) => t.foto_manifest_url === p.foto_manifest_url)
+    const uniquePhotos = photos.filter(
+      (p, i, self) =>
+        i ===
+        self.findIndex((t) => t.foto_manifest_url === p.foto_manifest_url),
     );
 
-    const totalKoli = uniquePhotos.reduce((a, p) => a + (p.jumlah_koli || 0), 0);
-    const totalEcer = uniquePhotos.reduce((a, p) => a + (p.jumlah_ecer || 0), 0);
-    const totalHV = uniquePhotos.reduce((a, p) => a + (p.jumlah_high_value || 0), 0);
+    const totalKoli = uniquePhotos.reduce(
+      (a, p) => a + (p.jumlah_koli || 0),
+      0,
+    );
+    const totalEcer = uniquePhotos.reduce(
+      (a, p) => a + (p.jumlah_ecer || 0),
+      0,
+    );
+    const totalHV = uniquePhotos.reduce(
+      (a, p) => a + (p.jumlah_high_value || 0),
+      0,
+    );
     return { totalPhotos, uniqueDrivers, totalKoli, totalEcer, totalHV };
   }, [photos]);
 
   /* ── deduplikasi foto untuk grid view (anti ganda) ── */
   const dedupedPhotos = useMemo(
-    () => photos.filter((p, i, self) => i === self.findIndex((t) => t.foto_manifest_url === p.foto_manifest_url)),
+    () =>
+      photos.filter(
+        (p, i, self) =>
+          i ===
+          self.findIndex((t) => t.foto_manifest_url === p.foto_manifest_url),
+      ),
     [photos],
   );
 
   const todayStr = useMemo(
-    () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date()),
+    () =>
+      new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(
+        new Date(),
+      ),
     [],
   );
   const yesterdayStr = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
-    return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(d);
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Jakarta",
+    }).format(d);
   }, []);
 
   /* ── grouping (dengan deduplikasi foto URL) ── */
@@ -143,7 +175,11 @@ export default function ManifestFotoPage() {
         map.set(p.id_ritase, g);
       }
       // Anti-duplikat foto dengan URL yang sama dalam ritase
-      if (!g.photos.some((existing) => existing.foto_manifest_url === p.foto_manifest_url)) {
+      if (
+        !g.photos.some(
+          (existing) => existing.foto_manifest_url === p.foto_manifest_url,
+        )
+      ) {
         g.totalKoli += p.jumlah_koli || 0;
         g.totalEcer += p.jumlah_ecer || 0;
         g.totalHV += p.jumlah_high_value || 0;
@@ -174,14 +210,20 @@ export default function ManifestFotoPage() {
         map.set(p.id_driver, g);
       }
       // Anti-duplikat foto dengan URL yang sama untuk driver
-      if (!g.photos.some((existing) => existing.foto_manifest_url === p.foto_manifest_url)) {
+      if (
+        !g.photos.some(
+          (existing) => existing.foto_manifest_url === p.foto_manifest_url,
+        )
+      ) {
         g.totalKoli += p.jumlah_koli || 0;
         g.totalEcer += p.jumlah_ecer || 0;
         g.totalHV += p.jumlah_high_value || 0;
         g.photos.push(p);
       }
     }
-    return Array.from(map.values()).sort((a, b) => b.photos.length - a.photos.length);
+    return Array.from(map.values()).sort((a, b) =>
+  a.nama_driver.localeCompare(b.nama_driver, "id", { sensitivity: "base" }),
+);
   }, [photos]);
 
   /* ── toggle collapse ── */
@@ -282,11 +324,25 @@ export default function ManifestFotoPage() {
       <div className="flex w-full flex-col gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900">
         {/* Baris 1 (mobile): Filter label + Date pills */}
         <div className="flex items-center gap-2">
-          <span className="hidden sm:inline text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0 mr-1">Filter</span>
+          <span className="hidden sm:inline text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0 mr-1">
+            Filter
+          </span>
           <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
-            <DatePill label="Hari Ini" active={selectedDate === todayStr} onClick={() => setSelectedDate(todayStr)} />
-            <DatePill label="Kemarin" active={selectedDate === yesterdayStr} onClick={() => setSelectedDate(yesterdayStr)} />
-            <DatePill label="Semua" active={selectedDate === "all"} onClick={() => setSelectedDate("all")} />
+            <DatePill
+              label="Hari Ini"
+              active={selectedDate === todayStr}
+              onClick={() => setSelectedDate(todayStr)}
+            />
+            <DatePill
+              label="Kemarin"
+              active={selectedDate === yesterdayStr}
+              onClick={() => setSelectedDate(yesterdayStr)}
+            />
+            <DatePill
+              label="Semua"
+              active={selectedDate === "all"}
+              onClick={() => setSelectedDate("all")}
+            />
             <input
               type="date"
               value={selectedDate === "all" ? "" : selectedDate}
@@ -329,7 +385,12 @@ export default function ManifestFotoPage() {
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
             title="Refresh"
           >
-            <RefreshCw className={cn("h-3 w-3", (isLoading || isRefetching) && "animate-spin")} />
+            <RefreshCw
+              className={cn(
+                "h-3 w-3",
+                (isLoading || isRefetching) && "animate-spin",
+              )}
+            />
           </button>
         </div>
       </div>
@@ -338,22 +399,45 @@ export default function ManifestFotoPage() {
       <div className="flex w-full items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900">
         {/* Kiri: Tampilan label + View toggle */}
         <div className="flex items-center gap-2">
-          <span className="hidden sm:inline text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0">Tampilan</span>
+          <span className="hidden sm:inline text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0">
+            Tampilan
+          </span>
           <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800 shrink-0">
-            <ViewBtn active={viewMode === "ritase"} onClick={() => setViewMode("ritase")} icon={Rows3} label="Per Ritase" />
-            <ViewBtn active={viewMode === "grid"} onClick={() => setViewMode("grid")} icon={LayoutGrid} label="Galeri" />
-            <ViewBtn active={viewMode === "timeline"} onClick={() => setViewMode("timeline")} icon={Images} label="Per Driver" />
+            <ViewBtn
+              active={viewMode === "ritase"}
+              onClick={() => setViewMode("ritase")}
+              icon={Rows3}
+              label="Per Ritase"
+            />
+            <ViewBtn
+              active={viewMode === "grid"}
+              onClick={() => setViewMode("grid")}
+              icon={LayoutGrid}
+              label="Galeri"
+            />
+            <ViewBtn
+              active={viewMode === "timeline"}
+              onClick={() => setViewMode("timeline")}
+              icon={Images}
+              label="Per Driver"
+            />
           </div>
         </div>
 
         {/* Kanan: Expand / Collapse — hidden on mobile */}
         {viewMode !== "grid" && (
           <div className="hidden sm:flex items-center gap-2">
-            <button onClick={expandAll} className="text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0">
+            <button
+              onClick={expandAll}
+              className="text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0"
+            >
               Buka Semua
             </button>
             <span className="text-slate-300 dark:text-slate-700">·</span>
-            <button onClick={collapseAll} className="text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0">
+            <button
+              onClick={collapseAll}
+              className="text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0"
+            >
               Tutup Semua
             </button>
           </div>
@@ -364,7 +448,10 @@ export default function ManifestFotoPage() {
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="h-72 animate-pulse rounded-lg border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800/50" />
+            <div
+              key={i}
+              className="h-72 animate-pulse rounded-lg border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800/50"
+            />
           ))}
         </div>
       ) : photos.length === 0 ? (
@@ -375,54 +462,82 @@ export default function ManifestFotoPage() {
           {ritaseGroups.map((g) => {
             const isCollapsed = !expandedRitase.has(g.id_ritase);
             // Hitung total durasi dari semua foto dalam ritase ini
-            const totalDurasi = g.photos.reduce((sum, p) => sum + (p.durasi_detik || 0), 0);
+            const totalDurasi = g.photos.reduce(
+              (sum, p) => sum + (p.durasi_detik || 0),
+              0,
+            );
             // Cari waktu pertama & terakhir dari created_at
-            const sortedPhotos = [...g.photos].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-            const waktuMulai = sortedPhotos.length > 0 ? new Date(sortedPhotos[0].created_at) : null;
-            const waktuSelesai = sortedPhotos.length > 0 ? new Date(sortedPhotos[sortedPhotos.length - 1].created_at) : null;
-            const fmtTime = (d: Date) => d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false });
-            const waktuRange = waktuMulai && waktuSelesai ? `${fmtTime(waktuMulai)} – ${fmtTime(waktuSelesai)}` : null;
+            const sortedPhotos = [...g.photos].sort(
+              (a, b) =>
+                new Date(a.created_at).getTime() -
+                new Date(b.created_at).getTime(),
+            );
+            const waktuMulai =
+              sortedPhotos.length > 0
+                ? new Date(sortedPhotos[0].created_at)
+                : null;
+            const waktuSelesai =
+              sortedPhotos.length > 0
+                ? new Date(sortedPhotos[sortedPhotos.length - 1].created_at)
+                : null;
+            const fmtTime = (d: Date) =>
+              d.toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              });
+            const waktuTampil = waktuMulai ? `${fmtTime(waktuMulai)}` : null;
 
             return (
-              <div key={g.id_ritase} className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+              <div
+                key={g.id_ritase}
+                className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+              >
                 {/* Header */}
                 <button
-                  onClick={() => toggleRitase(g.id_ritase)}
-                  className="flex w-full items-center justify-between gap-2 sm:gap-3 px-3 py-2.5 sm:px-4 sm:py-3 text-left hover:bg-slate-50/80 transition-colors dark:hover:bg-slate-800/50"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
+  onClick={() => toggleRitase(g.id_ritase)}
+  className="grid w-full grid-cols-[minmax(140px,220px)_1fr_auto] items-center gap-2 sm:gap-3 px-3 py-2.5 sm:px-4 sm:py-3 text-left hover:bg-slate-50/80 transition-colors dark:hover:bg-slate-800/50"
+>
+  <div className="flex items-center gap-2.5 min-w-0">
                     {isCollapsed ? (
                       <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
                     ) : (
                       <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
                     )}
-                    <span className="shrink-0 rounded bg-[#0c1e3a] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">
-                      {g.kode_ritase}
-                    </span>
-                    <span className="text-sm font-bold text-slate-800 dark:text-white">
-                      #{g.ritase_ke}
+                    <User className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    <span className="text-sm font-bold text-slate-800 dark:text-white truncate">
+                      {g.nama_driver}
                     </span>
                   </div>
 
-                  {/* Tengah: Info driver + kendaraan */}
-                  <div className="hidden md:flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 min-w-0">
-                    <User className="h-3 w-3 shrink-0" />
-                    <span className="font-semibold truncate">{g.nama_driver}</span>
-                    <span className="text-slate-300 dark:text-slate-600 mx-0.5">·</span>
+                  {/* Tengah: Kode ritase + nomor ritase + kendaraan + waktu */}
+                  <div className="hidden md:flex items-center justify-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 min-w-0">
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">
+                      Ritase {g.ritase_ke}
+                    </span>
+                    <span className="text-slate-300 dark:text-slate-600 mx-0.5">
+                      ·
+                    </span>
                     <Truck className="h-3 w-3 shrink-0" />
                     <span className="font-mono">{g.nopol}</span>
-                    {waktuRange && (
+                    {waktuTampil && (
                       <>
-                        <span className="text-slate-300 dark:text-slate-600 mx-0.5">·</span>
+                        <span className="text-slate-300 dark:text-slate-600 mx-0.5">
+                          ·
+                        </span>
                         <Clock className="h-3 w-3 shrink-0" />
-                        <span className="font-mono">{waktuRange}</span>
+                        <span className="font-mono">{waktuTampil}</span>
                       </>
                     )}
                   </div>
 
                   {/* Kanan: Muatan + Foto button */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    <MuatanBadge koli={g.totalKoli} ecer={g.totalEcer} hv={g.totalHV} />
+                  <div className="flex items-center justify-end gap-2 shrink-0">
+                    <MuatanBadge
+                      koli={g.totalKoli}
+                      ecer={g.totalEcer}
+                      hv={g.totalHV}
+                    />
                     {totalDurasi > 0 && (
                       <span className="hidden lg:inline-flex items-center gap-1 text-[10px] font-medium text-slate-400 dark:text-slate-500">
                         <Timer className="h-3 w-3" />
@@ -460,25 +575,52 @@ export default function ManifestFotoPage() {
                             </p>
                             <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-400 dark:text-slate-500">
                               {/* Waktu realisasi dari created_at */}
-                              <span className="inline-flex items-center gap-0.5 font-semibold text-slate-600 dark:text-slate-300" title="Waktu realisasi: kapan foto diambil">
+                              <span
+                                className="inline-flex items-center gap-0.5 font-semibold text-slate-600 dark:text-slate-300"
+                                title="Waktu realisasi: kapan foto diambil"
+                              >
                                 <Clock className="h-2.5 w-2.5" />
-                                {new Date(photo.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                                {new Date(photo.created_at).toLocaleTimeString(
+                                  "id-ID",
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: false,
+                                  },
+                                )}
                               </span>
-                              {(photo.jumlah_koli > 0 || photo.jumlah_ecer > 0 || photo.jumlah_high_value > 0) && (
-                                <span className="inline-flex items-center gap-0.5" title="Muatan: jumlah koli, ecer, dan high value di titik ini">
+                              {(photo.jumlah_koli > 0 ||
+                                photo.jumlah_ecer > 0 ||
+                                photo.jumlah_high_value > 0) && (
+                                <span
+                                  className="inline-flex items-center gap-0.5"
+                                  title="Muatan: jumlah koli, ecer, dan high value di titik ini"
+                                >
                                   <Package className="h-2.5 w-2.5" />
-                                  {photo.jumlah_koli > 0 && <span>{photo.jumlah_koli} koli</span>}
-                                  {photo.jumlah_ecer > 0 && <span>· {photo.jumlah_ecer} ecer</span>}
-                                  {photo.jumlah_high_value > 0 && <span>· {photo.jumlah_high_value} HV</span>}
+                                  {photo.jumlah_koli > 0 && (
+                                    <span>{photo.jumlah_koli} koli</span>
+                                  )}
+                                  {photo.jumlah_ecer > 0 && (
+                                    <span>· {photo.jumlah_ecer} ecer</span>
+                                  )}
+                                  {photo.jumlah_high_value > 0 && (
+                                    <span>· {photo.jumlah_high_value} HV</span>
+                                  )}
                                 </span>
                               )}
                               {photo.durasi_detik > 0 && (
-                                <span className="inline-flex items-center gap-0.5" title="Durasi: waktu yang dihabiskan di titik ini">
+                                <span
+                                  className="inline-flex items-center gap-0.5"
+                                  title="Durasi: waktu yang dihabiskan di titik ini"
+                                >
                                   <Timer className="h-2.5 w-2.5" />
                                   {formatDur(photo.durasi_detik)}
                                 </span>
                               )}
-                              <span className="text-slate-300 dark:text-slate-600" title="Status: jenis kegiatan di titik ini">
+                              <span
+                                className="text-slate-300 dark:text-slate-600"
+                                title="Status: jenis kegiatan di titik ini"
+                              >
                                 · {photo.status}
                               </span>
                             </div>
@@ -507,9 +649,15 @@ export default function ManifestFotoPage() {
         <div className="space-y-2">
           {driverGroups.map((g) => {
             const isCollapsed = !expandedDrivers.has(g.id_driver);
-            const totalDurasi = g.photos.reduce((sum, p) => sum + (p.durasi_detik || 0), 0);
+            const totalDurasi = g.photos.reduce(
+              (sum, p) => sum + (p.durasi_detik || 0),
+              0,
+            );
             return (
-              <div key={g.id_driver} className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+              <div
+                key={g.id_driver}
+                className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+              >
                 <button
                   onClick={() => toggleDriver(g.id_driver)}
                   className="flex w-full items-center justify-between gap-2 sm:gap-3 px-3 py-2.5 sm:px-4 sm:py-3 text-left hover:bg-slate-50/80 transition-colors dark:hover:bg-slate-800/50"
@@ -524,12 +672,20 @@ export default function ManifestFotoPage() {
                       {g.nama_driver.charAt(0)}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{g.nama_driver}</p>
-                      <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400">{g.nopol}</p>
+                      <p className="text-sm font-bold text-slate-800 dark:text-white truncate">
+                        {g.nama_driver}
+                      </p>
+                      <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                        {g.nopol}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <MuatanBadge koli={g.totalKoli} ecer={g.totalEcer} hv={g.totalHV} />
+                    <MuatanBadge
+                      koli={g.totalKoli}
+                      ecer={g.totalEcer}
+                      hv={g.totalHV}
+                    />
                     {totalDurasi > 0 && (
                       <span className="hidden lg:inline-flex items-center gap-1 text-[10px] font-medium text-slate-400 dark:text-slate-500">
                         <Timer className="h-3 w-3" />
@@ -562,20 +718,44 @@ export default function ManifestFotoPage() {
                             </p>
                             <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-400 dark:text-slate-500">
                               {/* Waktu realisasi dari created_at */}
-                              <span className="inline-flex items-center gap-0.5 font-semibold text-slate-600 dark:text-slate-300" title="Waktu realisasi: kapan foto diambil">
+                              <span
+                                className="inline-flex items-center gap-0.5 font-semibold text-slate-600 dark:text-slate-300"
+                                title="Waktu realisasi: kapan foto diambil"
+                              >
                                 <Clock className="h-2.5 w-2.5" />
-                                {new Date(photo.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                                {new Date(photo.created_at).toLocaleTimeString(
+                                  "id-ID",
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: false,
+                                  },
+                                )}
                               </span>
-                              {(photo.jumlah_koli > 0 || photo.jumlah_ecer > 0 || photo.jumlah_high_value > 0) && (
-                                <span className="inline-flex items-center gap-0.5" title="Muatan">
+                              {(photo.jumlah_koli > 0 ||
+                                photo.jumlah_ecer > 0 ||
+                                photo.jumlah_high_value > 0) && (
+                                <span
+                                  className="inline-flex items-center gap-0.5"
+                                  title="Muatan"
+                                >
                                   <Package className="h-2.5 w-2.5" />
-                                  {photo.jumlah_koli > 0 && <span>{photo.jumlah_koli} koli</span>}
-                                  {photo.jumlah_ecer > 0 && <span>· {photo.jumlah_ecer} ecer</span>}
-                                  {photo.jumlah_high_value > 0 && <span>· {photo.jumlah_high_value} HV</span>}
+                                  {photo.jumlah_koli > 0 && (
+                                    <span>{photo.jumlah_koli} koli</span>
+                                  )}
+                                  {photo.jumlah_ecer > 0 && (
+                                    <span>· {photo.jumlah_ecer} ecer</span>
+                                  )}
+                                  {photo.jumlah_high_value > 0 && (
+                                    <span>· {photo.jumlah_high_value} HV</span>
+                                  )}
                                 </span>
                               )}
                               {photo.durasi_detik > 0 && (
-                                <span className="inline-flex items-center gap-0.5" title="Durasi">
+                                <span
+                                  className="inline-flex items-center gap-0.5"
+                                  title="Durasi"
+                                >
                                   <Clock className="h-2.5 w-2.5" />
                                   {formatDur(photo.durasi_detik)}
                                 </span>
@@ -624,7 +804,7 @@ export default function ManifestFotoPage() {
                   </span>
                 </div>
                 <span className="absolute top-2 left-2 rounded bg-[#0c1e3a]/90 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs">
-                  Ritase #{photo.ritase_ke}
+                  Ritase {photo.ritase_ke}
                 </span>
                 <span className="absolute bottom-2 left-2 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-xs">
                   <Clock className="h-2.5 w-2.5" />
@@ -634,20 +814,30 @@ export default function ManifestFotoPage() {
               <div className="flex flex-1 flex-col p-3">
                 <div className="flex items-start gap-1.5 mb-1.5">
                   <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-rose-500" />
-                  <span className="text-xs font-bold text-slate-900 line-clamp-1 dark:text-white">{photo.nama_lokasi}</span>
+                  <span className="text-xs font-bold text-slate-900 line-clamp-1 dark:text-white">
+                    {photo.nama_lokasi}
+                  </span>
                 </div>
                 <div className="mb-2 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
                   <div className="flex items-center gap-1 truncate">
                     <User className="h-2.5 w-2.5 shrink-0" />
-                    <span className="truncate font-semibold">{photo.nama_driver}</span>
+                    <span className="truncate font-semibold">
+                      {photo.nama_driver}
+                    </span>
                   </div>
-                  <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 font-mono text-[9px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">{photo.nopol}</span>
+                  <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 font-mono text-[9px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                    {photo.nopol}
+                  </span>
                 </div>
                 <div className="mt-auto flex flex-wrap items-center gap-1 pt-2 border-t border-slate-100 dark:border-slate-800/80">
                   <span className="inline-flex items-center gap-0.5 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
                     📦 {photo.jumlah_koli} Koli
-                    {photo.jumlah_ecer > 0 && <span>· {photo.jumlah_ecer}E</span>}
-                    {photo.jumlah_high_value > 0 && <span>· {photo.jumlah_high_value}HV</span>}
+                    {photo.jumlah_ecer > 0 && (
+                      <span>· {photo.jumlah_ecer}E</span>
+                    )}
+                    {photo.jumlah_high_value > 0 && (
+                      <span>· {photo.jumlah_high_value}HV</span>
+                    )}
                   </span>
                   {photo.durasi_detik > 0 && (
                     <span className="inline-flex items-center gap-0.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
@@ -678,60 +868,100 @@ export default function ManifestFotoPage() {
                   <Camera className="h-3 w-3" />
                 </span>
                 <div className="min-w-0">
-                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">{selectedPhoto.nama_lokasi}</h3>
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
+                    {selectedPhoto.nama_lokasi}
+                  </h3>
                   <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                    {selectedPhoto.nama_driver} ({selectedPhoto.nopol}) • {formatDateTime(selectedPhoto.created_at)}
+                    {selectedPhoto.nama_driver} ({selectedPhoto.nopol}) •{" "}
+                    {formatDateTime(selectedPhoto.created_at)}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-0.5 sm:gap-1">
-                <button onClick={() => setZoomLevel((p) => Math.min(p + 0.25, 3))} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white" title="Zoom In">
+                <button
+                  onClick={() => setZoomLevel((p) => Math.min(p + 0.25, 3))}
+                  className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+                  title="Zoom In"
+                >
                   <ZoomIn className="h-4 w-4" />
                 </button>
-                <button onClick={() => setZoomLevel((p) => Math.max(p - 0.25, 0.75))} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white" title="Zoom Out">
+                <button
+                  onClick={() => setZoomLevel((p) => Math.max(p - 0.25, 0.75))}
+                  className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+                  title="Zoom Out"
+                >
                   <ZoomOut className="h-4 w-4" />
                 </button>
-                <button onClick={() => setRotation((p) => (p + 90) % 360)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white" title="Putar">
+                <button
+                  onClick={() => setRotation((p) => (p + 90) % 360)}
+                  className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+                  title="Putar"
+                >
                   <RotateCw className="h-4 w-4" />
                 </button>
-                <button onClick={() => handleDownload(selectedPhoto)} className="hidden sm:flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">
+                <button
+                  onClick={() => handleDownload(selectedPhoto)}
+                  className="hidden sm:flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+                >
                   <Download className="h-3.5 w-3.5" />
                   Unduh
                 </button>
-                <button onClick={() => handleDownload(selectedPhoto)} className="sm:hidden flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800" title="Unduh">
+                <button
+                  onClick={() => handleDownload(selectedPhoto)}
+                  className="sm:hidden flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
+                  title="Unduh"
+                >
                   <Download className="h-4 w-4" />
                 </button>
-                <button onClick={handleCloseModal} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200">
+                <button
+                  onClick={handleCloseModal}
+                  className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                >
                   <X className="h-4 w-4" />
                 </button>
               </div>
             </div>
-            <div className="relative flex min-h-[250px] sm:min-h-[350px] max-h-[65vh] sm:max-h-[60vh] flex-1 items-center justify-center overflow-auto bg-slate-950 p-2 sm:p-4">
-              <img
-                src={getFullPhotoUrl(selectedPhoto.foto_manifest_url)}
-                alt="Manifest Preview"
-                className="max-h-full max-w-full object-contain transition-transform duration-200"
-                style={{ transform: `scale(${zoomLevel}) rotate(${rotation}deg)` }}
-              />
-            </div>
+            <div className="relative flex-1 min-h-0 h-[65vh] sm:h-[60vh] overflow-auto bg-slate-100 dark:bg-slate-950 p-2 sm:p-4">
+  <img
+    src={getFullPhotoUrl(selectedPhoto.foto_manifest_url)}
+    alt="Manifest Preview"
+    className={cn(
+      "m-auto block object-contain transition-transform duration-200",
+      zoomLevel > 1 ? "max-w-none max-h-none" : "max-h-full max-w-full",
+    )}
+    style={{ transform: `scale(${zoomLevel}) rotate(${rotation}deg)` }}
+  />
+</div>
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50/80 px-3 py-2 sm:px-5 sm:py-2.5 text-xs dark:border-slate-800 dark:bg-slate-900/80">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="rounded bg-[#0c1e3a] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">{selectedPhoto.kode_ritase}</span>
-                <span className="font-semibold text-slate-600 dark:text-slate-400">#{selectedPhoto.ritase_ke}</span>
+                <span className="rounded bg-[#0c1e3a] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">
+                  {selectedPhoto.kode_ritase}
+                </span>
+                <span className="font-semibold text-slate-600 dark:text-slate-400">
+                  #{selectedPhoto.ritase_ke}
+                </span>
                 <span className="text-slate-300 dark:text-slate-700">·</span>
                 <span className="font-bold text-amber-700 dark:text-amber-400">
                   📦 {selectedPhoto.jumlah_koli} Koli
-                  {selectedPhoto.jumlah_ecer > 0 && ` · ${selectedPhoto.jumlah_ecer}E`}
-                  {selectedPhoto.jumlah_high_value > 0 && ` · ${selectedPhoto.jumlah_high_value}HV`}
+                  {selectedPhoto.jumlah_ecer > 0 &&
+                    ` · ${selectedPhoto.jumlah_ecer}E`}
+                  {selectedPhoto.jumlah_high_value > 0 &&
+                    ` · ${selectedPhoto.jumlah_high_value}HV`}
                 </span>
                 {selectedPhoto.durasi_detik > 0 && (
                   <>
-                    <span className="text-slate-300 dark:text-slate-700">·</span>
-                    <span className="font-bold text-blue-700 dark:text-blue-400">⏱ {formatDur(selectedPhoto.durasi_detik)}</span>
+                    <span className="text-slate-300 dark:text-slate-700">
+                      ·
+                    </span>
+                    <span className="font-bold text-blue-700 dark:text-blue-400">
+                      ⏱ {formatDur(selectedPhoto.durasi_detik)}
+                    </span>
                   </>
                 )}
               </div>
-              <div className="text-[10px] text-slate-400 dark:text-slate-500">{selectedPhoto.foto_manifest_url.split("/").pop()}</div>
+              <div className="text-[10px] text-slate-400 dark:text-slate-500">
+                {selectedPhoto.foto_manifest_url.split("/").pop()}
+              </div>
             </div>
           </div>
         </div>
@@ -742,7 +972,15 @@ export default function ManifestFotoPage() {
 
 /* ──────────── Small Components ──────────── */
 
-function DatePill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function DatePill({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}
@@ -758,7 +996,17 @@ function DatePill({ label, active, onClick }: { label: string; active: boolean; 
   );
 }
 
-function ViewBtn({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: React.ElementType; label: string }) {
+function ViewBtn({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ElementType;
+  label: string;
+}) {
   return (
     <button
       onClick={onClick}
@@ -775,14 +1023,30 @@ function ViewBtn({ active, onClick, icon: Icon, label }: { active: boolean; onCl
   );
 }
 
-function MuatanBadge({ koli, ecer, hv }: { koli: number; ecer: number; hv: number }) {
+function MuatanBadge({
+  koli,
+  ecer,
+  hv,
+}: {
+  koli: number;
+  ecer: number;
+  hv: number;
+}) {
   return (
     <span className="inline-flex items-center gap-1 rounded bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950/40 dark:border-amber-700/50 dark:text-amber-300">
       <Package className="h-3 w-3" />
       {koli} <span className="font-normal">Koli</span>
       <span className="hidden sm:inline">
-        {ecer > 0 && <span>· {ecer} <span className="font-normal">Ecer</span></span>}
-        {hv > 0 && <span>· {hv} <span className="font-normal">HV</span></span>}
+        {ecer > 0 && (
+          <span>
+            · {ecer} <span className="font-normal">Ecer</span>
+          </span>
+        )}
+        {hv > 0 && (
+          <span>
+            · {hv} <span className="font-normal">HV</span>
+          </span>
+        )}
       </span>
     </span>
   );
@@ -794,7 +1058,9 @@ function EmptyState() {
       <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
         <Camera className="h-7 w-7" />
       </div>
-      <h3 className="mt-4 text-sm font-bold text-slate-800 dark:text-slate-200">Belum Ada Foto Manifest</h3>
+      <h3 className="mt-4 text-sm font-bold text-slate-800 dark:text-slate-200">
+        Belum Ada Foto Manifest
+      </h3>
       <p className="mt-1 max-w-xs text-xs text-slate-500 dark:text-slate-400">
         Foto yang diambil oleh driver akan otomatis muncul di galeri ini.
       </p>
