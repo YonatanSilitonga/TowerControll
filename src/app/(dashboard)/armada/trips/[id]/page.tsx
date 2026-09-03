@@ -95,9 +95,12 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
   ].filter((p) => p.v > 0);
 
   const events = data.events ?? [];
-  const fmtTime = (iso?: string | null) => {
-    if (!iso) return null;
-    const d = new Date(iso);
+  const fmtTime = (val?: string | null) => {
+    if (!val) return null;
+    // Sudah HH:MM
+    if (/^\d{2}:\d{2}$/.test(val)) return val;
+    // ISO timestamp → convert UTC+7
+    const d = new Date(val.includes("T") ? val : val + "Z");
     if (Number.isNaN(d.getTime())) return null;
     const h = String((d.getUTCHours() + 7) % 24).padStart(2, "0");
     const m = String(d.getUTCMinutes()).padStart(2, "0");
