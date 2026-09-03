@@ -126,6 +126,10 @@ const STATUS_OPTIONS = [
   { value: "aktif",    label: "Aktif Bertugas" },
   { value: "nonaktif", label: "Nonaktif" },
 ];
+const JABATAN_OPTIONS = [
+  { value: "TRANSPORTER OUTGOING", label: "Transporter Outgoing" },
+  { value: "TRANSPORTER INCOMING", label: "Transporter Incoming" },
+];
 
 function CustomSelect({ value, onChange, options, placeholder, hasError }: {
   value: string; onChange: (v: string) => void;
@@ -216,7 +220,7 @@ function PasswordInput({ value, onChange, placeholder }: { value: string; onChan
 
 /* ─────────── INITIAL FORM STATE ─────────── */
 const INIT_FORM = {
-  nama_driver: "", no_hp: "", no_sim: "", jenis_sim: "B1", status_driver: "aktif",
+  nama_driver: "", no_hp: "", no_sim: "", jenis_sim: "B1", jabatan: "", status_driver: "aktif",
 };
 const INIT_AKUN = { username: "", password: "" };
 
@@ -314,6 +318,7 @@ export default function AdminDriversPage() {
       no_hp: row.no_hp ?? "",
       no_sim: row.no_sim ?? "",
       jenis_sim: row.jenis_sim ?? "B1",
+      jabatan: row.jabatan ?? "",
       status_driver: row.status_driver,
     });
     setFormErrors({});
@@ -609,6 +614,9 @@ export default function AdminDriversPage() {
 
           {/* ── Status ── */}
           <div className="sm:col-span-2"><SectionDivider label="Status Operasional" /></div>
+          <FieldWrapper label="Jabatan" hint="Transporter Outgoing / Incoming">
+            <CustomSelect value={form.jabatan} onChange={(v) => setField("jabatan", v)} options={JABATAN_OPTIONS} />
+          </FieldWrapper>
           <FieldWrapper label="Status Driver" required error={formErrors.status_driver}>
             <CustomSelect value={form.status_driver} onChange={(v) => setField("status_driver", v)} options={STATUS_OPTIONS} hasError={!!formErrors.status_driver} />
           </FieldWrapper>

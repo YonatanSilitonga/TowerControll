@@ -267,7 +267,7 @@ export default function AdminUsersPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailRow, setDetailRow] = useState<UserAdmin | null>(null);
 
-  const [form, setFormState] = useState({ username: "", password: "", name: "", role: "cs", karyawan_id: "" });
+  const [form, setFormState] = useState({ username: "", password: "", name: "", role: "driver", karyawan_id: "" });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [newPw, setNewPw] = useState("");
 
@@ -308,7 +308,7 @@ export default function AdminUsersPage() {
       await adminUser.create({ ...form, karyawan_id: form.karyawan_id ? Number(form.karyawan_id) : undefined });
       swal.success("User Baru Berhasil Dibuat");
       setCreateOpen(false);
-      setFormState({ username: "", password: "", name: "", role: "cs", karyawan_id: "" });
+      setFormState({ username: "", password: "", name: "", role: "driver", karyawan_id: "" });
       setFormErrors({});
       await refresh();
     } catch (err: any) { swal.error(err?.message || "Gagal membuat user"); }
@@ -353,7 +353,7 @@ export default function AdminUsersPage() {
         actions={
           <Button
             onClick={() => {
-              setFormState({ username: "", password: "", name: "", role: "cs", karyawan_id: "" });
+              setFormState({ username: "", password: "", name: "", role: "driver", karyawan_id: "" });
               setFormErrors({});
               setCreateOpen(true);
             }}

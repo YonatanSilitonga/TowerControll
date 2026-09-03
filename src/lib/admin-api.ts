@@ -64,6 +64,7 @@ export type DriverAdmin = {
   no_hp?: string;
   no_sim?: string;
   jenis_sim?: string;
+  jabatan?: string;
   status_driver: "aktif" | "nonaktif";
   created_at?: string;
   created_by?: number;
@@ -98,20 +99,7 @@ export const adminDriver = {
       setStorage("drivers", [newObj, ...list]);
       return { id_driver: newObj.id_driver };
     }
-    try { return await adminFetch<{ id_driver: number }>("/admin/drivers", { method: "POST", body: JSON.stringify(data) }); }
-    catch {
-      const list = getStorage("drivers", defaultDrivers);
-      const newObj: DriverAdmin = {
-        id_driver: Date.now(),
-        nama_driver: data.nama_driver || "Driver Baru",
-        no_hp: data.no_hp || "",
-        no_sim: data.no_sim || "",
-        jenis_sim: data.jenis_sim || "A",
-        status_driver: data.status_driver || "aktif",
-      };
-      setStorage("drivers", [newObj, ...list]);
-      return { id_driver: newObj.id_driver };
-    }
+    return await adminFetch<{ id_driver: number }>("/admin/drivers", { method: "POST", body: JSON.stringify(data) });
   },
   update: async (id: number, data: Partial<DriverAdmin>) => {
     if (isMock) {
@@ -120,13 +108,7 @@ export const adminDriver = {
       setStorage("drivers", updated);
       return { success: true };
     }
-    try { return await adminFetch<any>(`/admin/drivers/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
-    catch {
-      const list = getStorage("drivers", defaultDrivers);
-      const updated = list.map((item) => item.id_driver === id ? { ...item, ...data } : item);
-      setStorage("drivers", updated);
-      return { success: true };
-    }
+    return await adminFetch<any>(`/admin/drivers/${id}`, { method: "PUT", body: JSON.stringify(data) });
   },
   delete: async (id: number) => {
     if (isMock) {
@@ -135,13 +117,7 @@ export const adminDriver = {
       setStorage("drivers", updated);
       return { success: true };
     }
-    try { return await adminFetch<any>(`/admin/drivers/${id}`, { method: "DELETE" }); }
-    catch {
-      const list = getStorage("drivers", defaultDrivers);
-      const updated = list.map((item) => item.id_driver === id ? { ...item, status_driver: "nonaktif" as const } : item);
-      setStorage("drivers", updated);
-      return { success: true };
-    }
+    return await adminFetch<any>(`/admin/drivers/${id}`, { method: "DELETE" });
   },
 };
 
@@ -184,19 +160,7 @@ export const adminKendaraan = {
       setStorage("vehicles", [newObj, ...list]);
       return { id_kendaraan: newObj.id_kendaraan };
     }
-    try { return await adminFetch<{ id_kendaraan: number }>("/admin/vehicles", { method: "POST", body: JSON.stringify(data) }); }
-    catch {
-      const list = getStorage("vehicles", defaultVehicles);
-      const newObj: KendaraanAdmin = {
-        id_kendaraan: Date.now(),
-        plat_nomor: (data.plat_nomor || "B 0000 XX").toUpperCase(),
-        jenis_kendaraan: data.jenis_kendaraan || "Truk Box 6m",
-        kapasitas_kg: data.kapasitas_kg || 5000,
-        status_kendaraan: data.status_kendaraan || "aktif",
-      };
-      setStorage("vehicles", [newObj, ...list]);
-      return { id_kendaraan: newObj.id_kendaraan };
-    }
+    return await adminFetch<{ id_kendaraan: number }>("/admin/vehicles", { method: "POST", body: JSON.stringify(data) });
   },
   update: async (id: number, data: Partial<KendaraanAdmin>) => {
     if (isMock) {
@@ -205,13 +169,7 @@ export const adminKendaraan = {
       setStorage("vehicles", updated);
       return { success: true };
     }
-    try { return await adminFetch<any>(`/admin/vehicles/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
-    catch {
-      const list = getStorage("vehicles", defaultVehicles);
-      const updated = list.map((item) => item.id_kendaraan === id ? { ...item, ...data } : item);
-      setStorage("vehicles", updated);
-      return { success: true };
-    }
+    return await adminFetch<any>(`/admin/vehicles/${id}`, { method: "PUT", body: JSON.stringify(data) });
   },
   delete: async (id: number) => {
     if (isMock) {
@@ -220,13 +178,7 @@ export const adminKendaraan = {
       setStorage("vehicles", updated);
       return { success: true };
     }
-    try { return await adminFetch<any>(`/admin/vehicles/${id}`, { method: "DELETE" }); }
-    catch {
-      const list = getStorage("vehicles", defaultVehicles);
-      const updated = list.map((item) => item.id_kendaraan === id ? { ...item, status_kendaraan: "nonaktif" as const } : item);
-      setStorage("vehicles", updated);
-      return { success: true };
-    }
+    return await adminFetch<any>(`/admin/vehicles/${id}`, { method: "DELETE" });
   },
 };
 
@@ -283,11 +235,7 @@ export const adminSeller = {
       setStorage("sellers", [newObj, ...list]);
       return { id_seller: newObj.id_seller };
     }
-    try { return await adminFetch<{ id_seller: number }>("/admin/sellers", { method: "POST", body: JSON.stringify({ ...data, kode_seller: generatedKode }) }); }
-    catch {
-      setStorage("sellers", [newObj, ...list]);
-      return { id_seller: newObj.id_seller };
-    }
+    return await adminFetch<{ id_seller: number }>("/admin/sellers", { method: "POST", body: JSON.stringify({ ...data, kode_seller: generatedKode }) });
   },
   update: async (id: number, data: Partial<SellerAdmin>) => {
     if (isMock) {
@@ -296,13 +244,7 @@ export const adminSeller = {
       setStorage("sellers", updated);
       return { success: true };
     }
-    try { return await adminFetch<any>(`/admin/sellers/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
-    catch {
-      const list = getStorage("sellers", defaultSellers);
-      const updated = list.map((item) => item.id_seller === id ? { ...item, ...data } : item);
-      setStorage("sellers", updated);
-      return { success: true };
-    }
+    return await adminFetch<any>(`/admin/sellers/${id}`, { method: "PUT", body: JSON.stringify(data) });
   },
   delete: async (id: number) => {
     if (isMock) {
@@ -311,13 +253,7 @@ export const adminSeller = {
       setStorage("sellers", updated);
       return { success: true };
     }
-    try { return await adminFetch<any>(`/admin/sellers/${id}`, { method: "DELETE" }); }
-    catch {
-      const list = getStorage("sellers", defaultSellers);
-      const updated = list.map((item) => item.id_seller === id ? { ...item, status: "nonaktif" as const } : item);
-      setStorage("sellers", updated);
-      return { success: true };
-    }
+    return await adminFetch<any>(`/admin/sellers/${id}`, { method: "DELETE" });
   },
 };
 
@@ -361,11 +297,7 @@ export const adminDropPoint = {
       setStorage("dropPoints", [newObj, ...list]);
       return { id_drop_point: newObj.id_drop_point };
     }
-    try { return await adminFetch<{ id_drop_point: number }>("/admin/drop-points", { method: "POST", body: JSON.stringify(data) }); }
-    catch {
-      setStorage("dropPoints", [newObj, ...list]);
-      return { id_drop_point: newObj.id_drop_point };
-    }
+    return await adminFetch<{ id_drop_point: number }>("/admin/drop-points", { method: "POST", body: JSON.stringify(data) });
   },
   update: async (id: number, data: Partial<DropPointAdmin>) => {
     if (isMock) {
@@ -374,13 +306,7 @@ export const adminDropPoint = {
       setStorage("dropPoints", updated);
       return { success: true };
     }
-    try { return await adminFetch<any>(`/admin/drop-points/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
-    catch {
-      const list = getStorage("dropPoints", defaultDropPoints);
-      const updated = list.map((item) => item.id_drop_point === id ? { ...item, ...data } : item);
-      setStorage("dropPoints", updated);
-      return { success: true };
-    }
+    return await adminFetch<any>(`/admin/drop-points/${id}`, { method: "PUT", body: JSON.stringify(data) });
   },
   delete: async (id: number) => {
     if (isMock) {
@@ -389,13 +315,7 @@ export const adminDropPoint = {
       setStorage("dropPoints", updated);
       return { success: true };
     }
-    try { return await adminFetch<any>(`/admin/drop-points/${id}`, { method: "DELETE" }); }
-    catch {
-      const list = getStorage("dropPoints", defaultDropPoints);
-      const updated = list.map((item) => item.id_drop_point === id ? { ...item, status: "nonaktif" as const } : item);
-      setStorage("dropPoints", updated);
-      return { success: true };
-    }
+    return await adminFetch<any>(`/admin/drop-points/${id}`, { method: "DELETE" });
   },
 };
 
@@ -442,11 +362,7 @@ export const adminUser = {
       setStorage("users", [newObj, ...list]);
       return { id_user: newObj.id_user };
     }
-    try { return await adminFetch<{ id_user: number }>("/admin/users", { method: "POST", body: JSON.stringify(data) }); }
-    catch {
-      setStorage("users", [newObj, ...list]);
-      return { id_user: newObj.id_user };
-    }
+    return await adminFetch<{ id_user: number }>("/admin/users", { method: "POST", body: JSON.stringify(data) });
   },
   updateRole: async (id: number, role: string) => {
     if (isMock) {
@@ -455,13 +371,7 @@ export const adminUser = {
       setStorage("users", updated);
       return { success: true };
     }
-    try { return await adminFetch<any>(`/admin/users/${id}/role`, { method: "PUT", body: JSON.stringify({ role }) }); }
-    catch {
-      const list = getStorage("users", defaultUsers);
-      const updated = list.map((item) => item.id_user === id ? { ...item, role } : item);
-      setStorage("users", updated);
-      return { success: true };
-    }
+    return await adminFetch<any>(`/admin/users/${id}/role`, { method: "PUT", body: JSON.stringify({ role }) });
   },
   updateStatus: async (id: number, status: string) => {
     if (isMock) {
@@ -470,18 +380,11 @@ export const adminUser = {
       setStorage("users", updated);
       return { success: true };
     }
-    try { return await adminFetch<any>(`/admin/users/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }); }
-    catch {
-      const list = getStorage("users", defaultUsers);
-      const updated = list.map((item) => item.id_user === id ? { ...item, status } : item);
-      setStorage("users", updated);
-      return { success: true };
-    }
+    return await adminFetch<any>(`/admin/users/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) });
   },
   resetPassword: async (id: number, newPassword: string) => {
     if (isMock) return { success: true };
-    try { return await adminFetch<any>(`/admin/users/${id}/reset-password`, { method: "POST", body: JSON.stringify({ new_password: newPassword }) }); }
-    catch { return { success: true }; }
+    return await adminFetch<any>(`/admin/users/${id}/reset-password`, { method: "POST", body: JSON.stringify({ new_password: newPassword }) });
   },
   delete: async (id: number) => {
     if (isMock) {
@@ -490,13 +393,7 @@ export const adminUser = {
       setStorage("users", updated);
       return { success: true };
     }
-    try { return await adminFetch<any>(`/admin/users/${id}`, { method: "DELETE" }); }
-    catch {
-      const list = getStorage("users", defaultUsers);
-      const updated = list.map((item) => item.id_user === id ? { ...item, is_active: false } : item);
-      setStorage("users", updated);
-      return { success: true };
-    }
+    return await adminFetch<any>(`/admin/users/${id}`, { method: "DELETE" });
   },
 };
 
@@ -554,11 +451,7 @@ export const adminRitase = {
       setStorage("ritase", [newObj, ...list]);
       return { id_ritase: newObj.id_ritase };
     }
-    try { return await adminFetch<{ id_ritase: number }>("/admin/ritase", { method: "POST", body: JSON.stringify({ ...data, kode_ritase: generatedKode }) }); }
-    catch {
-      setStorage("ritase", [newObj, ...list]);
-      return { id_ritase: newObj.id_ritase };
-    }
+    return await adminFetch<{ id_ritase: number }>("/admin/ritase", { method: "POST", body: JSON.stringify({ ...data, kode_ritase: generatedKode }) });
   },
   update: async (id: number, data: Partial<RitaseAdmin>) => {
     if (isMock) {
@@ -567,13 +460,7 @@ export const adminRitase = {
       setStorage("ritase", updated);
       return { success: true };
     }
-    try { return await adminFetch<any>(`/admin/ritase/${id}`, { method: "PUT", body: JSON.stringify(data) }); }
-    catch {
-      const list = getStorage("ritase", defaultRitase);
-      const updated = list.map((item) => item.id_ritase === id ? { ...item, ...data } : item);
-      setStorage("ritase", updated);
-      return { success: true };
-    }
+    return await adminFetch<any>(`/admin/ritase/${id}`, { method: "PUT", body: JSON.stringify(data) });
   },
   delete: async (id: number) => {
     if (isMock) {
@@ -582,12 +469,6 @@ export const adminRitase = {
       setStorage("ritase", updated);
       return { success: true };
     }
-    try { return await adminFetch<any>(`/admin/ritase/${id}`, { method: "DELETE" }); }
-    catch {
-      const list = getStorage("ritase", defaultRitase);
-      const updated = list.map((item) => item.id_ritase === id ? { ...item, status: "Batal" as const } : item);
-      setStorage("ritase", updated);
-      return { success: true };
-    }
+    return await adminFetch<any>(`/admin/ritase/${id}`, { method: "DELETE" });
   },
 };
