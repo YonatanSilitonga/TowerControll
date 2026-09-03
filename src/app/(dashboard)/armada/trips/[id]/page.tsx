@@ -108,8 +108,8 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
   const evBerangkat = evSorted.find((e) => e.status?.includes("berangkat") || e.status?.includes("mulai_loading"));
   const evTiba = [...evSorted].reverse().find((e) => e.status?.includes("tiba") || e.status?.includes("selesai") || e.status?.includes("sampai"));
 
-  const realisasiBerangkat = data.jam_berangkat || fmtTime(evBerangkat?.created_at);
-  const realisasiTiba = data.jam_tiba || fmtTime(evTiba?.created_at);
+  const realisasiBerangkat = fmtTime(data.jam_berangkat) || fmtTime(evBerangkat?.created_at);
+  const realisasiTiba = fmtTime(data.jam_tiba) || fmtTime(evTiba?.created_at);
 
   return (
     <div className="space-y-3">
@@ -286,8 +286,8 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
                       <span className="text-slate-600 dark:text-slate-300">
                         {formatAuditTime(data.created_at)}
                       </span>
-                      {data.created_by && (
-                        <span className="ml-1 text-slate-400">oleh #{data.created_by}</span>
+                      {data.created_by_name && (
+                        <span className="ml-1 text-slate-400">oleh {data.created_by_name}</span>
                       )}
                     </div>
                   </div>
@@ -298,8 +298,8 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
                         <span className="text-slate-600 dark:text-slate-300">
                           {formatAuditTime(data.updated_at)}
                         </span>
-                        {data.updated_by && (
-                          <span className="ml-1 text-slate-400">oleh #{data.updated_by}</span>
+                        {data.updated_by_name && (
+                          <span className="ml-1 text-slate-400">oleh {data.updated_by_name}</span>
                         )}
                       </div>
                     </div>

@@ -150,6 +150,17 @@ export default function EfektivitasArmadaPage() {
   const [showEvaluationModal, setShowEvaluationModal] = useState<boolean>(false);
   const [evaluationFilter, setEvaluationFilter] = useState<"all" | "under" | "overload">("all");
 
+  /** Format jam tanpa detik. Handle both HH:MM string dan ISO timestamp. */
+  const fmtTime = (val?: string | null) => {
+    if (!val) return null;
+    if (/^\d{2}:\d{2}$/.test(val)) return val;
+    const d = new Date(val.includes("T") ? val : val + "Z");
+    if (Number.isNaN(d.getTime())) return null;
+    const h = String((d.getUTCHours() + 7) % 24).padStart(2, "0");
+    const m = String(d.getUTCMinutes()).padStart(2, "0");
+    return `${h}:${m}`;
+  };
+
   const handlePreset = (days: number) => {
     setSelectedPreset(days);
     if (days === 0) {
@@ -1002,7 +1013,7 @@ export default function EfektivitasArmadaPage() {
                           <div>
                             <p className="text-[10px] text-slate-400">Jam Berangkat - Tiba</p>
                             <p className="font-semibold text-slate-800 font-mono text-[11px]">
-                              {trip.jam_berangkat || "-"} s/d {trip.jam_tiba || "-"}
+                              {fmtTime(trip.jam_berangkat) || "-"} s/d {fmtTime(trip.jam_tiba) || "-"}
                             </p>
                           </div>
                         </div>

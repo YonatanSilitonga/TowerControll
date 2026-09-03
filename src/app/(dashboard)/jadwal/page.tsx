@@ -45,8 +45,12 @@ import { KPICard } from "@/components/ui/kpi-card";
 import { GAPS } from "@/lib/design-tokens";
 import { ApiError } from "@/types/api";
 import type { AdminRitaseItem, AdminRitaseStop } from "@/types/armada";
+import { useAuthStore } from "@/stores/auth-store";
 
 export default function JadwalPage() {
+  const currentUser = useAuthStore((s) => s.user);
+  const isWhisnu = currentUser?.username?.toLowerCase() === "whisnu";
+
   const getNDaysAgo = (n: number) => {
     const d = new Date();
     d.setDate(d.getDate() - n);
@@ -57,6 +61,19 @@ export default function JadwalPage() {
       month: "2-digit",
       day: "2-digit",
     }).format(d);
+  };
+
+  /** Format jam tanpa detik. Handle both HH:MM string dan ISO timestamp. */
+  const fmtTime = (val?: string | null) => {
+    if (!val) return null;
+    // Sudah HH:MM
+    if (/^\d{2}:\d{2}$/.test(val)) return val;
+    // ISO timestamp → convert UTC+7
+    const d = new Date(val.includes("T") ? val : val + "Z");
+    if (Number.isNaN(d.getTime())) return null;
+    const h = String((d.getUTCHours() + 7) % 24).padStart(2, "0");
+    const m = String(d.getUTCMinutes()).padStart(2, "0");
+    return `${h}:${m}`;
   };
 
   const todayStr = getNDaysAgo(0);
@@ -614,16 +631,17 @@ const askCancelGenerate = async () => {
     updateMutation.mutate(
       {
         idRitase: editingRitase.id_ritase,
-        data: isBerjalan
-          ? { stops: reindexedStops }
-          : {
-              id_driver: editingRitase.id_driver,
-              id_kendaraan: editingRitase.id_kendaraan,
-              id_drop_point: editingRitase.id_drop_point,
-              ritase_ke: editingRitase.ritase_ke,
-              status: editingRitase.status,
-              stops: reindexedStops,
-            },
+        data:
+          isBerjalan && !isWhisnu
+            ? { stops: reindexedStops }
+            : {
+                id_driver: editingRitase.id_driver,
+                id_kendaraan: editingRitase.id_kendaraan,
+                id_drop_point: editingRitase.id_drop_point,
+                ritase_ke: editingRitase.ritase_ke,
+                status: editingRitase.status,
+                stops: reindexedStops,
+              },
       },
       {
         onSuccess: () => {
@@ -1282,13 +1300,13 @@ const askCancelGenerate = async () => {
                           {r.jam_berangkat && (
                             <span className="font-semibold text-slate-700 dark:text-slate-300">
                               {" "}
-                              → {r.jam_berangkat}
+                              → {fmtTime(r.jam_berangkat)}
                             </span>
                           )}
                           {r.jam_tiba && (
                             <span className="font-semibold text-slate-700 dark:text-slate-300">
                               {" "}
-                              → {r.jam_tiba}
+                              → {fmtTime(r.jam_tiba)}
                             </span>
                           )}
                         </span>
@@ -1331,12 +1349,13 @@ const askCancelGenerate = async () => {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    {/* Action Edit — direncanakan (belum expired) & berjalan saja */}
-                    {r.status !== "selesai" &&
-                      !(
-                        r.status === "direncanakan" &&
-                        isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai)
-                      ) && (
+                    {/* Action Edit — direncanakan (belum expired) & berjalan saja (KECUALI whisnu/admin yang selalu bisa edit) */}
+                    {(isWhisnu ||
+                      (r.status !== "selesai" &&
+                        !(
+                          r.status === "direncanakan" &&
+                          isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai)
+                        ))) && (
                         <button
                           type="button"
                           onClick={() => {
@@ -1350,9 +1369,10 @@ const askCancelGenerate = async () => {
                         </button>
                       )}
 
-                    {/* Delete action — direncanakan saja (belum expired) */}
-                    {r.status === "direncanakan" &&
-                      !isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai) && (
+                    {/* Delete action — direncanakan saja (belum expired) (KECUALI whisnu/admin yang selalu bisa hapus) */}
+                    {(isWhisnu ||
+                      (r.status === "direncanakan" &&
+                        !isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai))) && (
                         <button
                           type="button"
                           onClick={() =>
@@ -1445,8 +1465,8 @@ const askCancelGenerate = async () => {
                       <span className="font-medium text-slate-500">
                         {formatAuditTime(r.created_at)}
                       </span>
-                      {r.created_by && (
-                        <span className="ml-0.5">#{r.created_by}</span>
+                      {r.created_by_name && (
+                        <span className="ml-0.5">oleh {r.created_by_name}</span>
                       )}
                     </span>
                   )}
@@ -1458,8 +1478,8 @@ const askCancelGenerate = async () => {
                       <span className="font-medium text-slate-500">
                         {formatAuditTime(r.updated_at)}
                       </span>
-                      {r.updated_by && (
-                        <span className="ml-0.5">#{r.updated_by}</span>
+                      {r.updated_by_name && (
+                        <span className="ml-0.5">oleh {r.updated_by_name}</span>
                       )}
                     </span>
                   </div>
@@ -2279,12 +2299,20 @@ const askCancelGenerate = async () => {
               onSubmit={handleSaveEdit}
               className="flex-1 overflow-y-auto mt-4 space-y-5 pr-1"
             >
-              {editingRitase.status === "berjalan" && (
+              {editingRitase.status === "berjalan" && !isWhisnu && (
                 <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-800 dark:bg-amber-950/40">
                   <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
                   <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
                     Ritase sedang berjalan. Hanya perhentian (stops) yang bisa
                     diubah.
+                  </p>
+                </div>
+              )}
+              {isWhisnu && (
+                <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-800 dark:bg-blue-950/40">
+                  <Zap className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                  <p className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                    <span className="font-bold">Akses Khusus (Whisnu):</span> Anda dapat mengubah status (misal: selesai kembali ke direncanakan), driver, armada, dan rute secara leluasa.
                   </p>
                 </div>
               )}
@@ -2295,7 +2323,7 @@ const askCancelGenerate = async () => {
                   </label>
                   <select
                     value={editingRitase.id_driver}
-                    disabled={editingRitase.status === "berjalan"}
+                    disabled={!isWhisnu && editingRitase.status === "berjalan"}
                     onChange={(e) =>
                       setEditingRitase({
                         ...editingRitase,
@@ -2326,7 +2354,7 @@ const askCancelGenerate = async () => {
                   </label>
                   <select
                     value={editingRitase.id_kendaraan}
-                    disabled={editingRitase.status === "berjalan"}
+                    disabled={!isWhisnu && editingRitase.status === "berjalan"}
                     onChange={(e) =>
                       setEditingRitase({
                         ...editingRitase,
@@ -2355,11 +2383,11 @@ const askCancelGenerate = async () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Status Perjalanan
+                    Status Perjalanan {isWhisnu && <span className="text-blue-600 dark:text-blue-400 font-semibold">(Bisa Diedit)</span>}
                   </label>
                   <select
                     value={editingRitase.status}
-                    disabled
+                    disabled={!isWhisnu}
                     onChange={(e) =>
                       setEditingRitase({
                         ...editingRitase,
@@ -2381,7 +2409,7 @@ const askCancelGenerate = async () => {
                   <input
                     type="number"
                     value={editingRitase.ritase_ke}
-                    disabled={editingRitase.status === "berjalan"}
+                    disabled={!isWhisnu && editingRitase.status === "berjalan"}
                     onChange={(e) =>
                       setEditingRitase({
                         ...editingRitase,
@@ -2562,8 +2590,8 @@ const askCancelGenerate = async () => {
                       <span className="w-20 shrink-0 font-semibold text-slate-400">Dibuat</span>
                       <span>
                         {formatAuditTime(editingRitase.created_at)}
-                        {editingRitase.created_by && (
-                          <span className="ml-1 text-slate-400">oleh #{editingRitase.created_by}</span>
+                        {editingRitase.created_by_name && (
+                          <span className="ml-1 text-slate-400">oleh {editingRitase.created_by_name}</span>
                         )}
                       </span>
                     </div>
@@ -2572,8 +2600,8 @@ const askCancelGenerate = async () => {
                         <span className="w-20 shrink-0 font-semibold text-slate-400">Diubah</span>
                         <span>
                           {formatAuditTime(editingRitase.updated_at)}
-                          {editingRitase.updated_by && (
-                            <span className="ml-1 text-slate-400">oleh #{editingRitase.updated_by}</span>
+                          {editingRitase.updated_by_name && (
+                            <span className="ml-1 text-slate-400">oleh {editingRitase.updated_by_name}</span>
                           )}
                         </span>
                       </div>

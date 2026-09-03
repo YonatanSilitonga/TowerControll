@@ -267,7 +267,7 @@ export default function AdminUsersPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailRow, setDetailRow] = useState<UserAdmin | null>(null);
 
-  const [form, setFormState] = useState({ username: "", password: "", name: "", role: "cs", karyawan_id: "" });
+  const [form, setFormState] = useState({ username: "", password: "", name: "", role: "driver", id_driver: "" });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [newPw, setNewPw] = useState("");
 
@@ -305,10 +305,10 @@ export default function AdminUsersPage() {
     if (!validateCreate()) return;
     setSaving(true);
     try {
-      await adminUser.create({ ...form, karyawan_id: form.karyawan_id ? Number(form.karyawan_id) : undefined });
+      await adminUser.create({ ...form, id_driver: form.id_driver ? Number(form.id_driver) : undefined });
       swal.success("User Baru Berhasil Dibuat");
       setCreateOpen(false);
-      setFormState({ username: "", password: "", name: "", role: "cs", karyawan_id: "" });
+      setFormState({ username: "", password: "", name: "", role: "driver", id_driver: "" });
       setFormErrors({});
       await refresh();
     } catch (err: any) { swal.error(err?.message || "Gagal membuat user"); }
@@ -353,7 +353,7 @@ export default function AdminUsersPage() {
         actions={
           <Button
             onClick={() => {
-              setFormState({ username: "", password: "", name: "", role: "cs", karyawan_id: "" });
+              setFormState({ username: "", password: "", name: "", role: "driver", id_driver: "" });
               setFormErrors({});
               setCreateOpen(true);
             }}
@@ -453,7 +453,7 @@ export default function AdminUsersPage() {
                 <th className="px-4 py-2.5">Username</th>
                 <th className="px-4 py-2.5">Nama Lengkap</th>
                 <th className="w-44 px-4 py-2.5">Role</th>
-                <th className="w-28 px-4 py-2.5 text-right">Karyawan ID</th>
+                <th className="w-28 px-4 py-2.5 text-right">Driver ID</th>
                 <th className="w-24 px-4 py-2.5">Status</th>
                 <th className="w-28 px-4 py-2.5 text-right">Aksi</th>
               </tr>
@@ -495,7 +495,7 @@ export default function AdminUsersPage() {
                         {ROLE_OPTIONS.find((o) => o.value === row.role)?.label ?? row.role}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-xs tabular-nums text-slate-500">{row.karyawan_id ?? "—"}</td>
+                    <td className="px-4 py-3 text-right font-mono text-xs tabular-nums text-slate-500">{row.id_driver ?? "—"}</td>
                     <td className="px-4 py-3"><StatusBadge status={row.status} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
@@ -604,12 +604,12 @@ export default function AdminUsersPage() {
                 className={cn("h-11 rounded-lg text-sm", formErrors.name && "border-rose-400 bg-rose-50/50 focus:border-rose-500 dark:bg-rose-500/5")}
               />
             </FieldWrapper>
-            <FieldWrapper label="Karyawan ID" hint="Opsional — hubungkan ke ID karyawan">
+            <FieldWrapper label="Driver ID" hint="Opsional — hubungkan ke ID driver">
               <Input
                 type="number"
-                value={form.karyawan_id}
-                onChange={(e) => setField("karyawan_id", e.target.value)}
-                placeholder="cth: 101"
+                value={form.id_driver}
+                onChange={(e) => setField("id_driver", e.target.value)}
+                placeholder="cth: 1"
                 className="h-11 rounded-lg text-sm"
               />
             </FieldWrapper>
@@ -709,7 +709,7 @@ export default function AdminUsersPage() {
                   </span>
                 ),
               },
-              { label: "ID Karyawan", value: detailRow.karyawan_id ?? "—" },
+              { label: "ID Driver", value: detailRow.id_driver ?? "—" },
               {
                 label: "Status",
                 value: (

@@ -198,7 +198,15 @@ export function StatusTimeline({
       if (idx < names.length) titik = names[idx];
       else titik = ev.nama_lokasi || "";
     } else {
-      titik = ev.nama_lokasi || "";
+      // Path B (no stops): derive lokasi "Tiba" dari event "menuju" sebelumnya
+      if (isTiba) {
+        const prevMenuju = cleaned.slice(0, i).reverse().find((e2) =>
+          e2.status?.toLowerCase().includes("menuju") || e2.status?.toLowerCase().includes("berangkat")
+        );
+        titik = prevMenuju?.nama_lokasi || ev.nama_lokasi || "";
+      } else {
+        titik = ev.nama_lokasi || "";
+      }
     }
     if (isTiba) arrived += 1;
 
