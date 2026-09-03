@@ -63,6 +63,19 @@ export default function JadwalPage() {
     }).format(d);
   };
 
+  /** Format jam tanpa detik. Handle both HH:MM string dan ISO timestamp. */
+  const fmtTime = (val?: string | null) => {
+    if (!val) return null;
+    // Sudah HH:MM
+    if (/^\d{2}:\d{2}$/.test(val)) return val;
+    // ISO timestamp → convert UTC+7
+    const d = new Date(val.includes("T") ? val : val + "Z");
+    if (Number.isNaN(d.getTime())) return null;
+    const h = String((d.getUTCHours() + 7) % 24).padStart(2, "0");
+    const m = String(d.getUTCMinutes()).padStart(2, "0");
+    return `${h}:${m}`;
+  };
+
   const todayStr = getNDaysAgo(0);
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const isDatePast = selectedDate < todayStr;
@@ -1268,13 +1281,13 @@ const askCancelGenerate = async () => {
                           {r.jam_berangkat && (
                             <span className="font-semibold text-slate-700 dark:text-slate-300">
                               {" "}
-                              → {r.jam_berangkat}
+                              → {fmtTime(r.jam_berangkat)}
                             </span>
                           )}
                           {r.jam_tiba && (
                             <span className="font-semibold text-slate-700 dark:text-slate-300">
                               {" "}
-                              → {r.jam_tiba}
+                              → {fmtTime(r.jam_tiba)}
                             </span>
                           )}
                         </span>
