@@ -49,12 +49,6 @@ export default function RitasePage() {
     ];
   }, [data]);
 
-  // ── Helper: derive jenis dari jabatan driver ──
-  const getJenis = (r: Ritase) => {
-    const jabatan = (r.jabatan_driver ?? "").toLowerCase();
-    return jabatan.includes("incoming") ? "incoming" : "outgoing";
-  };
-
   // ── Filter logic ──
   const rows = useMemo(
     () =>
@@ -70,7 +64,7 @@ export default function RitasePage() {
         })
         .filter((r) => !tanggal || r.tanggal === tanggal)
         .filter((r) => statusFilter === "all" || r.status === statusFilter)
-        .filter((r) => jenisFilter === "all" || getJenis(r) === jenisFilter)
+        .filter((r) => jenisFilter === "all" || (r.jenis_ritase ?? "outgoing") === jenisFilter)
         .filter((r) => driverFilter === "all" || r.nama_driver === driverFilter)
         .filter((r) => dropPointFilter === "all" || r.nama_drop_point === dropPointFilter),
     [data, searchQuery, tanggal, statusFilter, jenisFilter, driverFilter, dropPointFilter],
