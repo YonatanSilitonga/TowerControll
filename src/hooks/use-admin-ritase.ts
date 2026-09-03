@@ -101,6 +101,7 @@ export function useCreateRitase() {
       id_kendaraan: number;
       id_drop_point: number;
       ritase_ke: number;
+      jenis_ritase?: string;
       jam_mulai?: string;
       jam_selesai?: string;
       stops: any[];
