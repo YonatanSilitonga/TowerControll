@@ -42,3 +42,16 @@ export function useDashboardAnalisis() {
     refetchInterval: FALLBACK_POLL_MS,
   });
 }
+
+/** Riwayat alert untuk satu ritase. */
+export function useAlertsByRitase(idRitase: number | null) {
+  const token = useAuthStore((s) => s.token);
+
+  return useQuery({
+    queryKey: ["alert-ritase", idRitase],
+    queryFn: () => get<import("@/types/dashboard").AlertAnomali[]>(`/dashboard/alerts/ritase/${idRitase}`, { token }),
+    enabled: !!token && !!idRitase,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+}

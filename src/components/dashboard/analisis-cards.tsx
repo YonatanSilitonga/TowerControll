@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, ArrowRight, BellRing, Info, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, BellRing, CheckCircle, Info, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoTip } from "@/components/ui/info-tip";
 import { cn, formatDateTime, formatNumber } from "@/lib/utils";
@@ -12,6 +12,7 @@ import type { AlertAnomali, Bottleneck } from "@/types/dashboard";
 const KATEGORI_LABEL: Record<string, string> = {
   kendaraan_berhenti: "Kendaraan berhenti",
   perjalanan_terlalu_lama: "Perjalanan terlalu lama",
+  menuju_berhenti_lama: "Perjalanan terhenti di jalan",
 };
 
 const TINGKAT_LABEL: Record<string, string> = {
@@ -232,8 +233,27 @@ export function BottleneckCard({
 
 /* ---------- Alert Card (klik → detail) ---------- */
 
-export function AlertCard({ alerts, limit = 5 }: { alerts: AlertAnomali[]; limit?: number }) {
+export function AlertCard({ alerts, limit = 5, onResolve }: { alerts: AlertAnomali[]; limit?: number; onResolve?: (id: number) => void }) {
   const [selected, setSelected] = useState<AlertAnomali | null>(null);
+  const [resolving, setResolving] = useState(false);
+
+  const handleResolve = async () => {
+    if (!selected?.id_alert || resolving) return;
+    setResolving(true);
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/dashboard/alerts/${selected.id_alert}/resolve`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        onResolve?.(selected.id_alert);
+        setSelected(null);
+      }
+    } finally {
+      setResolving(false);
+    }
+  };
 
   return (
     <Card className="rounded-lg border-slate-200">
@@ -304,6 +324,18 @@ export function AlertCard({ alerts, limit = 5 }: { alerts: AlertAnomali[]; limit
             </p>
           )}
           <RekomendasiBox text={selected.rekomendasi} />
+
+          {selected.id_alert && !selected.is_resolved && (
+            <button
+              type="button"
+              onClick={handleResolve}
+              disabled={resolving}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+            >
+              <CheckCircle className="h-3.5 w-3.5" />
+              {resolving ? "Memproses..." : "Anggap Normal"}
+            </button>
+          )}
         </DetailModal>
       )}
     </Card>

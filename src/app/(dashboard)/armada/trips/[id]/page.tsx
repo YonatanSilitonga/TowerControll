@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { Clock, MapPin, RadioTower, Timer, Truck, User } from "lucide-react";
+import { BellRing, Clock, MapPin, RadioTower, Timer, Truck, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/layout/page-header";
@@ -19,7 +19,8 @@ const TripMap = dynamic(() => import("@/components/armada/trip-map").then(m => m
 import { DriverSummary, summarizeEvents } from "@/components/armada/driver-summary";
 import { StatusTimeline, dedupEvents } from "@/components/armada/status-timeline";
 import { InfoTip } from "@/components/ui/info-tip";
-import { useRitaseDetail } from "@/hooks/use-armada";
+import { useRitaseDetail, useGpsHistory } from "@/hooks/use-armada";
+import { useAlertsByRitase } from "@/hooks/use-dashboard";
 import { useTrackingMap } from "@/hooks/use-tracking";
 import { displayTrackingStatus, isRitaseExpired, isStale, statusLabel } from "@/lib/constants";
 import { cn, formatDateDMY, formatDur, formatNumber, formatAuditTime, hasActiveSession } from "@/lib/utils";
@@ -29,6 +30,8 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
   const rawId = (routeParams?.id ?? params?.id ?? "") as string;
   const { data, isLoading } = useRitaseDetail(rawId);
   const { data: mapData } = useTrackingMap();
+  const { data: alerts } = useAlertsByRitase(data?.id_ritase ?? null);
+  const { data: gpsHistory } = useGpsHistory(data?.id_ritase ?? null);
 
   // Match vehicle: harus id_kendaraan + id_ritase cocok → hindari cross-ritase bleed
   const vehicle = (mapData?.vehicles ?? []).find(
@@ -199,7 +202,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
                 </div>
               )}
               <div className="overflow-hidden rounded-lg border border-slate-100">
-                <TripMap stops={data.stops ?? []} events={data.events ?? []} />
+                <TripMap stops={data.stops ?? []} events={data.events ?? []} alerts={alerts ?? []} gpsHistory={gpsHistory ?? []} />
               </div>
             </CardContent>
           </Card>
@@ -308,6 +311,40 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Status Tidak Wajar */}
+          {(alerts ?? []).length > 0 && (
+            <Card>
+              <CardHeader className="border-b px-4 py-3">
+                <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
+                  <BellRing className="h-4 w-4 text-slate-400" /> Status Tidak Wajar
+                  <InfoTip text="Riwayat anomali pada ritase ini" />
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 p-4">
+                {(alerts ?? []).map((al, i) => (
+                  <div
+                    key={al.id_alert ?? i}
+                    className={cn(
+                      "rounded-lg border-l-4 px-3 py-2 text-xs",
+                      al.tingkat === "critical"
+                        ? "border-rose-400 bg-rose-50/60 text-rose-800"
+                        : al.tingkat === "warning"
+                          ? "border-amber-400 bg-amber-50/60 text-amber-800"
+                          : "border-sky-400 bg-sky-50/60 text-sky-800"
+                    )}
+                  >
+                    <p className="font-medium">{al.pesan}</p>
+                    <p className="mt-0.5 text-[10px] opacity-70">
+                      {al.kategori === "menuju_berhenti_lama" ? "Perjalanan terhenti" : al.kategori} ·{" "}
+                      {al.durasi_detik != null && `${Math.floor(al.durasi_detik / 60)} menit · `}
+                      {new Date(al.waktu).toLocaleString("id-ID")}
+                    </p>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           )}

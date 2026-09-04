@@ -62,12 +62,19 @@ export interface Bottleneck {
 }
 
 export interface AlertAnomali {
+  id_alert?: number;
+  id_ritase?: number;
   tingkat: "info" | "warning" | "critical";
   pesan: string;
   kategori: string;
   waktu: string;
   deskripsi?: string;
   rekomendasi?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  nama_lokasi?: string | null;
+  durasi_detik?: number | null;
+  is_resolved?: boolean;
 }
 
 export interface DashboardAnalisis {

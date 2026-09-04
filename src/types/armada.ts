@@ -335,3 +335,11 @@ export interface ManifestPhotoItem {
   foto_manifest_url: string;
   created_at: string;
 }
+
+/** Titik GPS dari history perjalanan driver. */
+export interface GpsPoint {
+  latitude: number;
+  longitude: number;
+  kecepatan?: number | null;
+  created_at: string;
+}

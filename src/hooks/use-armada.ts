@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { get } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
-import type { DriverArmada, Kendaraan, Ritase, RitaseDetail } from "@/types/armada";
+import type { DriverArmada, Kendaraan, Ritase, RitaseDetail, GpsPoint } from "@/types/armada";
 
 const tokenSelector = (s: { token: string | null }) => s.token;
 
@@ -58,6 +58,18 @@ export function useRitaseDetail(id: number | string | undefined) {
     queryFn: () => get<RitaseDetail>(`/armada/ritase/${id}`, { token }),
     enabled: !!token && !!id,
     staleTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** GPS history untuk satu ritase — titik-titik rute yang dilewati driver. */
+export function useGpsHistory(idRitase: number | null) {
+  const token = useAuthStore(tokenSelector);
+  return useQuery({
+    queryKey: ["gps-history", idRitase],
+    queryFn: () => get<GpsPoint[]>(`/armada/ritase/${idRitase}/gps-history`, { token }),
+    enabled: !!token && !!idRitase,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 }
