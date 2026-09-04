@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import {
   AlertTriangle,
@@ -8,6 +8,7 @@ import {
   ArrowUpFromLine,
   Boxes,
   CalendarDays,
+  CalendarRange,
   CheckCircle2,
   Clock,
   Gem,
@@ -20,6 +21,7 @@ import {
   Gift,
   TrendingUp,
   TrendingDown,
+  X,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -109,9 +111,9 @@ function fmtDur(sec?: number | null): string {
 }
 
 const PRESETS = [
-  { label: "7 hari", days: 7 },
-  { label: "30 hari", days: 30 },
-  { label: "90 hari", days: 90 },
+  { label: "7 Hari", days: 7 },
+  { label: "10 Hari", days: 10 },
+  { label: "90 Hari", days: 90 },
 ];
 
 /** Format durasi dari backend ("40 menit 5 detik") jadi tampilan rapi, atau placeholder. */
@@ -215,6 +217,8 @@ function ArahBadge({ n, arah }: { n: number; arah: "out" | "inc" }) {
 export default function AnalitikPage() {
   const [from, setFrom] = useState(daysAgo(29));
   const [to, setTo] = useState(todayLocal());
+  const dateFromRef = useRef<HTMLInputElement>(null);
+  const dateToRef = useRef<HTMLInputElement>(null);
 
   // Jam "diupdate" realtime — refresh tiap 30 detik biar label waktu selalu segar.
   const [now, setNow] = useState(() => new Date());
@@ -292,15 +296,87 @@ export default function AnalitikPage() {
         crumbs={[{ label: "Analitik" }]}
       />
 
-      {/* ── Filter Bar: konsisten dengan manifest-foto ── */}
+      {/* ── Filter Bar: konsisten manifest-foto ── */}
       <div className="flex w-full flex-col gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900">
-        {/* Baris 1: Period info */}
+        {/* Baris 1: Preset pills + Rencana */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {PRESETS.map((p) => (
+            <DatePill
+              key={p.days}
+              label={p.label}
+              active={to === todayLocal() && from === daysAgo(p.days - 1)}
+              onClick={() => setPreset(p.days)}
+            />
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              setFrom(todayLocal());
+              setTo(todayLocal());
+            }}
+            className={cn(
+              "flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-bold transition-colors",
+              from === todayLocal() && to === todayLocal()
+                ? "bg-[#FEA103] text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700",
+            )}
+          >
+            <CalendarRange className="h-3 w-3" />
+            Rencana
+          </button>
+        </div>
+
+        {/* Baris 2: Date range display */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => dateFromRef.current?.showPicker()}
+            className="flex flex-1 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-medium tabular-nums text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-600"
+          >
+            <CalendarDays className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            {from}
+          </button>
+          <span className="text-slate-400">–</span>
+          <button
+            type="button"
+            onClick={() => dateToRef.current?.showPicker()}
+            className="flex flex-1 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-medium tabular-nums text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-600"
+          >
+            <CalendarDays className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            {to}
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreset(30)}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-700"
+            title="Reset"
+          >
+            <X className="h-3 w-3" />
+          </button>
+          {/* Hidden date inputs */}
+          <input
+            ref={dateFromRef}
+            type="date"
+            value={from}
+            max={to}
+            onChange={(e) => setFrom(e.target.value)}
+            className="hidden"
+          />
+          <input
+            ref={dateToRef}
+            type="date"
+            value={to}
+            min={from}
+            max={todayLocal()}
+            onChange={(e) => setTo(e.target.value)}
+            className="hidden"
+          />
+        </div>
+
+        {/* Baris 3: Period info */}
         <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-          <span className="flex items-center gap-1 font-medium text-slate-700">
-            <CalendarDays className="h-3.5 w-3.5 text-[#0c1e3a]" />
-            <b className="tabular-nums">{fmtFullDate(from)}</b>
-            <span className="text-slate-400">–</span>
-            <b className="tabular-nums">{fmtFullDate(to)}</b>
+          <span className="tabular-nums text-slate-400">
+            {fmtFullDate(from)} – {fmtFullDate(to)}
           </span>
           <span className="text-slate-300">·</span>
           <span className="tabular-nums text-slate-400">{insight.days} hari berdata</span>
@@ -309,51 +385,6 @@ export default function AnalitikPage() {
             Update{" "}
             {now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB
           </span>
-        </div>
-
-        {/* Baris 2: Preset pills */}
-        <div className="flex items-center gap-1.5">
-          {PRESETS.map((p) => (
-            <button
-              key={p.days}
-              type="button"
-              onClick={() => setPreset(p.days)}
-              className={cn(
-                "rounded-md px-2.5 py-1 text-[11px] font-bold transition-colors",
-                to === todayLocal() && from === daysAgo(p.days - 1)
-                  ? "bg-[#FEA103] text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700",
-              )}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Baris 3: Date range inputs */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Dari</span>
-            <input
-              type="date"
-              value={from}
-              max={to}
-              onChange={(e) => setFrom(e.target.value)}
-              className="h-8 w-full rounded-md border border-slate-200 bg-white pl-12 pr-2 text-[11px] font-medium tabular-nums text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            />
-          </div>
-          <span className="text-slate-400">–</span>
-          <div className="relative flex-1">
-            <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Sampai</span>
-            <input
-              type="date"
-              value={to}
-              min={from}
-              max={todayLocal()}
-              onChange={(e) => setTo(e.target.value)}
-              className="h-8 w-full rounded-md border border-slate-200 bg-white pl-14 pr-2 text-[11px] font-medium tabular-nums text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            />
-          </div>
         </div>
       </div>
 
@@ -604,5 +635,31 @@ export default function AnalitikPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+/* ---------- DatePill ---------- */
+function DatePill({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-md px-2.5 py-1 text-[11px] font-bold transition-colors",
+        active
+          ? "bg-[#FEA103] text-white"
+          : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700",
+      )}
+    >
+      {label}
+    </button>
   );
 }
