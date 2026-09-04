@@ -96,6 +96,8 @@ export default function DriversPage() {
               {
                 header: "Nama Driver",
                 className: "w-[180px] font-medium",
+                sortKey: "nama_driver",
+                sortable: true,
                 render: (d) => (
                   <span className="block truncate">{d.nama_driver}</span>
                 ),
@@ -103,6 +105,8 @@ export default function DriversPage() {
               {
                 header: "Kendaraan",
                 className: "w-24",
+                sortKey: "plat_nomor",
+                sortable: true,
                 render: (d) =>
                   d.plat_nomor ? (
                     <span className="font-mono text-xs font-semibold text-slate-700">
@@ -129,6 +133,8 @@ export default function DriversPage() {
               {
                 header: "Status",
                 className: "w-28",
+                sortKey: "status_driver",
+                sortable: true,
                 render: (d) => <StatusBadge status={d.status_driver} />,
               },
               {

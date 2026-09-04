@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Search, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,10 @@ export interface Column<T> {
   header: string;
   className?: string;
   render: (row: T) => React.ReactNode;
+  /** Field name untuk sorting (mis: "total_awb"). Harus ada di row object. */
+  sortKey?: string;
+  /** true = header bisa diklik untuk sort ascending/descending. */
+  sortable?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -55,6 +59,8 @@ export function DataTable<T>({
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultPageSize);
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Lebar kolom (drag header untuk resize).
   const [widths, setWidths] = useState<Record<number, number>>({});
@@ -84,10 +90,42 @@ export function DataTable<T>({
     return rows.filter((r) => searchFilter(r, q.trim()));
   }, [rows, q, searchFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  // Sort logic
+  const sorted = useMemo(() => {
+    if (!sortKey) return filtered;
+    return [...filtered].sort((a: any, b: any) => {
+      const va = a[sortKey];
+      const vb = b[sortKey];
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      if (typeof va === "number" && typeof vb === "number") {
+        return sortOrder === "asc" ? va - vb : vb - va;
+      }
+      const cmp = String(va).localeCompare(String(vb), "id");
+      return sortOrder === "asc" ? cmp : -cmp;
+    });
+  }, [filtered, sortKey, sortOrder]);
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      if (sortOrder === "asc") {
+        setSortOrder("desc");
+      } else {
+        setSortKey(null);
+        setSortOrder("asc");
+      }
+    } else {
+      setSortKey(key);
+      setSortOrder("asc");
+    }
+    setPage(1);
+  };
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const start = (safePage - 1) * pageSize;
-  const shown = filtered.slice(start, start + pageSize);
+  const shown = sorted.slice(start, start + pageSize);
 
   return (
     <div>
@@ -127,10 +165,28 @@ export function DataTable<T>({
               {columns.map((c, idx) => (
                 <th
                   key={c.header}
-                  className={cn("relative px-4 py-2.5 font-semibold select-none", c.className)}
+                  className={cn(
+                    "relative px-4 py-2.5 font-semibold select-none",
+                    c.sortable && "cursor-pointer hover:text-[#0c1e3a] transition-colors",
+                    c.className
+                  )}
                   style={{ width: widths[idx] ?? undefined }}
+                  onClick={c.sortable && c.sortKey ? () => handleSort(c.sortKey!) : undefined}
                 >
-                  {c.header}
+                  <span className="inline-flex items-center gap-1">
+                    {c.header}
+                    {c.sortable && c.sortKey && (
+                      <span className="inline-flex flex-col -space-y-1">
+                        {sortKey === c.sortKey && sortOrder === "asc" ? (
+                          <ChevronUp className="h-3 w-3 text-[#FEA103]" />
+                        ) : sortKey === c.sortKey && sortOrder === "desc" ? (
+                          <ChevronDown className="h-3 w-3 text-[#FEA103]" />
+                        ) : (
+                          <ChevronUp className="h-3 w-3 text-slate-300" />
+                        )}
+                      </span>
+                    )}
+                  </span>
                   <span
                     onMouseDown={(e) => startResize(e, idx)}
                     className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize bg-transparent transition-colors hover:bg-[#0c1e3a]/30"
@@ -188,11 +244,11 @@ export function DataTable<T>({
       </div>
 
       {/* Pagination */}
-      {!loading && filtered.length > 0 && (
+      {!loading && sorted.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
           <div className="flex items-center gap-2">
             <span className="tabular-nums">
-              {start + 1}–{Math.min(start + pageSize, filtered.length)} dari {filtered.length}
+              {start + 1}–{Math.min(start + pageSize, sorted.length)} dari {sorted.length}
             </span>
             <select
               value={pageSize}
@@ -208,6 +264,16 @@ export function DataTable<T>({
                 </option>
               ))}
             </select>
+            {sortKey && (
+              <button
+                type="button"
+                onClick={() => { setSortKey(null); setSortOrder("asc"); }}
+                className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-500 hover:bg-slate-100"
+              >
+                Sort: {columns.find((c) => c.sortKey === sortKey)?.header} {sortOrder === "asc" ? "↑" : "↓"}
+                <X className="h-2.5 w-2.5" />
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-1">
             <button

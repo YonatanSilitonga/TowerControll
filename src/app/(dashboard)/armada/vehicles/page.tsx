@@ -95,11 +95,15 @@ export default function KendaraanPage() {
               {
                 header: "Plat",
                 className: "w-28 font-mono text-xs font-semibold",
+                sortKey: "plat_nomor",
+                sortable: true,
                 render: (k) => k.plat_nomor,
               },
               {
                 header: "Jenis",
                 className: "w-[140px]",
+                sortKey: "jenis_kendaraan",
+                sortable: true,
                 render: (k) => (
                   <span className="block truncate text-slate-600">
                     {k.jenis_kendaraan ?? "-"}
@@ -109,11 +113,15 @@ export default function KendaraanPage() {
               {
                 header: "Kapasitas",
                 className: "w-28 text-right tabular-nums",
+                sortKey: "kapasitas_kg",
+                sortable: true,
                 render: (k) => `${formatNumber(k.kapasitas_kg ?? 0)} kg`,
               },
               {
                 header: "Status",
                 className: "w-28",
+                sortKey: "status_kendaraan",
+                sortable: true,
                 render: (k) => <StatusBadge status={k.status_kendaraan} />,
               },
               {

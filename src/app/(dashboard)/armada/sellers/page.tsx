@@ -71,10 +71,12 @@ export default function SellersPage() {
             setSelectedId((cur) => (cur === s.id ? null : s.id))
           }
           columns={[
-            { header: "Kode", className: "w-20 font-mono text-xs", render: (s) => s.code },
+            { header: "Kode", className: "w-20 font-mono text-xs", sortKey: "code", sortable: true, render: (s) => s.code },
             {
               header: "Nama",
               className: "w-[200px] font-medium",
+              sortKey: "name",
+              sortable: true,
               render: (s) => (
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="truncate">{s.name}</span>

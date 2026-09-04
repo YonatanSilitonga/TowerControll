@@ -226,26 +226,28 @@ export default function RitasePage() {
           {
             header: "Kode",
             className: "font-mono text-xs font-medium",
+            sortKey: "kode_ritase",
+            sortable: true,
             render: (r) => (
               <Link href={`/armada/trips/${r.id_ritase}`} className="text-primary hover:underline">
                 {r.kode_ritase}
               </Link>
             ),
           },
-          { header: "Tanggal", className: "tabular-nums", render: (r) => formatDateDMY(r.tanggal) },
-          { header: "Driver", className: "font-medium", render: (r) => r.nama_driver },
-          { header: "Plat", className: "font-mono text-xs", render: (r) => r.plat_nomor },
-          { header: "RIT", className: "text-right", render: (r) => r.ritase_ke ?? "-" },
-          { header: "AWB", className: "text-right tabular-nums", render: (r) => formatNumber(r.total_awb ?? 0) },
-          { header: "Koli", className: "text-right tabular-nums", render: (r) => formatNumber(r.total_koli ?? 0) },
-          { header: "HV", className: "text-right tabular-nums", render: (r) => formatNumber(r.total_high_value ?? 0) },
-          { header: "Eceran", className: "text-right tabular-nums", render: (r) => formatNumber(r.total_eceran ?? 0) },
+          { header: "Tanggal", className: "tabular-nums", sortKey: "tanggal", sortable: true, render: (r) => formatDateDMY(r.tanggal) },
+          { header: "Driver", className: "font-medium", sortKey: "nama_driver", sortable: true, render: (r) => r.nama_driver },
+          { header: "Plat", className: "font-mono text-xs", sortKey: "plat_nomor", sortable: true, render: (r) => r.plat_nomor },
+          { header: "RIT", className: "text-right", sortKey: "ritase_ke", sortable: true, render: (r) => r.ritase_ke ?? "-" },
+          { header: "AWB", className: "text-right tabular-nums", sortKey: "total_awb", sortable: true, render: (r) => formatNumber(r.total_awb ?? 0) },
+          { header: "Koli", className: "text-right tabular-nums", sortKey: "total_koli", sortable: true, render: (r) => formatNumber(r.total_koli ?? 0) },
+          { header: "HV", className: "text-right tabular-nums", sortKey: "total_high_value", sortable: true, render: (r) => formatNumber(r.total_high_value ?? 0) },
+          { header: "Eceran", className: "text-right tabular-nums", sortKey: "total_eceran", sortable: true, render: (r) => formatNumber(r.total_eceran ?? 0) },
           {
             header: "Jadwal",
             render: (r) =>
               r.jam_mulai && r.jam_selesai ? `${r.jam_mulai} – ${r.jam_selesai}` : "-",
           },
-          { header: "Status", render: (r) => <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai) ? "tidak terlaksana" : r.status} /> },
+          { header: "Status", sortKey: "status", sortable: true, render: (r) => <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai) ? "tidak terlaksana" : r.status} /> },
           {
             header: "Detail",
             className: "text-right",

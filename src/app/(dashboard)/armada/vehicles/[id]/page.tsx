@@ -224,6 +224,8 @@ export default function VehicleDetailPage({ params }: { params?: { id?: string }
                     {
                       header: "Kode",
                       className: "w-[100px] font-mono text-xs font-semibold",
+                      sortKey: "kode_ritase",
+                      sortable: true,
                       render: (r) => (
                         <span className="inline-flex items-center gap-1 text-[#0c1e3a] underline-offset-2 hover:underline">{r.kode_ritase}</span>
                       ),
@@ -231,16 +233,22 @@ export default function VehicleDetailPage({ params }: { params?: { id?: string }
                     {
                       header: "Tanggal",
                       className: "w-20 tabular-nums text-xs",
+                      sortKey: "tanggal",
+                      sortable: true,
                       render: (r) => formatDateDMY(r.tanggal),
                     },
                     {
                       header: "Driver",
                       className: "text-xs",
+                      sortKey: "nama_driver",
+                      sortable: true,
                       render: (r) => r.nama_driver ?? "-",
                     },
                     {
                       header: "Status",
                       className: "w-20",
+                      sortKey: "status",
+                      sortable: true,
                       render: (r) => (
                         <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai) ? "tidak terlaksana" : r.status} />
                       ),
@@ -284,16 +292,22 @@ export default function VehicleDetailPage({ params }: { params?: { id?: string }
                   {
                     header: "Kode",
                     className: "font-mono text-xs font-semibold",
+                    sortKey: "kode_ritase",
+                    sortable: true,
                     render: (r) => r.kode_ritase,
                   },
                   {
                     header: "Tanggal",
                     className: "tabular-nums text-xs",
+                    sortKey: "tanggal",
+                    sortable: true,
                     render: (r) => formatDateDMY(r.tanggal),
                   },
                   {
                     header: "Status",
                     className: "w-20",
+                    sortKey: "status",
+                    sortable: true,
                     render: (r) => (
                       <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai) ? "tidak terlaksana" : r.status} />
                     ),
