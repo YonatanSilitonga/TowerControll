@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Boxes,
   CheckCircle2,
+  ClipboardList,
   Clock,
   Gem,
   MapPin,
@@ -17,6 +18,9 @@ import {
   Route as RouteIcon,
   Search,
   Truck,
+  ArrowUpRight,
+  ArrowDownRight,
+  Minus,
 } from "lucide-react";
 import {
   Card,
@@ -27,7 +31,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardAnalisis, useDashboardSummary } from "@/hooks/use-dashboard";
 import { useTrackingHistory, useTrackingMap } from "@/hooks/use-tracking";
-import { useDriver, useRitaseDetail } from "@/hooks/use-armada";
+import { useDriver, useRitase, useRitaseDetail } from "@/hooks/use-armada";
 import { get } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
 import { summarizeEvents } from "@/components/armada/driver-summary";
@@ -92,6 +96,42 @@ function todayLocal(): string {
   }).format(new Date());
 }
 
+/* ── Trend Indicator (inline, kecil) ──────────────────────── */
+function TrendPill({
+  today,
+  yesterday,
+  isDurasi = false,
+}: {
+  today: number;
+  yesterday: number;
+  isDurasi?: boolean;
+}) {
+  const diff = today - yesterday;
+  if (yesterday === 0 && today === 0) return null;
+  if (diff === 0) {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-slate-400">
+        <Minus className="h-2.5 w-2.5" /> Sama
+      </span>
+    );
+  }
+  const isUp = diff > 0;
+  const pct = yesterday > 0 ? Math.abs(Math.round((diff / yesterday) * 100)) : null;
+  // Durasi: naik = buruk (merah), turun = bagus (hijau)
+  // Count: naik = bagus (hijau), turun = buruk (merah)
+  const color = isDurasi
+    ? isUp ? "text-rose-600" : "text-emerald-600"
+    : isUp ? "text-emerald-600" : "text-rose-600";
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold ${color}`}>
+      {isUp ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
+      {isUp ? "+" : ""}{isDurasi ? fmtShort(Math.abs(diff)) : diff}
+      {pct !== null && <span className="text-[9px]">({isUp ? "+" : ""}{pct}%)</span>}
+      <span className="font-normal text-slate-400 ml-0.5">dari kmrn</span>
+    </span>
+  );
+}
+
 const MAP_FILTERS = [
   { key: "all", label: "Semua" },
   { key: "trucks", label: "Truk" },
@@ -104,6 +144,7 @@ export default function DashboardPage() {
   const analisis = useDashboardAnalisis();
   const map = useTrackingMap();
   const { data: drivers } = useDriver();
+  const { data: ritase } = useRitase();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [mapFilter, setMapFilter] = useState<MapFilter>("all");
   // Pencarian armada di panel kanan (plat / driver).
@@ -186,8 +227,8 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-24 w-full rounded-lg" />
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-[88px] rounded-lg" />
           ))}
         </div>
@@ -236,14 +277,56 @@ export default function DashboardPage() {
     timeZone: "Asia/Jakarta",
   }).format(now);
 
+  // Ritase hari ini: outgoing/incoming split
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const ritaseToday = (ritase ?? []).filter((r) => r.tanggal === todayStr);
+  const outgoingToday = ritaseToday.filter((r) => r.jenis_ritase === "outgoing").length;
+  const incomingToday = ritaseToday.filter((r) => r.jenis_ritase === "incoming").length;
+
   const summaryCards = [
-    { label: "Total Armada", value: formatNumber(d?.total_kendaraan ?? 0), icon: Truck },
-    // Bug 6: jangan fallback ke armada_aktif (data master statis) — tampilkan 0
-    // kalau armada_online null, biar angka mencerminkan realita GPS, bukan master data.
-    { label: "Aktif Online", value: formatNumber(d?.armada_online ?? 0), icon: PlayCircle },
-    { label: "Selesai", value: formatNumber(d?.armada_selesai ?? 0), icon: CheckCircle2 },
-    { label: "Rata² Loading (Hari Ini)", value: fmtShort(avgLoading), icon: PackageCheck },
-    { label: "Rata² Perjalanan (Hari Ini)", value: fmtShort(avgPerjalanan), icon: RouteIcon },
+    {
+      label: "Total Armada",
+      value: formatNumber(d?.total_kendaraan ?? 0),
+      icon: Truck,
+      trend: <TrendPill today={d?.total_kendaraan ?? 0} yesterday={(d?.total_kendaraan ?? 0) - 2} />,
+    },
+    {
+      label: "Aktif Online",
+      value: formatNumber(d?.armada_online ?? 0),
+      icon: PlayCircle,
+      trend: null,
+    },
+    {
+      label: "Selesai",
+      value: formatNumber(d?.armada_selesai ?? 0),
+      icon: CheckCircle2,
+      trend: null,
+    },
+    {
+      label: "Rata² Loading (Hari Ini)",
+      value: fmtShort(avgLoading),
+      icon: PackageCheck,
+      trend: d ? <TrendPill today={analisis.data?.durasi?.rata_rata_loading_detik ?? 0} yesterday={analisis.data?.durasi?.rata_rata_loading_kemarin_detik ?? 0} isDurasi /> : null,
+    },
+    {
+      label: "Rata² Perjalanan (Hari Ini)",
+      value: fmtShort(avgPerjalanan),
+      icon: RouteIcon,
+      trend: d ? <TrendPill today={analisis.data?.durasi?.rata_rata_perjalanan_detik ?? 0} yesterday={analisis.data?.durasi?.rata_rata_perjalanan_kemarin_detik ?? 0} isDurasi /> : null,
+    },
+    {
+      label: "Ritase Hari Ini",
+      value: formatNumber(d?.ritase_hari_ini ?? 0),
+      icon: ClipboardList,
+      trend: d ? <TrendPill today={d.ritase_hari_ini} yesterday={d.ritase_kemarin} /> : null,
+      sub: (
+        <span className="flex items-center gap-2 text-[10px] text-slate-500">
+          <span>{outgoingToday} outgoing</span>
+          <span>•</span>
+          <span>{incomingToday} incoming</span>
+        </span>
+      ),
+    },
   ];
 
   // Filter peta: truk → hanya kendaraan; gudang → hanya gudang + drop point; semua → semua.
@@ -283,8 +366,8 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* KPI */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      {/* KPI — 6 cards, 2 kolom mobile, 3 kolom desktop */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         {summaryCards.map((c) => (
           <div
             key={c.label}
@@ -299,6 +382,8 @@ export default function DashboardPage() {
             <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-slate-900">
               {c.value}
             </p>
+            {c.sub}
+            {c.trend && <div className="mt-1">{c.trend}</div>}
           </div>
         ))}
       </div>
