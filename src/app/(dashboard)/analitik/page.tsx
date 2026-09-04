@@ -292,10 +292,10 @@ export default function AnalitikPage() {
         crumbs={[{ label: "Analitik" }]}
       />
 
-      {/* ── Filter Bar: Vertical stack ── */}
-      <div className="flex w-full flex-col gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-        {/* Period info */}
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+      {/* ── Filter Bar: konsisten dengan manifest-foto ── */}
+      <div className="flex w-full flex-col gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900">
+        {/* Baris 1: Period info */}
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
           <span className="flex items-center gap-1 font-medium text-slate-700">
             <CalendarDays className="h-3.5 w-3.5 text-[#0c1e3a]" />
             <b className="tabular-nums">{fmtFullDate(from)}</b>
@@ -311,15 +311,15 @@ export default function AnalitikPage() {
           </span>
         </div>
 
-        {/* Preset buttons */}
-        <div className="flex items-center gap-1">
+        {/* Baris 2: Preset pills */}
+        <div className="flex items-center gap-1.5">
           {PRESETS.map((p) => (
             <button
               key={p.days}
               type="button"
               onClick={() => setPreset(p.days)}
               className={cn(
-                "rounded-md px-3 py-1.5 text-[11px] font-bold transition-colors",
+                "rounded-md px-2.5 py-1 text-[11px] font-bold transition-colors",
                 to === todayLocal() && from === daysAgo(p.days - 1)
                   ? "bg-[#FEA103] text-white"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700",
@@ -330,28 +330,28 @@ export default function AnalitikPage() {
           ))}
         </div>
 
-        {/* Date range */}
+        {/* Baris 3: Date range inputs */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0">Dari</span>
+          <div className="relative flex-1">
+            <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Dari</span>
             <input
               type="date"
               value={from}
               max={to}
               onChange={(e) => setFrom(e.target.value)}
-              className="h-8 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              className="h-8 w-full rounded-md border border-slate-200 bg-white pl-12 pr-2 text-[11px] font-medium tabular-nums text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
             />
           </div>
           <span className="text-slate-400">–</span>
-          <div className="flex items-center gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0">Sampai</span>
+          <div className="relative flex-1">
+            <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Sampai</span>
             <input
               type="date"
               value={to}
               min={from}
               max={todayLocal()}
               onChange={(e) => setTo(e.target.value)}
-              className="h-8 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              className="h-8 w-full rounded-md border border-slate-200 bg-white pl-14 pr-2 text-[11px] font-medium tabular-nums text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
             />
           </div>
         </div>
