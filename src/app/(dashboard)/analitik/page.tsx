@@ -292,44 +292,68 @@ export default function AnalitikPage() {
         crumbs={[{ label: "Analitik" }]}
       />
 
-      {/* Filter bar compact — di bawah header, bukan di dalam header */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+      {/* ── Filter Bar: Vertical stack ── */}
+      <div className="flex w-full flex-col gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+        {/* Period info */}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <span className="flex items-center gap-1 font-medium text-slate-700">
+            <CalendarDays className="h-3.5 w-3.5 text-[#0c1e3a]" />
+            <b className="tabular-nums">{fmtFullDate(from)}</b>
+            <span className="text-slate-400">–</span>
+            <b className="tabular-nums">{fmtFullDate(to)}</b>
+          </span>
+          <span className="text-slate-300">·</span>
+          <span className="tabular-nums text-slate-400">{insight.days} hari berdata</span>
+          <span className="text-slate-300">·</span>
+          <span className="tabular-nums text-slate-400">
+            Update{" "}
+            {now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB
+          </span>
+        </div>
+
         {/* Preset buttons */}
-        <div className="flex items-center gap-0.5 rounded-md bg-slate-100 p-0.5">
+        <div className="flex items-center gap-1">
           {PRESETS.map((p) => (
             <button
               key={p.days}
               type="button"
               onClick={() => setPreset(p.days)}
               className={cn(
-                "rounded px-2 py-1 text-xs font-medium transition-colors",
+                "rounded-md px-3 py-1.5 text-[11px] font-bold transition-colors",
                 to === todayLocal() && from === daysAgo(p.days - 1)
-                  ? "bg-[#FEA103] text-white shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "bg-[#FEA103] text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700",
               )}
             >
               {p.label}
             </button>
           ))}
         </div>
+
         {/* Date range */}
-        <div className="flex items-center gap-1 text-xs">
-          <input
-            type="date"
-            value={from}
-            max={to}
-            onChange={(e) => setFrom(e.target.value)}
-            className="rounded border border-slate-200 bg-white px-2 py-1 text-xs focus:border-[#0c1e3a] focus:outline-none"
-          />
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0">Dari</span>
+            <input
+              type="date"
+              value={from}
+              max={to}
+              onChange={(e) => setFrom(e.target.value)}
+              className="h-8 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            />
+          </div>
           <span className="text-slate-400">–</span>
-          <input
-            type="date"
-            value={to}
-            min={from}
-            max={todayLocal()}
-            onChange={(e) => setTo(e.target.value)}
-            className="rounded border border-slate-200 bg-white px-2 py-1 text-xs focus:border-[#0c1e3a] focus:outline-none"
-          />
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0">Sampai</span>
+            <input
+              type="date"
+              value={to}
+              min={from}
+              max={todayLocal()}
+              onChange={(e) => setTo(e.target.value)}
+              className="h-8 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-700 focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            />
+          </div>
         </div>
       </div>
 
@@ -344,23 +368,6 @@ export default function AnalitikPage() {
 
         {/* ===== RINGKASAN ===== */}
         <TabsContent value="ringkasan" className="space-y-4">
-          {/* Label periode — compact single line */}
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
-            <span className="flex items-center gap-1 font-medium text-slate-700">
-              <CalendarDays className="h-3.5 w-3.5 text-[#0c1e3a]" />
-              <b className="tabular-nums">{fmtFullDate(from)}</b>
-              <span className="text-slate-400">–</span>
-              <b className="tabular-nums">{fmtFullDate(to)}</b>
-            </span>
-            <span className="text-slate-300">·</span>
-            <span className="tabular-nums text-slate-400">{insight.days} hari berdata</span>
-            <span className="text-slate-300">·</span>
-            <span className="tabular-nums text-slate-400">
-              Update{" "}
-              {now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB
-            </span>
-          </div>
-
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <KpiCard label="Total Ritase" value={kpi.ritase} icon={Truck} loading={loading} info="Jumlah ritase pada periode (tanggal jadwal)." sub={insight.days > 0 ? `${insight.rataHari.toFixed(1)}/hari` : undefined} />
             <KpiCard label="Selesai" value={kpi.selesai} icon={CheckCircle2} loading={loading} info="Ritase berstatus selesai." sub={`${insight.pctSelesai}% dari total`} progress={insight.pctSelesai} infoAlign="right" />
