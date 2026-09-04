@@ -93,6 +93,12 @@ function fmtFullDate(t: string): string {
   return Number.isNaN(d.getTime()) ? t : format(d, "d MMM yyyy");
 }
 
+/** Tanggal pendek dd/MM/yyyy — buat date display. */
+function formatDateID(t: string): string {
+  const d = new Date(`${t}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? t : format(d, "dd/MM/yyyy");
+}
+
 /** Tick sumbu-X: "d MMM", tambah tahun di bulan Januari biar konteks lintas tahun jelas. */
 function fmtTick(t: string): string {
   const d = new Date(`${t}T00:00:00`);
@@ -296,7 +302,7 @@ export default function AnalitikPage() {
         crumbs={[{ label: "Analitik" }]}
       />
 
-      {/* ── Filter Bar: konsisten manifest-foto ── */}
+      {/* ── Filter Bar ── */}
       <div className="flex w-full flex-col gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900">
         {/* Baris 1: Preset pills + Rencana */}
         <div className="flex flex-wrap items-center gap-1.5">
@@ -334,7 +340,7 @@ export default function AnalitikPage() {
             className="flex flex-1 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-medium tabular-nums text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-600"
           >
             <CalendarDays className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-            {from}
+            {formatDateID(from)}
           </button>
           <span className="text-slate-400">–</span>
           <button
@@ -343,7 +349,7 @@ export default function AnalitikPage() {
             className="flex flex-1 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-medium tabular-nums text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-600"
           >
             <CalendarDays className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-            {to}
+            {formatDateID(to)}
           </button>
           <button
             type="button"
@@ -373,18 +379,13 @@ export default function AnalitikPage() {
           />
         </div>
 
-        {/* Baris 3: Period info */}
-        <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-          <span className="tabular-nums text-slate-400">
-            {fmtFullDate(from)} – {fmtFullDate(to)}
-          </span>
-          <span className="text-slate-300">·</span>
-          <span className="tabular-nums text-slate-400">{insight.days} hari berdata</span>
-          <span className="text-slate-300">·</span>
-          <span className="tabular-nums text-slate-400">
-            Update{" "}
-            {now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB
-          </span>
+        {/* Baris 3: Period info compact */}
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400">
+          <span>{fmtFullDate(from)} – {fmtFullDate(to)}</span>
+          <span>·</span>
+          <span>{insight.days} hari</span>
+          <span>·</span>
+          <span>Update {now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</span>
         </div>
       </div>
 
