@@ -715,24 +715,24 @@ export function AdminCrudPage<T extends Record<string, any>>({
       />
 
       {/* ── Control Bar ── */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="relative max-w-xs flex-1">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-xs sm:flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={`Cari ${title.toLowerCase()}...`}
-            className="pl-9"
+            className="min-h-[44px] pl-9 sm:min-h-[32px]"
           />
         </div>
 
         {statusFilterOptions && (
-          <div className="flex items-center gap-1.5 overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
-            <Filter className="ml-1.5 h-3.5 w-3.5 text-slate-400" />
+          <div className="flex flex-1 items-center gap-1.5 overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800 sm:flex-none">
+            <Filter className="ml-1.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
             <button
               onClick={() => setStatusFilter("ALL")}
               className={cn(
-                "rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
+                "whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
                 statusFilter === "ALL"
                   ? "bg-[#FEA103] text-white"
                   : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
@@ -745,7 +745,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                 key={opt.value}
                 onClick={() => setStatusFilter(opt.value)}
                 className={cn(
-                  "rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
+                  "whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
                   statusFilter === opt.value
                     ? "bg-[#FEA103] text-white"
                     : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
@@ -1176,7 +1176,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                     <span>
                       {formatDate((detailRow as any).created_at)}
                       {(detailRow as any).created_by && (
-                        <span className="ml-1 text-slate-400">oleh #{(detailRow as any).created_by}</span>
+                        <span className="ml-1 text-slate-400">oleh {(detailRow as any).created_by_name || ""}</span>
                       )}
                     </span>
                   </div>
@@ -1186,7 +1186,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                       <span>
                         {formatDate((detailRow as any).updated_at)}
                         {(detailRow as any).updated_by && (
-                          <span className="ml-1 text-slate-400">oleh #{(detailRow as any).updated_by}</span>
+                          <span className="ml-1 text-slate-400">oleh {(detailRow as any).updated_by_name || ""}</span>
                         )}
                       </span>
                     </div>

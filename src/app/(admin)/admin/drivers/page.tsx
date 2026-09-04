@@ -451,16 +451,16 @@ export default function AdminDriversPage() {
       />
 
       {/* ── Control Bar ── */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative w-56">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative w-full sm:w-56">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari driver..." className="pl-9" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari driver..." className="min-h-[44px] pl-9 sm:min-h-[32px]" />
         </div>
-        <div className="ml-auto flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
-          <Filter className="ml-1 h-3.5 w-3.5 text-slate-400" />
+        <div className="flex flex-1 items-center gap-1.5 overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800 sm:ml-auto sm:flex-none">
+          <Filter className="ml-1 h-3.5 w-3.5 shrink-0 text-slate-400" />
           {[{ value: "ALL", label: "Semua" }, { value: "aktif", label: "Aktif" }, { value: "nonaktif", label: "Nonaktif" }].map((opt) => (
             <button key={opt.value} onClick={() => setStatusFilter(opt.value)}
-              className={cn("rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
+              className={cn("whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
                 statusFilter === opt.value ? "bg-[#FEA103] text-white" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
               )}>
               {opt.label}
@@ -744,12 +744,12 @@ export default function AdminDriversPage() {
                 <div className="space-y-1.5 text-xs text-slate-500">
                   <div className="flex gap-2">
                     <span className="w-16 shrink-0 font-semibold text-slate-400">Dibuat</span>
-                    <span>{new Date(detailRow.created_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}{detailRow.created_by && ` · #${detailRow.created_by}`}</span>
+                    <span>{new Date(detailRow.created_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}{detailRow.created_by_name && ` · ${detailRow.created_by_name}`}</span>
                   </div>
                   {detailRow.updated_at && (
                     <div className="flex gap-2">
                       <span className="w-16 shrink-0 font-semibold text-slate-400">Diubah</span>
-                      <span>{new Date(detailRow.updated_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}{detailRow.updated_by && ` · #${detailRow.updated_by}`}</span>
+                      <span>{new Date(detailRow.updated_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}{detailRow.updated_by_name && ` · ${detailRow.updated_by_name}`}</span>
                     </div>
                   )}
                 </div>

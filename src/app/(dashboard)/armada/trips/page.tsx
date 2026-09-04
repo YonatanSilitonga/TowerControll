@@ -90,135 +90,122 @@ export default function RitasePage() {
       />
       <ArmadaTabs />
 
-      {/* ── SEARCH BAR ── */}
-      <div className="relative mb-3">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Cari kode / driver / plat..."
-          className="pl-9"
-        />
-      </div>
-
-      {/* ── FILTER BAR (1 baris, full width) ── */}
-      <div className="flex flex-nowrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900">
-        {/* Tanggal */}
-        <div className="flex shrink-0 flex-col gap-0.5">
-          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Tanggal</span>
-          <Input
-            type="date"
-            value={tanggal}
-            onChange={(e) => setTanggal(e.target.value)}
-            className="h-8 w-[140px] text-xs"
-          />
+      {/* ── FILTER BAR ── */}
+      <div className="mb-4 flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900">
+        {/* Row 1: Search + Reset (mobile: full width) */}
+        <div className="flex items-center gap-2">
+          <div className="relative min-h-[44px] flex-1 sm:min-h-[32px]">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari kode / driver / plat..."
+              className="min-h-[44px] pl-9 sm:min-h-[32px]"
+            />
+          </div>
+          {hasFilter && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="min-h-[44px] shrink-0 rounded-md border border-rose-200 bg-rose-50 px-3 text-[11px] font-semibold text-rose-600 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-400 sm:min-h-[32px]"
+            >
+              Reset
+            </button>
+          )}
         </div>
 
-        {/* Status */}
-        <div className="flex shrink-0 flex-col gap-0.5">
-          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Status</span>
-          <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800">
-            {statusOptions.map((s) => (
-              <button
-                key={s.value}
-                type="button"
-                onClick={() => setStatusFilter(s.value)}
-                className={cn(
-                  "whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-semibold transition-all",
-                  statusFilter === s.value
-                    ? "bg-[#FEA103] text-white"
-                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white",
-                )}
-              >
-                {s.label}({s.count})
-              </button>
-            ))}
+        {/* Row 2: Status + Jenis chips (horizontal scroll on mobile) */}
+        <div className="flex flex-wrap items-end gap-2">
+          {/* Tanggal */}
+          <div className="flex shrink-0 flex-col gap-0.5">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Tanggal</span>
+            <Input
+              type="date"
+              value={tanggal}
+              onChange={(e) => setTanggal(e.target.value)}
+              className="h-8 w-[140px] text-xs"
+            />
+          </div>
+
+          {/* Status */}
+          <div className="flex shrink-0 flex-col gap-0.5">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Status</span>
+            <div className="flex items-center gap-0.5 overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800">
+              {statusOptions.map((s) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => setStatusFilter(s.value)}
+                  className={cn(
+                    "whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-semibold transition-all",
+                    statusFilter === s.value
+                      ? "bg-[#FEA103] text-white"
+                      : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white",
+                  )}
+                >
+                  {s.label}({s.count})
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Jenis */}
+          <div className="flex shrink-0 flex-col gap-0.5">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Jenis</span>
+            <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800">
+              {[
+                { value: "all", label: "Semua" },
+                { value: "outgoing", label: "Out" },
+                { value: "incoming", label: "In" },
+              ].map((j) => (
+                <button
+                  key={j.value}
+                  type="button"
+                  onClick={() => setJenisFilter(j.value)}
+                  className={cn(
+                    "whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-semibold transition-all",
+                    jenisFilter === j.value
+                      ? "bg-[#FEA103] text-white"
+                      : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white",
+                  )}
+                >
+                  {j.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Jenis */}
-        <div className="flex shrink-0 flex-col gap-0.5">
-          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Jenis</span>
-          <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800">
-            <button
-              type="button"
-              onClick={() => setJenisFilter("all")}
-              className={cn(
-                "whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-semibold transition-all",
-                jenisFilter === "all"
-                  ? "bg-[#FEA103] text-white"
-                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white",
-              )}
+        {/* Row 3: Driver + Drop Point dropdowns (full width on mobile) */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-2">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Driver</span>
+            <select
+              value={driverFilter}
+              onChange={(e) => setDriverFilter(e.target.value)}
+              className="h-8 w-full truncate rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
             >
-              Semua
-            </button>
-            <button
-              type="button"
-              onClick={() => setJenisFilter("outgoing")}
-              className={cn(
-                "whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-semibold transition-all",
-                jenisFilter === "outgoing"
-                  ? "bg-[#FEA103] text-white"
-                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white",
-              )}
+              <option value="all">Semua</option>
+              {uniqueDrivers.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Drop Point</span>
+            <select
+              value={dropPointFilter}
+              onChange={(e) => setDropPointFilter(e.target.value)}
+              className="h-8 w-full truncate rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
             >
-              Out
-            </button>
-            <button
-              type="button"
-              onClick={() => setJenisFilter("incoming")}
-              className={cn(
-                "whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-semibold transition-all",
-                jenisFilter === "incoming"
-                  ? "bg-[#FEA103] text-white"
-                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white",
-              )}
-            >
-              In
-            </button>
+              <option value="all">Semua</option>
+              {uniqueDropPoints.map((dp) => (
+                <option key={dp} value={dp}>{dp}</option>
+              ))}
+            </select>
           </div>
         </div>
-
-        {/* Driver */}
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Driver</span>
-          <select
-            value={driverFilter}
-            onChange={(e) => setDriverFilter(e.target.value)}
-            className="h-8 w-full truncate rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-          >
-            <option value="all">Semua</option>
-            {uniqueDrivers.map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Drop Point */}
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Drop Point</span>
-          <select
-            value={dropPointFilter}
-            onChange={(e) => setDropPointFilter(e.target.value)}
-            className="h-8 w-full truncate rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-          >
-            <option value="all">Semua</option>
-            {uniqueDropPoints.map((dp) => (
-              <option key={dp} value={dp}>{dp}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Reset */}
-        {hasFilter && (
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="h-8 shrink-0 rounded-md border border-rose-200 bg-rose-50 px-2 text-[11px] font-semibold text-rose-600 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-400"
-          >
-            Reset
-          </button>
-        )}
       </div>
 
       <DataTable<Ritase>
