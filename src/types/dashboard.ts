@@ -18,13 +18,18 @@ export interface DashboardSummary {
   ritase_aktif: number;
   ritase_selesai: number;
   ritase_hari_ini: number;
+  ritase_kemarin: number;
   total_awb: number;
   total_awb_hari_ini: number;
+  total_awb_kemarin: number;
   total_koli: number;
   // Muatan hari ini — dari ritase_event (data asli).
   total_koli_hari_ini: number;
+  total_koli_kemarin: number;
   total_high_value_hari_ini: number;
+  total_high_value_kemarin: number;
   total_eceran_hari_ini: number;
+  total_eceran_kemarin: number;
   // Lainnya
   total_seller: number;
   seller_terlayani: number;

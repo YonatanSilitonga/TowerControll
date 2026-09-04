@@ -14,9 +14,49 @@ import { InfoTip } from "@/components/ui/info-tip";
 import { useDriver, useKendaraan, useRitase } from "@/hooks/use-armada";
 import { useSeller } from "@/hooks/use-seller";
 import { useTrackingMap } from "@/hooks/use-tracking";
+import { useDashboardSummary } from "@/hooks/use-dashboard";
 import { statusLabel } from "@/lib/constants";
 import { formatNumber } from "@/lib/utils";
-import { Lightbulb, Store } from "lucide-react";
+import { Lightbulb, Store, Truck, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
+
+/* ── Trend Indicator ────────────────────────────────────────── */
+function TrendIndicator({
+  today,
+  yesterday,
+  label = "dari kemarin",
+}: {
+  today: number;
+  yesterday: number;
+  label?: string;
+}) {
+  const diff = today - yesterday;
+  if (yesterday === 0 && today === 0) return <span className="text-[10px] text-slate-400">-</span>;
+  if (diff === 0) {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-slate-400">
+        <Minus className="h-2.5 w-2.5" /> Sama {label}
+      </span>
+    );
+  }
+  const isUp = diff > 0;
+  const pct = yesterday > 0 ? Math.abs(Math.round((diff / yesterday) * 100)) : null;
+  return (
+    <span
+      className={`inline-flex items-center gap-0.5 text-[10px] font-semibold ${
+        isUp ? "text-emerald-600" : "text-rose-600"
+      }`}
+    >
+      {isUp ? (
+        <ArrowUpRight className="h-2.5 w-2.5" />
+      ) : (
+        <ArrowDownRight className="h-2.5 w-2.5" />
+      )}
+      {isUp ? "+" : ""}{diff}
+      {pct !== null && <span className="text-[9px]">({isUp ? "+" : ""}{pct}%)</span>}
+      <span className="font-normal text-slate-400 ml-0.5">{label}</span>
+    </span>
+  );
+}
 
 export default function ArmadaOverviewPage() {
   const { data: kendaraan, isLoading: lK } = useKendaraan();
@@ -24,6 +64,7 @@ export default function ArmadaOverviewPage() {
   const { data: ritase, isLoading: lR } = useRitase();
   const { data: seller, isLoading: lS } = useSeller();
   const { data: mapData } = useTrackingMap();
+  const { data: summary, isLoading: lSmm } = useDashboardSummary();
 
   // Kendaraan yang lagi kirim posisi (tidak offline per backend).
   const onlineIds = new Set(
@@ -37,6 +78,12 @@ export default function ArmadaOverviewPage() {
     0
   );
   const driverOnline = (driver ?? []).filter((d) => d.tracking_fresh).length;
+
+  // Ritase hari ini: hitung dari data ritase langsung (outgoing/incoming split)
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const ritaseToday = (ritase ?? []).filter((r) => r.tanggal === todayStr);
+  const outgoingToday = ritaseToday.filter((r) => r.jenis_ritase === "outgoing").length;
+  const incomingToday = ritaseToday.filter((r) => r.jenis_ritase === "incoming").length;
 
   return (
     <div>
@@ -79,8 +126,9 @@ export default function ArmadaOverviewPage() {
         />
       </div>
 
-      {/* Breakdown status */}
-      <div className="mt-5 grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+      {/* Breakdown status — 4 kolom */}
+      <div className="mt-5 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Card 1: Status Kendaraan */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
@@ -98,7 +146,6 @@ export default function ArmadaOverviewPage() {
             ) : (
               <>
                 <Breakdown items={kendaraan ?? []} field="status_kendaraan" />
-
                 <div className="mt-3.5 space-y-1.5 border-t border-slate-100 pt-2.5 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Kapasitas total</span>
@@ -119,6 +166,7 @@ export default function ArmadaOverviewPage() {
           </CardContent>
         </Card>
 
+        {/* Card 2: Status Driver */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
@@ -136,21 +184,21 @@ export default function ArmadaOverviewPage() {
             ) : (
               <>
                 <Breakdown items={driver ?? []} field="status_driver" />
-
-                  <div className="mt-3.5 space-y-1.5 border-t border-slate-100 pt-2.5 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Sedang online</span>
-                      <span className="inline-flex items-center gap-1.5 font-bold tabular-nums text-emerald-700">
-                        <i className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                        {driverOnline} driver
-                      </span>
-                    </div>
+                <div className="mt-3.5 space-y-1.5 border-t border-slate-100 pt-2.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Sedang online</span>
+                    <span className="inline-flex items-center gap-1.5 font-bold tabular-nums text-emerald-700">
+                      <i className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                      {driverOnline} driver
+                    </span>
                   </div>
+                </div>
               </>
             )}
           </CardContent>
         </Card>
 
+        {/* Card 3: Status Ritase + trend */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
@@ -166,7 +214,61 @@ export default function ArmadaOverviewPage() {
             ) : (ritase ?? []).length === 0 ? (
               <p className="py-3 text-center text-sm text-slate-400">Belum ada ritase</p>
             ) : (
-              <Breakdown items={ritase ?? []} field="status" />
+              <>
+                <Breakdown items={ritase ?? []} field="status" />
+                {/* Trend: total ritase hari ini vs kemarin */}
+                {!lSmm && summary && (
+                  <div className="mt-3 border-t border-slate-100 pt-2">
+                    <TrendIndicator
+                      today={summary.ritase_hari_ini}
+                      yesterday={summary.ritase_kemarin}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Card 4: Ritase Hari Ini (NEW) */}
+        <Card className="border-[#0c1e3a]/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <Truck className="h-4 w-4 text-[#FEA103]" />
+              Ritase Hari Ini
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {lR ? (
+              <Skeleton className="h-20 w-full" />
+            ) : (
+              <>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold tabular-nums text-[#0c1e3a]">
+                    {ritaseToday.length}
+                  </span>
+                  <span className="text-xs text-slate-400">ritase</span>
+                </div>
+                <div className="mt-1.5 flex items-center gap-3 text-xs text-slate-500">
+                  <span className="inline-flex items-center gap-1">
+                    <i className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                    {outgoingToday} outgoing
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <i className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    {incomingToday} incoming
+                  </span>
+                </div>
+                {/* Trend: hari ini vs kemarin */}
+                {!lSmm && summary && (
+                  <div className="mt-3 border-t border-slate-100 pt-2">
+                    <TrendIndicator
+                      today={summary.ritase_hari_ini}
+                      yesterday={summary.ritase_kemarin}
+                    />
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
