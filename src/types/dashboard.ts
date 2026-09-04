@@ -43,7 +43,11 @@ export interface DashboardSummary {
 
 export interface DurasiAnalisis {
   rata_rata_loading: string;
+  rata_rata_loading_detik: number;
+  rata_rata_loading_kemarin_detik: number;
   rata_rata_perjalanan: string;
+  rata_rata_perjalanan_detik: number;
+  rata_rata_perjalanan_kemarin_detik: number;
   total_ritase_dihitung: number;
 }
 
