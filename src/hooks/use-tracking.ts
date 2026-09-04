@@ -27,18 +27,22 @@ export function useTrackingMap() {
   });
 }
 
-/** Riwayat status (checkpoint) untuk satu kendaraan, opsional filter tanggal (YYYY-MM-DD).
+/** Riwayat status (checkpoint) untuk satu kendaraan atau satu driver, opsional filter tanggal (YYYY-MM-DD).
  *  Cache 30s — jarang berubah & di-invalidate via SSE untuk kendaraan terpilih. */
-export function useTrackingHistory(idKendaraan: number | null, tanggal?: string) {
+export function useTrackingHistory(idKendaraan: number | null, tanggal?: string, idDriver?: number | null) {
   const token = useAuthStore(tokenSelector);
   return useQuery({
-    queryKey: ["tracking-history", idKendaraan, tanggal],
+    queryKey: ["tracking-history", idKendaraan, idDriver, tanggal],
     queryFn: () =>
       get<TrackingCheckpoint[]>("/armada/tracking/history", {
         token,
-        query: { kendaraan_id: idKendaraan ?? undefined, tanggal },
+        query: {
+          kendaraan_id: idDriver ? undefined : (idKendaraan ?? undefined),
+          driver_id: idDriver ?? undefined,
+          tanggal,
+        },
       }),
-    enabled: !!token && idKendaraan != null,
+    enabled: !!token && (idKendaraan != null || idDriver != null),
     staleTime: 30_000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
