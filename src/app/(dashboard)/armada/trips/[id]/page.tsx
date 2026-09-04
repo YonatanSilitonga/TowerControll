@@ -84,7 +84,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
   const stops = data.stops ?? [];
   const countStop = (t: string) => stops.filter((s) => s.jenis_stop === t).length;
   const nSeller = countStop("seller");
-  const nDrop = countStop("drop_point");
+  const nDrop = stops.filter((s) => s.jenis_stop === "drop_point" || s.jenis_stop === "gateway").length;
   const nGudang = countStop("gudang");
 
   const durasiParts = [
