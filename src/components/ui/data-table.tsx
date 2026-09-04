@@ -30,6 +30,8 @@ interface DataTableProps<T> {
   tableLayout?: "auto" | "fixed";
   /** Tampilkan kolom nomor urut (#) di kiri tabel. */
   showRowIndex?: boolean;
+  /** CSS class tambahan per baris (mis. colored border berdasarkan status). */
+  rowClassName?: (row: T) => string;
 }
 
 /** Tabel reusable: search + pagination + skeleton + empty state. Tahan banyak data. */
@@ -48,6 +50,7 @@ export function DataTable<T>({
   defaultPageSize = 10,
   tableLayout = "auto",
   showRowIndex = false,
+  rowClassName,
 }: DataTableProps<T>) {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -163,7 +166,8 @@ export function DataTable<T>({
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   className={cn(
                     "border-b border-slate-100 last:border-0",
-                    onRowClick && "cursor-pointer transition-colors hover:bg-slate-50"
+                    onRowClick && "cursor-pointer transition-colors hover:bg-slate-50",
+                    rowClassName?.(row)
                   )}
                 >
                   {showRowIndex && (

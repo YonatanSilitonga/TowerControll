@@ -215,6 +215,13 @@ export default function RitasePage() {
         showRowIndex
         emptyText="Belum ada ritase"
         onRowClick={(r) => router.push(`/armada/trips/${r.id_ritase}`)}
+        rowClassName={(r) => {
+          const s = r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai) ? "tidak terlaksana" : r.status;
+          if (s === "berjalan") return "border-l-[3px] border-l-sky-500";
+          if (s === "selesai") return "border-l-[3px] border-l-emerald-500";
+          if (s === "tidak terlaksana") return "border-l-[3px] border-l-rose-500";
+          return "border-l-[3px] border-l-amber-400";
+        }}
         columns={[
           {
             header: "Kode",
