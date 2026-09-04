@@ -227,7 +227,7 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-24 w-full rounded-lg" />
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-[88px] rounded-lg" />
           ))}
@@ -366,8 +366,8 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* KPI — 6 cards, 2 kolom mobile, 3 kolom desktop */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+      {/* KPI — 6 cards, 1 baris di desktop */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {summaryCards.map((c) => (
           <div
             key={c.label}
