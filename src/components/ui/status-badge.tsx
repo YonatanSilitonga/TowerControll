@@ -35,7 +35,13 @@ function getDot(status: string): string {
   if (["pending", "planned", "scheduled", "unpaid", "out_for_delivery", "direncanakan"].some((k) => s.includes(k))) {
     return "bg-amber-600 md:bg-amber-500";
   }
-  if (["in_transit", "in_progress", "picked_up", "maintenance", "berjalan", "loading"].some((k) => s.includes(k))) {
+  if (["bongkar", "unloading"].some((k) => s.includes(k))) {
+    return "bg-indigo-600 md:bg-indigo-500";
+  }
+  if (["kembali"].some((k) => s.includes(k))) {
+    return "bg-teal-600 md:bg-teal-500";
+  }
+  if (["in_transit", "in_progress", "picked_up", "maintenance", "berjalan", "loading", "muat"].some((k) => s.includes(k))) {
     return "bg-sky-600 md:bg-sky-500";
   }
   if (["delivered", "completed", "active", "available", "paid", "on_duty", "success", "selesai", "aktif", "tersedia", "bertugas"].some((k) => s.includes(k))) {
@@ -53,7 +59,13 @@ function getTone(status: string): string {
   if (["pending", "planned", "scheduled", "unpaid", "out_for_delivery", "direncanakan"].some((k) => s.includes(k))) {
     return "bg-amber-100 text-amber-800 border-amber-300 md:bg-amber-50 md:text-amber-700 md:border-amber-200";
   }
-  if (["in_transit", "in_progress", "picked_up", "maintenance", "berjalan", "loading"].some((k) => s.includes(k))) {
+  if (["bongkar", "unloading"].some((k) => s.includes(k))) {
+    return "bg-indigo-100 text-indigo-800 border-indigo-300 md:bg-indigo-50 md:text-indigo-700 md:border-indigo-200";
+  }
+  if (["kembali"].some((k) => s.includes(k))) {
+    return "bg-teal-100 text-teal-800 border-teal-300 md:bg-teal-50 md:text-teal-700 md:border-teal-200";
+  }
+  if (["in_transit", "in_progress", "picked_up", "maintenance", "berjalan", "loading", "muat"].some((k) => s.includes(k))) {
     return "bg-sky-100 text-sky-800 border-sky-300 md:bg-sky-50 md:text-sky-700 md:border-sky-200";
   }
   if (["delivered", "completed", "active", "available", "paid", "on_duty", "success", "selesai", "aktif", "tersedia", "bertugas"].some((k) => s.includes(k))) {

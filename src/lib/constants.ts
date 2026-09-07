@@ -101,6 +101,15 @@ export const STATUS_LABELS: Record<string, string> = {
   loading: "Loading",
   tiba: "Tiba",
   "tidak terlaksana": "Tidak Terlaksana",
+  muat: "Muat Barang",
+  muat_barang: "Muat Barang",
+  "Muat Barang": "Muat Barang",
+  bongkar: "Bongkar Barang",
+  bongkar_barang: "Bongkar Barang",
+  "Bongkar Barang": "Bongkar Barang",
+  "Bongkar Muat Barang": "Muat Barang",
+  "Kembali ke Gudang": "Kembali ke Gudang",
+  kembali_ke_gudang: "Kembali ke Gudang",
 };
 
 /** Ambil label untuk status apa pun. */

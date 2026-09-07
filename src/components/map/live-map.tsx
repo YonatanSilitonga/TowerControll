@@ -620,7 +620,8 @@ function findNextStop(
   const isEnRoute =
     lastStatus.includes("menuju") ||
     lastStatus.includes("keluar") ||
-    lastStatus.includes("berangkat");
+    lastStatus.includes("berangkat") ||
+    lastStatus.includes("kembali");
   const isUnloading =
     lastStatus.includes("bongkar") ||
     lastStatus.includes("muat") ||
