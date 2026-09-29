@@ -26,19 +26,24 @@ export function MobileNav() {
     setOpenDropdowns((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const isKoorGudang = role === "koor_gudang";
+
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
+        className={cn(
+          "rounded-md p-2 text-slate-600 hover:bg-slate-100",
+          !isKoorGudang && "lg:hidden"
+        )}
         aria-label="Buka menu"
       >
         <Menu className="h-5 w-5" />
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-40 lg:hidden">
+        <div className={cn("fixed inset-0 z-50", !isKoorGudang && "lg:hidden")}>
           {/* Overlay */}
           <div
             className="absolute inset-0 bg-black/40"

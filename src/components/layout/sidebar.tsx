@@ -11,6 +11,7 @@ import {
   ClipboardCheck,
   LayoutDashboard,
   MapPin,
+  Package,
   Store,
   TrendingUp,
   Truck,
@@ -37,6 +38,8 @@ export interface NavItem {
 
 const NAV: NavItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard, key: "dashboard" },
+  { label: "Peta", href: "/", icon: MapPin, key: "peta" },
+  { label: "Kelola AWB Implan", href: "/implan", icon: Package, key: "implan" },
   { label: "Armada", href: "/armada", icon: Truck, key: "armada" },
   { label: "Live Map", href: "/armada/live-map", icon: MapPin, key: "live-map" },
   { label: "Jadwal Ritase", href: "/jadwal", icon: Calendar, key: "jadwal" },
@@ -98,6 +101,11 @@ export function Sidebar() {
   const toggleDropdown = (key: string) => {
     setOpenDropdowns((prev) => ({ ...prev, [key]: !prev[key] }));
   };
+
+  // Koor gudang fokus layar peta penuh di halaman utama (peta), menu navigasi diakses via hamburger di header
+  if (role === "koor_gudang" && pathname === "/") {
+    return null;
+  }
 
   return (
     <div className="hidden w-60 shrink-0 bg-[#0c1e3a] lg:block">

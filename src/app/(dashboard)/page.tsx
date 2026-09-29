@@ -1,26 +1,34 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   Boxes,
+  Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   Clock,
   Gem,
+  Loader2,
   MapPin,
   Package,
   PackageCheck,
+  Phone,
   PlayCircle,
   RadioTower,
   Route as RouteIcon,
   Search,
+  Store,
   Truck,
   ArrowUpRight,
   ArrowDownRight,
   Minus,
+  X,
 } from "lucide-react";
 import {
   Card,
@@ -32,7 +40,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardAnalisis, useDashboardSummary } from "@/hooks/use-dashboard";
 import { useTrackingHistory, useTrackingMap } from "@/hooks/use-tracking";
 import { useDriver, useRitase, useRitaseDetail } from "@/hooks/use-armada";
-import { get } from "@/lib/api-client";
+import { get, post } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
 import { summarizeEvents } from "@/components/armada/driver-summary";
 import { StatusTimeline } from "@/components/armada/status-timeline";
@@ -151,6 +159,14 @@ export default function DashboardPage() {
   const [armadaQ, setArmadaQ] = useState("");
   // "" = semua tanggal; kalau diisi → filter riwayat per hari.
   const [selectedDate, setSelectedDate] = useState<string>(todayLocal());
+  // Role & right panel state untuk Koor Gudang (Fadel)
+  const role = useAuthStore((s) => s.user?.role);
+  const isKoorGudang = role === "koor_gudang";
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [implanQ, setImplanQ] = useState("");
+  const [implanTab, setImplanTab] = useState<"menunggu" | "diambil" | "all">("menunggu");
+  const [focusTarget, setFocusTarget] = useState<{ type: string; id: number } | null>(null);
+
   // Jam WIB live (update tiap detik).
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -223,7 +239,17 @@ export default function DashboardPage() {
       : undefined;
   const { data: ritaseDetail } = useRitaseDetail(selectedRitaseId);
 
-  if (summary.isLoading) {
+  // Loading skeleton untuk koor_gudang (fokus map saja)
+  if (isKoorGudang && map.isLoading) {
+    return (
+      <div className="flex h-[calc(100vh-5.25rem)] w-full items-center justify-center">
+        <Skeleton className="h-full w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  // Loading skeleton untuk role umum (dashboard cards)
+  if (!isKoorGudang && summary.isLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-24 w-full rounded-lg" />
@@ -334,6 +360,315 @@ export default function DashboardPage() {
   const mapSellers = mapFilter === "trucks" ? [] : sellers;
   const mapGudang = mapFilter === "trucks" ? [] : (map.data?.gudang ?? []);
   const mapDrop = mapFilter === "trucks" ? [] : (map.data?.drop_points ?? []);
+
+  /* ── TAMPILAN KHUSUS KOORDINATOR GUDANG (FADEL) ─────────────────
+     Peta full-height dengan sidebar kanan: Implan yang Perlu Dijemput
+     ───────────────────────────────────────────────────────────── */
+  if (isKoorGudang) {
+    const ql = implanQ.trim().toLowerCase();
+
+    // Data implan
+    const allSellers = sellers;
+    const waitingSellers = allSellers.filter(
+      (s) => (s.status_pickup === "menunggu" || !s.status_pickup) && (s.jumlah_barang ?? 0) > 0
+    );
+    const completedSellers = allSellers.filter(
+      (s) => s.status_pickup === "sudah_diambil"
+    );
+
+    const totalAwbWaiting = waitingSellers.reduce((acc, s) => acc + (s.jumlah_barang ?? 0), 0);
+
+    const targetList =
+      implanTab === "menunggu"
+        ? waitingSellers
+        : implanTab === "diambil"
+        ? completedSellers
+        : allSellers;
+
+    const displayedSellers = targetList.filter((s) => {
+      if (!ql) return true;
+      return (
+        s.nama_seller.toLowerCase().includes(ql) ||
+        (s.kode_seller ?? "").toLowerCase().includes(ql) ||
+        (s.kota ?? "").toLowerCase().includes(ql) ||
+        (s.pic ?? "").toLowerCase().includes(ql)
+      );
+    });
+
+    return (
+      <div className="relative flex h-[calc(100vh-5.25rem)] w-full gap-3 overflow-hidden rounded-xl">
+        {/* PETA FULL */}
+        <div className="relative flex-1 h-full w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <LiveMap
+            vehicles={vehicles}
+            sellers={sellers}
+            gudang={map.data?.gudang ?? []}
+            dropPoints={map.data?.drop_points ?? []}
+            phones={phones}
+            initialFocus={focusTarget ?? undefined}
+            selectedVehicleId={selectedId}
+            onSelectVehicle={(id) => setSelectedId(id)}
+          />
+
+          {/* FLOATING TRIGGER SAAT PANEL KANAN DIPERKECIL */}
+          {!rightPanelOpen && (
+            <button
+              type="button"
+              onClick={() => setRightPanelOpen(true)}
+              className="absolute top-4 right-4 z-[1000] flex items-center gap-2 rounded-xl bg-[#0c1e3a] px-3.5 py-2.5 text-xs font-semibold text-white shadow-xl border border-white/10 hover:bg-[#0c1e3a]/90 active:scale-95 transition-all"
+              title="Buka panel implan"
+            >
+              <Store className="h-4 w-4 text-amber-400" />
+              <span>Implan Jemput</span>
+              <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-300">
+                {waitingSellers.length} Menunggu
+              </span>
+              <ChevronLeft className="h-4 w-4 text-slate-300" />
+            </button>
+          )}
+        </div>
+
+        {/* SIDEBAR KANAN: IMPLAN YANG PERLU DIJEMPUT */}
+        {rightPanelOpen && (
+          <aside className="relative flex h-full w-full max-w-[390px] shrink-0 flex-col gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm transition-all duration-300">
+            {/* Header sidebar kanan */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 text-white shadow-xs">
+                  <Store className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Implan Perlu Dijemput</h2>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    {waitingSellers.length} Menunggu · <b className="text-amber-600">{totalAwbWaiting.toLocaleString("id-ID")} AWB</b>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setRightPanelOpen(false)}
+                  className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors"
+                  title="Perkecil panel"
+                >
+                  <span className="text-[11px] font-medium">Perkecil</span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Tab Filter & Link ke Kelola AWB */}
+            <div className="flex items-center justify-between gap-1 border-b border-slate-100 pb-2">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setImplanTab("menunggu")}
+                  className={cn(
+                    "rounded-md px-2 py-1 text-[11px] font-bold transition-all",
+                    implanTab === "menunggu"
+                      ? "bg-amber-500 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  )}
+                >
+                  Menunggu ({waitingSellers.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImplanTab("diambil")}
+                  className={cn(
+                    "rounded-md px-2 py-1 text-[11px] font-bold transition-all",
+                    implanTab === "diambil"
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  )}
+                >
+                  Diambil ({completedSellers.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImplanTab("all")}
+                  className={cn(
+                    "rounded-md px-2 py-1 text-[11px] font-bold transition-all",
+                    implanTab === "all"
+                      ? "bg-[#0c1e3a] text-white shadow-xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  )}
+                >
+                  Semua ({allSellers.length})
+                </button>
+              </div>
+
+              <Link
+                href="/implan"
+                className="text-[10px] font-semibold text-sky-600 hover:underline flex items-center gap-0.5 shrink-0"
+              >
+                Kelola AWB ↗
+              </Link>
+            </div>
+
+            {/* Pencarian Implan */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                value={implanQ}
+                onChange={(e) => setImplanQ(e.target.value)}
+                placeholder="Cari nama implan, kota, PIC..."
+                className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50/60 pl-8 pr-3 text-xs outline-none focus:border-[#0c1e3a] focus:bg-white focus:ring-2 focus:ring-[#0c1e3a]/15 transition-all"
+              />
+            </div>
+
+            {/* List Implan yang Perlu Dijemput (Scrollable) */}
+            <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+              {map.isPending ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                ))
+              ) : displayedSellers.length === 0 ? (
+                <div className="py-12 text-center text-slate-400">
+                  <Package className="mx-auto mb-2 h-7 w-7 text-slate-300" />
+                  <p className="text-xs font-semibold text-slate-600">
+                    {ql
+                      ? "Tidak ada implan yang cocok"
+                      : implanTab === "menunggu"
+                      ? "Tidak ada implan yang perlu dijemput saat ini"
+                      : "Tidak ada data implan"}
+                  </p>
+                  {implanTab === "menunggu" && (
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Semua barang implan sudah dijemput atau belum ada muatan.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                displayedSellers.map((s) => {
+                  const isDone = s.status_pickup === "sudah_diambil";
+                  const awbCount = s.jumlah_barang ?? 0;
+
+                  return (
+                    <div
+                      key={s.id_seller}
+                      onClick={() => setFocusTarget({ type: "seller", id: s.id_seller })}
+                      className={cn(
+                        "rounded-xl border p-3 transition-all text-xs bg-white hover:border-slate-300 shadow-xs cursor-pointer hover:bg-slate-50/80",
+                        isDone ? "border-emerald-200/80 bg-emerald-50/20" : "border-slate-200"
+                      )}
+                    >
+                      {/* Top Bar: Nama & AWB Badge */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-slate-900 truncate flex items-center gap-1.5">
+                            <span className="truncate">{s.nama_seller}</span>
+                            {s.kode_seller && (
+                              <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[9px] font-medium text-slate-500 shrink-0">
+                                {s.kode_seller}
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                            <MapPin className="h-3 w-3 text-slate-400" />
+                            <span>{s.kota || "-"}</span>
+                            {s.jarak_tempuh_km != null && (
+                              <span className="ml-1 text-sky-600 font-medium">· {s.jarak_tempuh_km.toFixed(1)} km</span>
+                            )}
+                          </p>
+                        </div>
+
+                        {/* 3 Kotak Muatan: AWB, Koli, HV */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {/* Kotak AWB */}
+                          <div
+                            className={cn(
+                              "rounded-lg px-2 py-1 text-center font-extrabold text-xs shadow-2xs min-w-[42px]",
+                              isDone
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                : awbCount > 0
+                                ? "bg-amber-500 text-white"
+                                : "bg-slate-100 text-slate-500"
+                            )}
+                          >
+                            <span className="block text-[12px] leading-tight font-extrabold">
+                              {isDone ? "✓ 0" : awbCount}
+                            </span>
+                            <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-90">
+                              AWB
+                            </span>
+                          </div>
+
+                          {/* Kotak Koli */}
+                          <div
+                            className={cn(
+                              "rounded-lg px-2 py-1 text-center font-extrabold text-xs shadow-2xs min-w-[38px] border",
+                              isDone
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-200/60"
+                                : "bg-slate-100 text-slate-700 border-slate-200/70"
+                            )}
+                          >
+                            <span className="block text-[12px] leading-tight font-extrabold">
+                              {isDone ? 0 : (s.koli ?? 0)}
+                            </span>
+                            <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-75">
+                              Koli
+                            </span>
+                          </div>
+
+                          {/* Kotak HV (High Value) */}
+                          <div
+                            className={cn(
+                              "rounded-lg px-2 py-1 text-center font-extrabold text-xs shadow-2xs min-w-[38px] border",
+                              isDone
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-200/60"
+                                : "bg-slate-100 text-slate-700 border-slate-200/70"
+                            )}
+                          >
+                            <span className="block text-[12px] leading-tight font-extrabold">
+                              {isDone ? 0 : (s.high_value ?? 0)}
+                            </span>
+                            <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-75">
+                              HV
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Notifikasi jika barang sudah diambil */}
+                      {isDone && (
+                        <p className="mt-1.5 rounded bg-emerald-50/80 px-2 py-1 text-[10px] font-medium text-emerald-800 border border-emerald-200/50 flex items-center justify-between">
+                          <span>✓ Muatan sudah diambil armada</span>
+                          <span className="text-[9px] text-emerald-600 font-normal">Tadi: {awbCount} AWB · {s.koli ?? 0} Koli · {s.high_value ?? 0} HV</span>
+                        </p>
+                      )}
+
+                      {/* Catatan jika ada */}
+                      {s.catatan_pickup && (
+                        <p className="mt-1.5 rounded bg-slate-50 p-1 text-[10px] text-slate-600 italic border border-slate-100">
+                          &quot;{s.catatan_pickup}&quot;
+                        </p>
+                      )}
+
+                      {/* PIC & Kontak Telepon */}
+                      <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">PIC: <b className="text-slate-700">{s.pic || "-"}</b></span>
+                        {s.no_hp && (
+                          <a
+                            href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 font-semibold text-emerald-600 hover:underline"
+                          >
+                            <Phone className="h-3 w-3" /> {s.no_hp}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </aside>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

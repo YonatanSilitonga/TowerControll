@@ -36,6 +36,8 @@ export const ROLE_LABEL: Record<UserRole, string> = {
   tower_control: "Tower Control",
   direktur: "Direktur",
   driver: "Driver",
+  koor_gudang: "Koordinator Gudang",
+  driver_pickup: "Driver Pickup",
 };
 
 /** Mapping role -> modul yang boleh diakses (untuk menu & guard). */
@@ -44,10 +46,12 @@ export const ROLE_MENU: Record<UserRole, string[]> = {
   tower_control: ["dashboard", "armada", "jadwal", "manifest-foto", "analitik", "efektivitas-armada"],
   direktur: ["dashboard", "armada", "jadwal", "manifest-foto", "analitik", "efektivitas-armada"],
   driver: ["dashboard", "armada"],
+  koor_gudang: ["peta", "implan"],
+  driver_pickup: ["dashboard"],
 };
 
-/** Role yang boleh masuk dashboard WEB (admin, direktur & tower_control). Driver = mobile. */
-export const ALLOWED_WEB_ROLES: UserRole[] = ["admin", "direktur", "tower_control"];
+/** Role yang boleh masuk dashboard WEB (admin, direktur, tower_control & koor_gudang). Driver = mobile. */
+export const ALLOWED_WEB_ROLES: UserRole[] = ["admin", "direktur", "tower_control", "koor_gudang"];
 
 export const DELIVERY_STATUS_LABEL: Record<string, string> = {
   in_transit: "IN TRANSIT",

@@ -140,6 +140,8 @@ export interface TrackingVehicle {
   total_koli?: number | null;
   total_high_value?: number | null;
   total_eceran?: number | null;
+  /** Role driver: 'driver' (reguler) atau 'driver_pickup'. */
+  role_driver?: string | null;
   last_update: string;
   /** Backend: true kalau last_update > ambang offline (default 15 mnt). */
   offline?: boolean;
@@ -165,6 +167,28 @@ export interface SellerLocation {
   jarak_tempuh_km?: number | null;
   /** Jarak tempuh (jalan) dari GUDANG DC (Buaran Indah) ke seller, km. */
   jarak_dc_km?: number | null;
+  /** Status log barang hari ini untuk implan. */
+  jumlah_barang?: number | null;
+  koli?: number | null;
+  ecer?: number | null;
+  high_value?: number | null;
+  status_pickup?: string | null;
+  catatan_pickup?: string | null;
+}
+
+export interface ImplanBarangLog {
+  id_log: number;
+  id_seller: number;
+  tanggal: string;
+  jumlah_barang: number;
+  koli?: number;
+  ecer?: number;
+  high_value?: number;
+  status: string;
+  catatan?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface TrackingMap {

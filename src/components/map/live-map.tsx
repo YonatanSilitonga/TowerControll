@@ -1,11 +1,15 @@
 "use client";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
-import { ChevronDown, ChevronUp, Phone, Search } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, History, Loader2, Package, Phone, Save, Search } from "lucide-react";
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
+import { useQueryClient } from "@tanstack/react-query";
+import { get, post } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
 import type {
   DropPointPoi,
   GudangPoint,
+  ImplanBarangLog,
   RitaseEvent,
   RitaseStop,
   SellerLocation,
@@ -32,69 +36,156 @@ const OUTGOING_LON = 106.65715503860062;
 const DC_LAT = -6.1848;
 const DC_LON = 106.6511;
 
-// Ikon dibuat SEKALI di level modul & DIBAGIKAN antar marker.
-// Sebelumnya: `createTruckIcon(...)`/`createSellerIcon()` dipanggil per marker per
-// render → tiap poll 10 detik semua marker di-setIcon ulang → keliatan "refresh terus".
-// Leaflet icon itu stateless, aman dipakai bareng (shared instance).
-const TRUCK_ICON = createTruckIcon(false);
-const TRUCK_ICON_SELECTED = createTruckIcon(true);
-const SELLER_ICON = createSellerIcon();
 const OUTGOING_ICON = createGudangIcon("#0ea5e9"); // biru
 const DC_ICON = createGudangIcon("#7c3aed"); // ungu
-const DROP_ICON = createGudangIcon("#f97316"); // oranye — drop point
+const DROP_ICON = createGudangIcon("#ef4444"); // MERAH — gateway / drop point
 
-function createTruckIcon(selected: boolean) {
-  return L.divIcon({
+// Cache icon agar Leaflet tidak me-recreate DOM element setiap render
+const truckIconCache = new Map<string, L.DivIcon>();
+const sellerIconCache = new Map<string, L.DivIcon>();
+
+/** Ikon Truk/Driver:
+ *  - Driver Pickup: Oranye (#ea580c) saat LIVE, gelap saat offline
+ *  - Driver Reguler: Hijau (#10b981) saat LIVE, gelap saat offline
+ *  - Bubble chat: Angka AWB di atas icon jika > 0
+ */
+function getTruckIcon(
+  selected: boolean,
+  roleDriver?: string | null,
+  isLive?: boolean,
+  totalAwb?: number | null
+): L.DivIcon {
+  const isPickup = roleDriver === "driver_pickup";
+  const awbVal = totalAwb && totalAwb > 0 ? totalAwb : 0;
+  const key = `${selected}:${isPickup}:${!!isLive}:${awbVal}`;
+
+  const cached = truckIconCache.get(key);
+  if (cached) return cached;
+
+  let bg = "#10b981";
+  let border = "#fff";
+
+  if (selected) {
+    bg = "#ff8f00";
+    border = "#fff";
+  } else if (!isLive) {
+    bg = "#334155"; // gelap saat offline/logout
+    border = isPickup ? "#f59e0b" : "#10b981";
+  } else if (isPickup) {
+    bg = "#ea580c"; // oranye cerah saat live pickup
+    border = "#fff";
+  } else {
+    bg = "#10b981"; // hijau saat live reguler
+    border = "#fff";
+  }
+
+  const bubbleBg = isPickup ? "#c2410c" : "#047857";
+
+  const icon = L.divIcon({
     className: "",
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
+    iconSize: [34, awbVal > 0 ? 54 : 34],
+    iconAnchor: [17, awbVal > 0 ? 37 : 17],
     html: `
-      <div style="position:relative;width:34px;height:34px;">
-        ${selected ? `<span class="truck-pulse-ring"></span>` : ""}
+      <div style="position:relative;width:34px;height:${awbVal > 0 ? "54px" : "34px"};">
+        ${awbVal > 0 ? `
+          <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:10;white-space:nowrap;background:${bubbleBg};color:#fff;border:1.5px solid #fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800;box-shadow:0 2px 5px rgba(0,0,0,0.35);display:flex;align-items:center;gap:2px;">
+            <span>${awbVal}</span>
+            <span style="font-size:8px;opacity:0.85;">AWB</span>
+            <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid ${bubbleBg};"></div>
+          </div>
+        ` : ""}
+        ${selected ? `<span class="truck-pulse-ring" style="top:${awbVal > 0 ? "20px" : "0px"};"></span>` : ""}
         <div class="marker-visual" style="
-          position:relative; z-index:1;
+          position:absolute;bottom:0;left:0;z-index:1;
           width:34px;height:34px;
-          background:${selected ? "#ff8f00" : "#1e3a5f"};
+          background:${bg};
+          border:2.5px solid ${border};
+          border-radius:50%;
+          box-shadow:0 2px 6px rgba(0,0,0,.45);
+          display:flex;align-items:center;justify-content:center;
+        ">
+          ${isPickup ? `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 17h4V5H2v12h3"/>
+              <path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5"/>
+              <circle cx="7.5" cy="17.5" r="2.5"/>
+              <circle cx="17.5" cy="17.5" r="2.5"/>
+            </svg>
+          ` : `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
+              <path d="M15 18H9"/>
+              <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/>
+              <circle cx="17" cy="18" r="2"/>
+              <circle cx="7" cy="18" r="2"/>
+            </svg>
+          `}
+        </div>
+      </div>`,
+  });
+
+  truckIconCache.set(key, icon);
+  return icon;
+}
+
+/** Ikon Seller / Implan:
+ *  - Memiliki bubble chat di atasnya jika ada input jumlah barang
+ *  - Warna bubble: Amber/Kuning jika menunggu, Hijau jika sudah diambil
+ */
+function getSellerIcon(jumlahBarang?: number | null, statusPickup?: string | null): L.DivIcon {
+  const count = jumlahBarang != null && jumlahBarang >= 0 ? jumlahBarang : 0;
+  const status = statusPickup || "menunggu";
+  const key = `${count}:${status}`;
+
+  const cached = sellerIconCache.get(key);
+  if (cached) return cached;
+
+  const isSelesai = status === "sudah_diambil";
+  let badgeBg = "#475569"; // default netral slate saat 0
+  let badgeText = `${count}`;
+
+  if (isSelesai) {
+    badgeBg = "#059669"; // hijau selesai
+    badgeText = "✓ 0";
+  } else if (count > 0) {
+    badgeBg = "#d97706"; // amber jika ada barang menunggu
+    badgeText = `${count}`;
+  }
+
+  const icon = L.divIcon({
+    className: "",
+    iconSize: [30, 50],
+    iconAnchor: [15, 35],
+    html: `
+      <div style="position:relative;width:30px;height:50px;">
+        <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:10;white-space:nowrap;background:${badgeBg};color:#fff;border:1.5px solid #fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800;box-shadow:0 2px 5px rgba(0,0,0,0.35);display:flex;align-items:center;gap:2px;">
+          <span>${badgeText}</span>
+          <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid ${badgeBg};"></div>
+        </div>
+        <div class="marker-visual" style="
+          position:absolute;bottom:0;left:0;
+          width:30px;height:30px;
+          background:${isSelesai ? "#10b981" : "#0284c7"};
           border:2px solid #fff;
           border-radius:50%;
           box-shadow:0 2px 6px rgba(0,0,0,.4);
           display:flex;align-items:center;justify-content:center;
         ">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
-            <path d="M15 18H9"/>
-            <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/>
-            <circle cx="17" cy="18" r="2"/>
-            <circle cx="7" cy="18" r="2"/>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/>
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+            <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/>
+            <path d="M2 7h20"/>
           </svg>
         </div>
       </div>`,
   });
+
+  sellerIconCache.set(key, icon);
+  return icon;
 }
 
-function createSellerIcon() {
-  return L.divIcon({
-    className: "",
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
-    html: `
-      <div class="marker-visual" style="
-        width:30px;height:30px;
-        background:#10b981;
-        border:2px solid #fff;
-        border-radius:50%;
-        box-shadow:0 2px 6px rgba(0,0,0,.4);
-        display:flex;align-items:center;justify-content:center;
-      ">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/>
-          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-          <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/>
-          <path d="M2 7h20"/>
-        </svg>
-      </div>`,
-  });
-}
+const SELLER_ICON = getSellerIcon(0, "menunggu");
 
 function createGudangIcon(color: string) {
   return L.divIcon({
@@ -271,14 +362,17 @@ function VehicleMarker({
     else markerRef.current?.closePopup();
   }, [selected]);
 
+  const isLive = !v.offline && hasActiveSession(v.last_login);
+  const awbCount = v.total_awb ?? v.total_koli ?? 0;
+  const truckIcon = getTruckIcon(selected, v.role_driver, isLive, awbCount);
+
   return (
     <Marker
       ref={markerRef}
       position={[v.latitude, v.longitude]}
-      icon={selected ? TRUCK_ICON_SELECTED : TRUCK_ICON}
+      icon={truckIcon}
       eventHandlers={{
         click: (e) => {
-          {/* ⬅️ GANTI baris eventHandlers ini */ }
           playPopAnimation(e.target as L.Marker);
           onSelect();
         },
@@ -812,9 +906,15 @@ function LiveMapView({
   // Rute yang digambar saat seller/gateway diklik (dari Outgoing & DC).
 
 
+  // Hanya tampilkan kendaraan yang AKTIF (online & sesi driver aktif).
+  // Kendaraan yang offline / driver logout dihilangkan dari peta.
+  const activeVehicles = useMemo(() => {
+    return vehicles.filter((v) => !v.offline && hasActiveSession(v.last_login));
+  }, [vehicles]);
+
   // Rute LIVE armada terpilih: dari posisi truk → stop berikutnya (ritase aktif).
   const selectedVehicle =
-    vehicles.find((v) => v.id_kendaraan === selectedVehicleId) ?? null;
+    activeVehicles.find((v) => v.id_kendaraan === selectedVehicleId) ?? null;
   const activeRoute = useActiveRoute(selectedVehicle, sellers, dropList, gudangList);
 
   // Pencarian semua kategori (truk/seller/gudang/drop) + popup saat klik hasil.
@@ -848,7 +948,7 @@ function LiveMapView({
 
   const searchItems = useMemo(() => {
     const items: { type: string; id: number; label: string; sub: string; lat: number; lng: number }[] = [
-      ...vehicles.map((v) => ({
+      ...activeVehicles.map((v) => ({
         type: "truck", id: v.id_kendaraan,
         label: v.plat_nomor || `Kend ${v.id_kendaraan}`,
         sub: v.nama_driver || "",
@@ -985,8 +1085,8 @@ function LiveMapView({
       >
         <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />
         <MapAutoResize />
-        <FitBounds vehicles={vehicles} sellers={sellers} gudang={gudangList} dropPoints={dropList} />
-        <FocusSelected vehicles={vehicles} selectedVehicleId={selectedVehicleId} />
+        <FitBounds vehicles={activeVehicles} sellers={sellers} gudang={gudangList} dropPoints={dropList} />
+        <FocusSelected vehicles={activeVehicles} selectedVehicleId={selectedVehicleId} />
 
         {/* Gudang (Outgoing biru / DC ungu) — dinamis, bisa difilter */}
         {show.gudang &&
@@ -1061,67 +1161,25 @@ function LiveMapView({
             </PoiMarker>
           ))}
 
-        {/* Seller — bisa difilter; klik → gambar rute dari Outgoing & DC */}
+        {/* Seller / Implan — bisa difilter; ada bubble AWB & form update barang */}
         {show.sellers &&
           sellers.map((s) => (
             <PoiMarker
               key={`seller-${s.id_seller}`}
               poiKey={`seller:${s.id_seller}`}
               position={[s.latitude, s.longitude]}
-              icon={SELLER_ICON}
+              icon={getSellerIcon(s.jumlah_barang, s.status_pickup)}
               focusKey={focusKey}
             >
-              <Popup autoPan={false}>    {/* ⬅️ INI — tambahkan autoPan={false} di sini */}
-                <div className={compact ? "min-w-[140px] text-xs" : "min-w-[200px] text-sm"}>
-                  {s.nama_seller && (
-                    <p className="font-semibold text-emerald-700">
-                      {s.nama_seller}
-                      {s.kode_seller && (
-                        <span className="ml-1 text-[10px] font-normal text-slate-400">({s.kode_seller})</span>
-                      )}
-                    </p>
-                  )}
-                  {s.alamat && (
-                    <p className={compact ? "max-w-[150px] truncate text-xs text-muted-foreground" : "text-xs text-muted-foreground"}>
-                      {s.alamat}
-                    </p>
-                  )}
-                  {!compact && (
-                    <>
-                      <p className="text-xs text-muted-foreground">{s.kota}</p>
-                      {(s.jarak_tempuh_km != null || s.jarak_dc_km != null) && (
-                        <div className="mt-1 space-y-0.5">
-                          {s.jarak_tempuh_km != null && (
-                            <p className="text-xs font-medium text-sky-600">
-                              Outgoing: <b>{s.jarak_tempuh_km.toFixed(1)} km</b>
-                            </p>
-                          )}
-                          {s.jarak_dc_km != null && (
-                            <p className="text-xs font-medium text-violet-600">
-                              DC: <b>{s.jarak_dc_km.toFixed(1)} km</b>
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      {s.pic && <p className="mt-1 text-xs">PIC: <b>{s.pic}</b></p>}
-                      {s.no_hp && (
-                        <a
-                          href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`}
-                          className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"
-                        >
-                          <Phone className="h-3 w-3" /> Telpon: {s.no_hp}
-                        </a>
-                      )}
-                    </>
-                  )}
-                </div>
+              <Popup autoPan={false}>
+                <SellerPopupContent seller={s} compact={compact} />
               </Popup>
             </PoiMarker>
           ))}
 
-        {/* Truk TIDAK dikluster — selalu keliatan satu-satu. Bisa difilter. */}
+        {/* Truk TIDAK dikluster — selalu keliatan satu-satu. Hanya armada aktif yang online. */}
         {show.trucks &&
-          vehicles.map((v) => (
+          activeVehicles.map((v) => (
             <VehicleMarker
               key={`vehicle-${v.id_kendaraan}`}
               vehicle={v}
@@ -1219,16 +1277,241 @@ function LiveMapView({
 
         {legendOpen && (
           <div className={compact ? "flex flex-col items-center gap-1" : "space-y-0.5"}>
-            <LegendToggle compact={compact} label="Truk" color="#1e3a5f" active={show.trucks} onClick={() => toggleLayer("trucks")} />
-            <LegendToggle compact={compact} label="Seller" color="#10b981" active={show.sellers} onClick={() => toggleLayer("sellers")} />
+            <LegendToggle compact={compact} label="Driver Reguler" color="#10b981" active={show.trucks} onClick={() => toggleLayer("trucks")} />
+            <LegendToggle compact={compact} label="Driver Pickup" color="#ea580c" active={show.trucks} onClick={() => toggleLayer("trucks")} />
+            <LegendToggle compact={compact} label="Seller (Implan)" color="#0284c7" active={show.sellers} onClick={() => toggleLayer("sellers")} />
             <LegendToggle compact={compact} label="Gudang Outgoing" color="#0ea5e9" active={show.gudang} onClick={() => toggleLayer("gudang")} />
             <LegendToggle compact={compact} label="Gudang DC" color="#7c3aed" active={show.gudang} onClick={() => toggleLayer("gudang")} />
-            <LegendToggle compact={compact} label="Gateway" color="#f97316" active={show.drop} onClick={() => toggleLayer("drop")} />
+            <LegendToggle compact={compact} label="Gateway" color="#ef4444" active={show.drop} onClick={() => toggleLayer("drop")} />
           </div>
         )}
       </div>
     </div>
 
+  );
+}
+
+/** Popup interaktif untuk titik Implan (Seller): input jumlah barang, ubah status, & riwayat log */
+function SellerPopupContent({
+  seller,
+  compact,
+}: {
+  seller: SellerLocation;
+  compact?: boolean;
+}) {
+  const token = useAuthStore((s) => s.token);
+  const queryClient = useQueryClient();
+
+  const [jumlah, setJumlah] = useState<string>(
+    seller.jumlah_barang != null && seller.jumlah_barang > 0
+      ? String(seller.jumlah_barang)
+      : ""
+  );
+  const [status, setStatus] = useState<string>(
+    seller.status_pickup || "menunggu"
+  );
+  const [catatan, setCatatan] = useState<string>(seller.catatan_pickup || "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyLogs, setHistoryLogs] = useState<ImplanBarangLog[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    if (seller.jumlah_barang != null && seller.jumlah_barang > 0) {
+      setJumlah(String(seller.jumlah_barang));
+    }
+    if (seller.status_pickup) {
+      setStatus(seller.status_pickup);
+    }
+    if (seller.catatan_pickup) {
+      setCatatan(seller.catatan_pickup);
+    }
+  }, [seller.jumlah_barang, seller.status_pickup, seller.catatan_pickup]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setSaving(true);
+    setSaved(false);
+    try {
+      await post(
+        "/armada/implan/barang",
+        {
+          id_seller: seller.id_seller,
+          jumlah_barang: parseInt(jumlah, 10) || 0,
+          status,
+          catatan,
+        },
+        { token }
+      );
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+      queryClient.invalidateQueries({ queryKey: ["tracking-map"] });
+    } catch {
+      alert("Gagal menyimpan data barang implan.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleHistory = async () => {
+    const nextState = !showHistory;
+    setShowHistory(nextState);
+    if (nextState) {
+      setLoadingHistory(true);
+      try {
+        const res = await get<ImplanBarangLog[]>(
+          `/armada/implan/${seller.id_seller}/history`,
+          { token }
+        );
+        setHistoryLogs(res ?? []);
+      } catch {
+        // silent
+      } finally {
+        setLoadingHistory(false);
+      }
+    }
+  };
+
+  return (
+    <div className={compact ? "min-w-[170px] text-xs" : "min-w-[240px] max-w-[280px] text-xs"}>
+      {/* Header Info Toko */}
+      <div className="border-b border-slate-100 pb-1.5">
+        <p className="font-bold text-sky-800 text-sm">
+          {seller.nama_seller}
+          {seller.kode_seller && (
+            <span className="ml-1 text-[10px] font-normal text-slate-400">({seller.kode_seller})</span>
+          )}
+        </p>
+        {seller.alamat && (
+          <p className="text-[11px] text-slate-500 line-clamp-2">{seller.alamat}</p>
+        )}
+        {seller.kota && (
+          <p className="text-[10px] text-slate-400">{seller.kota}</p>
+        )}
+        {seller.no_hp && (
+          <a
+            href={`tel:${seller.no_hp.replace(/[^+\d]/g, "")}`}
+            className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 hover:underline"
+          >
+            <Phone className="h-3 w-3" /> Telpon: {seller.no_hp}
+          </a>
+        )}
+      </div>
+
+      {/* FORM INPUT BARANG IMPLAN */}
+      <form onSubmit={handleSave} className="mt-2 space-y-2 rounded-lg bg-slate-50 p-2 border border-slate-200/70">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-1 font-bold text-slate-700 text-[11px]">
+            <Package className="h-3.5 w-3.5 text-amber-500" />
+            Jumlah Barang (AWB)
+          </span>
+          {saved && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600">
+              <Check className="h-3 w-3" /> Tersimpan
+            </span>
+          )}
+        </div>
+
+        <input
+          type="number"
+          min="0"
+          value={jumlah}
+          onChange={(e) => setJumlah(e.target.value)}
+          placeholder="Contoh: 150"
+          className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-sky-600 focus:ring-1 focus:ring-sky-600/30"
+        />
+
+        {/* Toggle Status */}
+        <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+          <button
+            type="button"
+            onClick={() => setStatus("menunggu")}
+            className={cn(
+              "rounded-md py-1 text-[10px] font-bold transition-all border",
+              status === "menunggu"
+                ? "bg-amber-500 text-white border-amber-600 shadow-xs"
+                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+            )}
+          >
+            ⏳ Menunggu
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatus("sudah_diambil")}
+            className={cn(
+              "rounded-md py-1 text-[10px] font-bold transition-all border",
+              status === "sudah_diambil"
+                ? "bg-emerald-600 text-white border-emerald-700 shadow-xs"
+                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+            )}
+          >
+            ✓ Sudah Diambil
+          </button>
+        </div>
+
+        <input
+          type="text"
+          value={catatan}
+          onChange={(e) => setCatatan(e.target.value)}
+          placeholder="Catatan (opsional)..."
+          className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] outline-none focus:border-sky-600 focus:ring-1 focus:ring-sky-600/30"
+        />
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="flex w-full items-center justify-center gap-1.5 rounded-md bg-[#0c1e3a] py-1.5 text-xs font-semibold text-white transition-all hover:bg-[#0c1e3a]/90 disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+          <span>{saving ? "Menyimpan..." : "Simpan Status"}</span>
+        </button>
+      </form>
+
+      {/* TOMBOL LIHAT RIWAYAT */}
+      <div className="mt-2 pt-1 border-t border-slate-100">
+        <button
+          type="button"
+          onClick={toggleHistory}
+          className="flex w-full items-center justify-between py-1 text-[11px] font-medium text-slate-500 hover:text-slate-800 transition-colors"
+        >
+          <span className="flex items-center gap-1">
+            <History className="h-3 w-3" /> Riwayat Log
+          </span>
+          <span className="text-[10px]">{showHistory ? "▲ Tutup" : "▼ Lihat"}</span>
+        </button>
+
+        {showHistory && (
+          <div className="mt-1 max-h-36 overflow-y-auto space-y-1.5 pr-0.5">
+            {loadingHistory ? (
+              <p className="py-2 text-center text-[10px] text-slate-400">Memuat riwayat...</p>
+            ) : historyLogs.length === 0 ? (
+              <p className="py-2 text-center text-[10px] text-slate-400">Belum ada riwayat</p>
+            ) : (
+              historyLogs.map((h) => (
+                <div key={h.id_log} className="rounded border border-slate-100 bg-slate-50/60 p-1.5 text-[10px]">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-700">{h.jumlah_barang} AWB</span>
+                    <span className={cn(
+                      "font-semibold px-1 rounded text-[9px]",
+                      h.status === "sudah_diambil" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                    )}>
+                      {h.status === "sudah_diambil" ? "Sudah Diambil" : "Menunggu"}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 flex items-center justify-between text-slate-400 text-[9px]">
+                    <span>{h.tanggal}</span>
+                    <span>Oleh: {h.created_by || "-"}</span>
+                  </div>
+                  {h.catatan && <p className="mt-0.5 text-slate-600 italic text-[9px]">{h.catatan}</p>}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -1280,11 +1563,11 @@ function liveMapPropsEqual(prev: LiveMapProps, next: LiveMapProps): boolean {
   const vSig = (arr?: TrackingVehicle[]) =>
     (arr ?? [])
       .map((v) =>
-        [v.id_kendaraan, v.latitude?.toFixed(5), v.longitude?.toFixed(5), v.offline, v.last_login, v.id_ritase, v.last_update].join(":")
+        [v.id_kendaraan, v.latitude?.toFixed(5), v.longitude?.toFixed(5), v.offline, v.last_login, v.id_ritase, v.last_update, v.total_awb, v.role_driver].join(":")
       )
       .join("|");
   const sSig = (arr?: SellerLocation[]) =>
-    (arr ?? []).map((s) => [s.id_seller, s.latitude.toFixed(5), s.longitude.toFixed(5)].join(":")).join("|");
+    (arr ?? []).map((s) => [s.id_seller, s.latitude.toFixed(5), s.longitude.toFixed(5), s.jumlah_barang, s.status_pickup].join(":")).join("|");
   const gSig = (arr?: GudangPoint[]) =>
     (arr ?? []).map((g) => [g.id_gudang, g.latitude.toFixed(5), g.longitude.toFixed(5)].join(":")).join("|");
   const dSig = (arr?: DropPointPoi[]) =>

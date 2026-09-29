@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { ALLOWED_WEB_ROLES } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth-store";
 import { RealtimeSync } from "@/hooks/use-realtime";
+import { cn } from "@/lib/utils";
 
 /** Loader brand mini — dipakai saat boot validasi, biar gak ada teks polos. */
 function BootLoader() {
@@ -115,13 +116,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return <BootLoader />;
   }
 
+  const role = useAuthStore.getState().user?.role;
+  const isKoorGudang = role === "koor_gudang";
+
   return (
     <div className="flex min-h-screen">
       <RealtimeSync />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />
-        <main className="flex-1 overflow-x-hidden p-4 lg:p-5">{children}</main>
+        <main className={cn("flex-1 overflow-x-hidden", isKoorGudang ? "p-2 lg:p-3" : "p-4 lg:p-5")}>
+          {children}
+        </main>
       </div>
     </div>
   );
