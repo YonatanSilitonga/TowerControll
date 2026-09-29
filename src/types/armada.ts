@@ -191,6 +191,38 @@ export interface ImplanBarangLog {
   updated_at: string;
 }
 
+export interface DriverPickupItem {
+  id_user: number;
+  username: string;
+  nama_driver: string;
+  no_hp: string;
+  jumlah_barang: number; // AWB
+  koli?: number;
+  ecer?: number;
+  high_value?: number;
+  status: string; // 'menuju_gudang' | 'selesai' | 'standby'
+  catatan?: string;
+  asal_seller?: string;
+  updated_at?: string | null;
+}
+
+export interface DriverPickupLog {
+  id_log: number;
+  id_user?: number | null;
+  nama_driver: string;
+  tanggal: string;
+  jumlah_barang: number;
+  koli?: number;
+  ecer?: number;
+  high_value?: number;
+  status: string;
+  catatan?: string;
+  asal_seller?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TrackingMap {
   vehicles: TrackingVehicle[];
   sellers: SellerLocation[];
@@ -198,6 +230,8 @@ export interface TrackingMap {
   gudang?: GudangPoint[];
   /** Posisi drop point (Gateway JKT/SEG) — dinamis dari backend. */
   drop_points?: DropPointPoi[];
+  /** Data driver pickup dan muatan aktif hari ini */
+  driver_pickups?: DriverPickupItem[];
 }
 
 export interface DropPointPoi {

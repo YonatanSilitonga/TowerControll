@@ -1,9 +1,9 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { get } from "@/lib/api-client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { get, post } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
-import type { TrackingCheckpoint, TrackingMap } from "@/types/armada";
+import type { DriverPickupItem, DriverPickupLog, TrackingCheckpoint, TrackingMap } from "@/types/armada";
 
 const tokenSelector = (s: { token: string | null }) => s.token;
 
@@ -24,6 +24,54 @@ export function useTrackingMap() {
     refetchOnReconnect: false,
     // Polling 5s SELALU aktif — jaring pengaman (lihat use-dashboard.ts).
     refetchInterval: LIVE_MAP_POLL_INTERVAL,
+  });
+}
+
+/** List data driver pickup beserta status muatannya hari ini. */
+export function useDriverPickups() {
+  const token = useAuthStore(tokenSelector);
+  return useQuery({
+    queryKey: ["driver-pickups"],
+    queryFn: () => get<DriverPickupItem[]>("/armada/pickup/drivers", { token }),
+    enabled: !!token,
+    staleTime: 5_000,
+    refetchInterval: LIVE_MAP_POLL_INTERVAL,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** Riwayat log muatan driver pickup. */
+export function useDriverPickupHistory(idUser: number | null) {
+  const token = useAuthStore(tokenSelector);
+  return useQuery({
+    queryKey: ["driver-pickup-history", idUser],
+    queryFn: () => get<DriverPickupLog[]>(`/armada/pickup/${idUser}/history`, { token }),
+    enabled: !!token && !!idUser,
+    staleTime: 15_000,
+  });
+}
+
+/** Mutasi simpan muatan driver pickup. */
+export function useSaveDriverPickup() {
+  const token = useAuthStore(tokenSelector);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      id_user: number;
+      nama_driver: string;
+      jumlah_barang: number;
+      koli?: number;
+      ecer?: number;
+      high_value?: number;
+      status: string;
+      catatan?: string;
+      asal_seller?: string;
+    }) => post<{ message: string }>("/armada/pickup/barang", data, { token }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["driver-pickups"] });
+      qc.invalidateQueries({ queryKey: ["tracking-map"] });
+      qc.invalidateQueries({ queryKey: ["driver-pickup-history"] });
+    },
   });
 }
 
