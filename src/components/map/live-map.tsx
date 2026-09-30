@@ -1171,8 +1171,57 @@ function LiveMapView({
               icon={getSellerIcon(s.jumlah_barang, s.status_pickup)}
               focusKey={focusKey}
             >
-              <Popup autoPan={false}>
-                <SellerPopupContent seller={s} compact={compact} />
+              <Popup autoPan={false}>    {/* ⬅️ INI — tambahkan autoPan={false} di sini */}
+                <div className={compact ? "min-w-[140px] text-xs" : "min-w-[200px] text-sm"}>
+                  {s.nama_seller && (
+                    <p className="font-semibold text-emerald-700">
+                      {s.nama_seller}
+                      {s.kode_seller && (
+                        <span className="ml-1 text-[10px] font-normal text-slate-400">({s.kode_seller})</span>
+                      )}
+                    </p>
+                  )}
+                  {s.alamat && (
+                    <p className={compact ? "max-w-[150px] truncate text-xs text-muted-foreground" : "text-xs text-muted-foreground"}>
+                      {s.alamat}
+                    </p>
+                  )}
+                  {!compact && (
+                    <>
+                      <p className="text-xs text-muted-foreground">{s.kota}</p>
+                      {(s.jarak_tempuh_km != null || s.jarak_dc_km != null) && (
+                        <div className="mt-1 space-y-0.5">
+                          {s.jarak_tempuh_km != null && (
+                            <p className="text-xs font-medium text-sky-600">
+                              Outgoing: <b>{s.jarak_tempuh_km.toFixed(1)} km</b>
+                            </p>
+                          )}
+                          {s.jarak_dc_km != null && (
+                            <p className="text-xs font-medium text-violet-600">
+                              DC: <b>{s.jarak_dc_km.toFixed(1)} km</b>
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {s.pic && <p className="mt-1 text-xs">PIC: <b>{s.pic}</b></p>}
+                      {(s.total_koli != null && s.total_koli! > 0) || (s.total_ecer != null && s.total_ecer! > 0) || (s.total_high_value != null && s.total_high_value! > 0) ? (
+                        <p className="mt-1 text-xs font-medium text-amber-600">
+                          Muatan: <b>{s.total_koli ?? 0} koli</b>
+                          {(s.total_ecer != null && s.total_ecer! > 0) && ` • ${s.total_ecer} ecer`}
+                          {(s.total_high_value != null && s.total_high_value! > 0) && ` • ${s.total_high_value} HV`}
+                        </p>
+                      ) : null}
+                      {s.no_hp && (
+                        <a
+                          href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`}
+                          className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"
+                        >
+                          <Phone className="h-3 w-3" /> Telpon: {s.no_hp}
+                        </a>
+                      )}
+                    </>
+                  )}
+                </div>
               </Popup>
             </PoiMarker>
           ))}

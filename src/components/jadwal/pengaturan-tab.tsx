@@ -200,8 +200,8 @@ function JamRitaseTab({
   const [form, setForm] = useState({
     jenis: "outgoing",
     ritase_ke: 1,
-    jam_mulai: "16:00",
-    jam_selesai: "20:00",
+    jam_mulai: "00:00",
+    jam_selesai: "19:59",
   });
 
   const handleSave = async () => {
@@ -256,8 +256,8 @@ function JamRitaseTab({
             setForm({
               jenis: "outgoing",
               ritase_ke: 1,
-              jam_mulai: "16:00",
-              jam_selesai: "20:00",
+              jam_mulai: "00:00",
+              jam_selesai: "19:59",
             });
           }}
           className="flex items-center gap-1.5 rounded-md bg-[#FEA103] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#E09102]"
@@ -288,7 +288,15 @@ function JamRitaseTab({
               </label>
               <select
                 value={form.jenis}
-                onChange={(e) => setForm({ ...form, jenis: e.target.value })}
+                onChange={(e) => {
+                  const newJenis = e.target.value;
+                  const maxRit = newJenis === "outgoing" ? 3 : 4;
+                  setForm({
+                    ...form,
+                    jenis: newJenis,
+                    ritase_ke: form.ritase_ke > maxRit ? 1 : form.ritase_ke,
+                  });
+                }}
                 disabled={!!editing}
                 className="w-full rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-[#FEA103] disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
               >
@@ -308,7 +316,7 @@ function JamRitaseTab({
                 disabled={!!editing}
                 className="w-full rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-[#FEA103] disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
               >
-                {[1, 2, 3, 4].map((r) => (
+                {(form.jenis === "outgoing" ? [1, 2, 3] : [1, 2, 3, 4]).map((r) => (
                   <option key={r} value={r}>
                     R{r}
                   </option>

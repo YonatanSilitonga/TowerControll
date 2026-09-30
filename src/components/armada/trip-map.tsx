@@ -117,20 +117,27 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ── Filter GPS outliers — skip points with unrealistic speed ──
-function filterGpsOutliers(points: GpsPoint[], maxSpeedKmh = 120): GpsPoint[] {
-  if (points.length <= 2) return points;
-  const result: GpsPoint[] = [points[0]];
+const MAX_SPEED_KMH = 120;
+
+// ── Segment GPS into connected polyline segments ──
+// Only breaks at speed outlier (>120km/h) — GPS jumps.
+function segmentGps(points: GpsPoint[]): GpsPoint[][] {
+  if (points.length === 0) return [];
+  const segments: GpsPoint[][] = [[points[0]]];
   for (let i = 1; i < points.length; i++) {
-    const prev = result[result.length - 1];
+    const prev = segments[segments.length - 1][segments[segments.length - 1].length - 1];
     const curr = points[i];
     const dist = haversineDistance(prev.latitude, prev.longitude, curr.latitude, curr.longitude);
     const timeDiffMs = new Date(curr.created_at).getTime() - new Date(prev.created_at).getTime();
     const timeDiffH = timeDiffMs / (1000 * 60 * 60);
-    if (timeDiffH > 0 && dist / timeDiffH > maxSpeedKmh) continue;
-    result.push(curr);
+    const speed = timeDiffH > 0 ? dist / timeDiffH : 0;
+    if (speed > MAX_SPEED_KMH) {
+      segments.push([curr]);
+    } else {
+      segments[segments.length - 1].push(curr);
+    }
   }
-  return result;
+  return segments.filter(seg => seg.length >= 2);
 }
 
 function FitBounds({ bounds }: { bounds: L.LatLngBounds | null }) {
@@ -144,7 +151,7 @@ function FitBounds({ bounds }: { bounds: L.LatLngBounds | null }) {
 }
 
 export function TripMap({ stops, events, alerts, gpsHistory }: { stops: RitaseStop[]; events?: RitaseEvent[]; alerts?: AlertAnomali[]; gpsHistory?: GpsPoint[] }) {
-  const { routePoints, gpsPoints, filteredGps, bounds } = useMemo(() => {
+  const { routePoints, gpsSegments, allGps, bounds } = useMemo(() => {
     const validStops = stops.filter(s => s.latitude && s.longitude);
     const validEvents = (events ?? [])
       .filter(e => e.latitude && e.longitude)
@@ -154,19 +161,19 @@ export function TripMap({ stops, events, alerts, gpsHistory }: { stops: RitaseSt
     const validGps = (gpsHistory ?? [])
       .filter(p => p.latitude && p.longitude);
 
-    const filtered = filterGpsOutliers(validGps);
+    const segments = segmentGps(validGps);
 
     const allPoints: L.LatLng[] = [
       ...validStops.map(s => new L.LatLng(s.latitude!, s.longitude!)),
       ...validEvents.map(e => new L.LatLng(e.latitude!, e.longitude!)),
       ...validAlerts.map(a => new L.LatLng(a.latitude!, a.longitude!)),
-      ...filtered.map(p => new L.LatLng(p.latitude, p.longitude)),
+      ...validGps.map(p => new L.LatLng(p.latitude, p.longitude)),
     ];
 
     return {
       routePoints: validEvents,
-      gpsPoints: validGps,
-      filteredGps: filtered,
+      gpsSegments: segments,
+      allGps: validGps,
       bounds: allPoints.length > 0 ? new L.LatLngBounds(allPoints) : null,
     };
   }, [stops, events, alerts, gpsHistory]);
@@ -182,8 +189,8 @@ export function TripMap({ stops, events, alerts, gpsHistory }: { stops: RitaseSt
     );
   }
 
-  const startPoint = filteredGps.length > 0 ? filteredGps[0] : null;
-  const endPoint = filteredGps.length > 1 ? filteredGps[filteredGps.length - 1] : null;
+  const startPoint = allGps.length > 0 ? allGps[0] : null;
+  const endPoint = allGps.length > 1 ? allGps[allGps.length - 1] : null;
 
   return (
     <div className="relative h-[300px] w-full rounded-lg overflow-hidden border lg:h-[400px] z-0 isolate">
@@ -200,12 +207,15 @@ export function TripMap({ stops, events, alerts, gpsHistory }: { stops: RitaseSt
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {filteredGps.length > 1 ? (
-          <Polyline
-            positions={filteredGps.map(p => [p.latitude, p.longitude])}
-            color="#0ea5e9"
-            weight={4}
-          />
+        {gpsSegments.length > 0 ? (
+          gpsSegments.map((seg, i) => (
+            <Polyline
+              key={`gps-seg-${i}`}
+              positions={seg.map(p => [p.latitude, p.longitude])}
+              color="#0ea5e9"
+              weight={4}
+            />
+          ))
         ) : routePoints.length > 1 ? (
           <Polyline
             positions={routePoints.map(p => [p.latitude!, p.longitude!])}
@@ -295,10 +305,10 @@ export function TripMap({ stops, events, alerts, gpsHistory }: { stops: RitaseSt
         <FitBounds bounds={bounds} />
       </MapContainer>
 
-      {(filteredGps.length > 0 || routePoints.length > 0) && (
+      {(allGps.length > 0 || routePoints.length > 0) && (
         <div className="absolute top-2 right-2 z-[401] bg-white/80 backdrop-blur-sm p-2 rounded-lg shadow-md border text-xs">
-            {filteredGps.length > 0 ? (
-              <div className="flex items-center gap-2"><Milestone className="h-4 w-4 text-slate-500"/> <span>{filteredGps.length} Titik GPS</span></div>
+            {allGps.length > 0 ? (
+              <div className="flex items-center gap-2"><Milestone className="h-4 w-4 text-slate-500"/> <span>{allGps.length} Titik GPS</span></div>
             ) : (
               <div className="flex items-center gap-2"><Milestone className="h-4 w-4 text-slate-500"/> <span>{routePoints.length} Titik Tercatat</span></div>
             )}

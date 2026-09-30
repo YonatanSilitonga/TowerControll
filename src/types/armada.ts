@@ -167,6 +167,10 @@ export interface SellerLocation {
   jarak_tempuh_km?: number | null;
   /** Jarak tempuh (jalan) dari GUDANG DC (Buaran Indah) ke seller, km. */
   jarak_dc_km?: number | null;
+  /** Muatan hari ini dari input kapten */
+  total_koli?: number | null;
+  total_ecer?: number | null;
+  total_high_value?: number | null;
   /** Status log barang hari ini untuk implan. */
   jumlah_barang?: number | null;
   koli?: number | null;
@@ -378,6 +382,7 @@ export interface ManifestPhotoItem {
   kode_ritase: string;
   tanggal: string;
   ritase_ke: number;
+  jenis_ritase: string; // "outgoing" | "incoming"
   id_driver: number;
   nama_driver: string;
   jabatan_driver: string;
@@ -386,12 +391,90 @@ export interface ManifestPhotoItem {
   jenis_kendaraan: string;
   nama_lokasi: string;
   status: string;
-  jumlah_koli: number;
-  jumlah_ecer: number;
-  jumlah_high_value: number;
+  jumlah_awb: number;
+  koli_jkt: number;
+  koli_seg: number;
+  koli_btn: number;
+  ecer_jkt: number;
+  ecer_seg: number;
+  ecer_btn: number;
+  koli_hv_jkt: number;
+  koli_hv_seg: number;
+  koli_hv_btn: number;
+  ecer_hv_jkt: number;
+  ecer_hv_seg: number;
+  ecer_hv_btn: number;
+  /** Total computed fields */
+  total_koli: number;
+  total_ecer: number;
+  total_hv: number;
   durasi_detik: number;
   foto_manifest_url: string;
   created_at: string;
+  input_by?: string;
+  input_by_id?: number | null;
+  input_by_name?: string;
+  is_updated?: boolean;
+  updated_at?: string | null;
+}
+
+/** Ringkasan serah terima kapten per (seller, jenis, rit): input vs diambil vs sisa. */
+export interface PenjemputanRingkasan {
+  id_seller: number;
+  nama_lokasi: string;
+  jenis_ritase: string;
+  ritase_ke: number;
+  input_awb: number;
+  input_koli: number;
+  input_ecer: number;
+  input_hv: number;
+  diambil_awb: number;
+  diambil_koli: number;
+  diambil_ecer: number;
+  diambil_hv: number;
+  sisa_awb: number;
+  sisa_koli: number;
+  sisa_ecer: number;
+  sisa_hv: number;
+}
+
+/** Satu kejadian penjemputan (serah terima) oleh driver. */
+export interface RiwayatPenjemputan {
+  id: number;
+  id_ritase: number;
+  kode_ritase: string;
+  tanggal: string;
+  ritase_ke: number;
+  jenis_ritase: string;
+  id_seller: number;
+  nama_lokasi: string;
+  nama_driver: string;
+  jumlah_awb: number;
+  total_koli: number;
+  total_ecer: number;
+  total_hv: number;
+  /** Rincian diambil per wilayah (opsional, ada bila backend mengirim). */
+  koli_jkt?: number;
+  koli_seg?: number;
+  koli_btn?: number;
+  ecer_jkt?: number;
+  ecer_seg?: number;
+  ecer_btn?: number;
+  koli_hv_jkt?: number;
+  koli_hv_seg?: number;
+  koli_hv_btn?: number;
+  ecer_hv_jkt?: number;
+  ecer_hv_seg?: number;
+  ecer_hv_btn?: number;
+  foto_penjemputan_url: string;
+  catatan: string;
+  created_at: string;
+}
+
+/** Respons GET /manifest-konfirmasi-penjemputan. */
+export interface ManifestPenjemputanResponse {
+  ringkasan: PenjemputanRingkasan[];
+  riwayat: RiwayatPenjemputan[];
 }
 
 /** Titik GPS dari history perjalanan driver. */
