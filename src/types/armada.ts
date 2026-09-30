@@ -200,7 +200,7 @@ export interface DriverPickupItem {
   koli?: number;
   ecer?: number;
   high_value?: number;
-  status: string; // 'menuju_gudang' | 'selesai' | 'standby'
+  status: string; // 'menuju_gudang' | 'menuju_seller' | 'selesai' | 'standby'
   catatan?: string;
   asal_seller?: string;
   updated_at?: string | null;

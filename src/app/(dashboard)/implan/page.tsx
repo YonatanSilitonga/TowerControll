@@ -12,16 +12,18 @@ import {
   MapPin,
   Package,
   Phone,
+  Plus,
   Save,
   Search,
   Store,
+  Trash2,
   Truck,
   Users,
   X,
 } from "lucide-react";
 import { get, post } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
-import { useDriverPickups, useSaveDriverPickup, useTrackingMap } from "@/hooks/use-tracking";
+import { useDriverPickups, useSaveDriverPickup, useSaveDriverPickupBatch, useTrackingMap } from "@/hooks/use-tracking";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,12 +49,20 @@ interface DriverRowEditState {
   asal_seller: string;
 }
 
+interface QuickSellerRow {
+  id: string;
+  sellerName: string;
+  awb: string;
+  koli: string;
+}
+
 export default function ImplanPage() {
   const token = useAuthStore((s) => s.token);
   const queryClient = useQueryClient();
   const { data: mapData, isLoading: loadingMap } = useTrackingMap();
   const { data: driverPickups = [], isLoading: loadingDrivers } = useDriverPickups();
   const saveDriverPickupMutation = useSaveDriverPickup();
+  const saveDriverPickupBatchMutation = useSaveDriverPickupBatch();
 
   // Tab: 'implan' (Toko Implan) vs 'driver_pickup' (Muatan Driver Pickup)
   const [activeMainTab, setActiveMainTab] = useState<"implan" | "driver_pickup">("implan");
@@ -195,7 +205,7 @@ export default function ImplanPage() {
    * TAB 2: DRIVER PICKUP
    * ========================================================================= */
   const [searchDriver, setSearchDriver] = useState("");
-  const [filterDriverStatus, setFilterDriverStatus] = useState<"all" | "menuju_gudang" | "selesai" | "standby">("all");
+  const [filterDriverStatus, setFilterDriverStatus] = useState<"all" | "menuju_gudang" | "menuju_seller" | "selesai" | "standby">("all");
   const [driverEditValues, setDriverEditValues] = useState<Record<number, DriverRowEditState>>({});
   const [savingDriverId, setSavingDriverId] = useState<number | null>(null);
   const [savedDriverSuccessId, setSavedDriverSuccessId] = useState<number | null>(null);
@@ -205,12 +215,61 @@ export default function ImplanPage() {
   const [driverHistoryLogs, setDriverHistoryLogs] = useState<DriverPickupLog[]>([]);
   const [loadingDriverHistory, setLoadingDriverHistory] = useState(false);
 
+  // Form Input Muatan Multi-Seller Driver Pickup (Operator/Whisnu)
+  const [quickDriverId, setQuickDriverId] = useState<string>("");
+  const [quickStatus, setQuickStatus] = useState<string>("menuju_gudang");
+  const [quickCatatan, setQuickCatatan] = useState<string>("");
+  const [sellerRows, setSellerRows] = useState<QuickSellerRow[]>([
+    { id: "1", sellerName: "", awb: "", koli: "" },
+  ]);
+  const [quickSaving, setQuickSaving] = useState(false);
+  const [quickSuccess, setQuickSuccess] = useState(false);
+
+  // Helper Tambah / Hapus / Update Baris Seller
+  const handleAddSellerRow = () => {
+    setSellerRows((prev) => [
+      ...prev,
+      { id: String(Date.now() + Math.random()), sellerName: "", awb: "", koli: "" },
+    ]);
+  };
+
+  const handleRemoveSellerRow = (id: string) => {
+    setSellerRows((prev) => {
+      if (prev.length <= 1) {
+        return [{ id: "1", sellerName: "", awb: "", koli: "" }];
+      }
+      return prev.filter((r) => r.id !== id);
+    });
+  };
+
+  const handleSellerRowChange = (id: string, field: "sellerName" | "awb" | "koli", value: string) => {
+    setSellerRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, [field]: value } : r))
+    );
+  };
+
+  // Ringkasan kalkulasi batch
+  const quickTotalAwb = useMemo(() => {
+    return sellerRows.reduce((sum, r) => sum + (parseInt(r.awb, 10) || 0), 0);
+  }, [sellerRows]);
+
+  const quickTotalKoli = useMemo(() => {
+    return sellerRows.reduce((sum, r) => sum + (parseInt(r.koli, 10) || 0), 0);
+  }, [sellerRows]);
+
+  const validSellerRowsCount = useMemo(() => {
+    return sellerRows.filter((r) => r.sellerName.trim() !== "" && (parseInt(r.awb, 10) || 0) > 0).length;
+  }, [sellerRows]);
+
   // Summary Metrics Driver Pickup
   const driverSummary = useMemo(() => {
     let totalAwbMenujuGudang = 0;
     let totalKoliMenujuGudang = 0;
     let totalHvMenujuGudang = 0;
     let countMenujuGudang = 0;
+    let totalAwbMenujuSeller = 0;
+    let totalKoliMenujuSeller = 0;
+    let countMenujuSeller = 0;
     let countSelesai = 0;
     let countStandby = 0;
 
@@ -224,6 +283,10 @@ export default function ImplanPage() {
         totalAwbMenujuGudang += jml;
         totalKoliMenujuGudang += koli;
         totalHvMenujuGudang += hv;
+      } else if (d.status === "menuju_seller") {
+        countMenujuSeller++;
+        totalAwbMenujuSeller += jml;
+        totalKoliMenujuSeller += koli;
       } else if (d.status === "selesai") {
         countSelesai++;
       } else {
@@ -237,6 +300,9 @@ export default function ImplanPage() {
       totalAwbMenujuGudang,
       totalKoliMenujuGudang,
       totalHvMenujuGudang,
+      countMenujuSeller,
+      totalAwbMenujuSeller,
+      totalKoliMenujuSeller,
       countSelesai,
       countStandby,
     };
@@ -259,6 +325,50 @@ export default function ImplanPage() {
       return true;
     });
   }, [driverPickups, searchDriver, filterDriverStatus]);
+
+  // Handler Form Input Muatan Multi-Seller Driver
+  const handleQuickInput = async () => {
+    const selected = driverPickups.find((d) => String(d.id_user) === quickDriverId);
+    if (!selected) {
+      alert("Pilih driver terlebih dahulu.");
+      return;
+    }
+
+    const validItems = sellerRows
+      .filter((r) => r.sellerName.trim() !== "" && (parseInt(r.awb, 10) || 0) > 0)
+      .map((r) => ({
+        asal_seller: r.sellerName.trim(),
+        jumlah_barang: parseInt(r.awb, 10) || 0,
+        koli: parseInt(r.koli, 10) || 0,
+        ecer: 0,
+        high_value: 0,
+      }));
+
+    if (validItems.length === 0) {
+      alert("Mohon isi setidaknya 1 nama seller dan jumlah AWB (> 0).");
+      return;
+    }
+
+    setQuickSaving(true);
+    try {
+      await saveDriverPickupBatchMutation.mutateAsync({
+        id_user: selected.id_user,
+        nama_driver: selected.nama_driver || selected.username,
+        status: quickStatus,
+        catatan: quickCatatan.trim(),
+        items: validItems,
+      });
+      setQuickSuccess(true);
+      setSellerRows([{ id: "1", sellerName: "", awb: "", koli: "" }]);
+      setQuickCatatan("");
+      setTimeout(() => setQuickSuccess(false), 3000);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Gagal menyimpan muatan. Silakan coba lagi.";
+      alert(errMsg);
+    } finally {
+      setQuickSaving(false);
+    }
+  };
 
   // Simpan baris Driver Pickup
   const handleSaveDriver = async (driver: DriverPickupItem) => {
@@ -758,8 +868,237 @@ export default function ImplanPage() {
       {/* ========================================================================= */}
       {activeMainTab === "driver_pickup" && (
         <div className="space-y-6">
+
+          {/* ─── FORM INPUT MUATAN MULTI-SELLER DRIVER PICKUP ───────── */}
+          <Card className="border-emerald-200/80 bg-gradient-to-br from-emerald-50/50 via-white to-white shadow-sm overflow-hidden">
+            {/* Datalist rekomendasi nama toko dari daftar seller implan */}
+            <datalist id="registered-sellers-list">
+              {sellers.map((s) => (
+                <option key={s.id_seller} value={s.nama_seller}>
+                  {s.kode_seller ? `[${s.kode_seller}] ` : ""}{s.nama_seller} {s.kota ? `(${s.kota})` : ""}
+                </option>
+              ))}
+            </datalist>
+
+            <CardHeader className="pb-3 border-b border-emerald-100 bg-white/70">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-emerald-600" />
+                    Input Muatan Driver Pickup (Multi-Seller)
+                    <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                      Batch Input
+                    </span>
+                  </CardTitle>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Pilih nama driver, lalu input toko/seller yang dijemput (bisa per seller secara bertahap saat jalan atau sekaligus). Jumlah AWB driver akan otomatis terakumulasi.
+                  </p>
+                </div>
+
+                {/* Status Ringkasan Cepat */}
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200/70 rounded-lg px-3 py-1.5 self-start sm:self-auto">
+                  <span>Total Input:</span>
+                  <span className="text-emerald-700 font-bold">{validSellerRowsCount} Toko</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-slate-900 font-black">{quickTotalAwb.toLocaleString("id-ID")} AWB</span>
+                  {quickTotalKoli > 0 && (
+                    <>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-amber-700 font-bold">{quickTotalKoli} Koli</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-4 space-y-4">
+              {/* BARIS PENGATURAN DRIVER & STATUS */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50/80 p-3 rounded-xl border border-slate-200/60">
+                {/* 1. Pilih Driver */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5 text-emerald-600" />
+                    1. Pilih Nama Driver <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={quickDriverId}
+                    onChange={(e) => setQuickDriverId(e.target.value)}
+                    className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
+                  >
+                    <option value="">-- Pilih Driver Pickup --</option>
+                    {(driverPickups ?? []).map((d) => (
+                      <option key={d.id_user} value={String(d.id_user)}>
+                        {d.nama_driver || d.username} ({d.username})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 2. Status Perjalanan */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5 text-emerald-600" />
+                    2. Status Perjalanan
+                  </label>
+                  <select
+                    value={quickStatus}
+                    onChange={(e) => setQuickStatus(e.target.value)}
+                    className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
+                  >
+                    <option value="menuju_gudang">🚚 Menuju Gudang</option>
+                    <option value="menuju_seller">🏬 Menuju Seller Selanjutnya</option>
+                    <option value="selesai">✅ Selesai (Sampai Gudang)</option>
+                    <option value="standby">⏸️ Standby / Menunggu</option>
+                  </select>
+                </div>
+
+                {/* 3. Catatan Opsional */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                    3. Catatan (Opsional)
+                  </label>
+                  <input
+                    type="text"
+                    value={quickCatatan}
+                    onChange={(e) => setQuickCatatan(e.target.value)}
+                    placeholder="Contoh: Rute Barat, jemputan sore..."
+                    className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs text-slate-800 outline-none placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
+                  />
+                </div>
+              </div>
+
+              {/* DAFTAR BARIS SELLER & JUMLAH AWB */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <Store className="h-3.5 w-3.5 text-emerald-600" />
+                    Daftar Seller & Jumlah Barang yang Dijemput:
+                  </label>
+                  <span className="text-[11px] text-slate-400">
+                    Tip: Ketik nama toko atau pilih dari rekomendasi
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {sellerRows.map((row, index) => (
+                    <div
+                      key={row.id}
+                      className="flex flex-wrap sm:flex-nowrap items-center gap-2 bg-white p-2 sm:p-2.5 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors shadow-2xs"
+                    >
+                      {/* Nomor Urut */}
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-black text-slate-600">
+                        {index + 1}
+                      </div>
+
+                      {/* Nama Toko / Seller */}
+                      <div className="flex-1 min-w-[200px]">
+                        <input
+                          type="text"
+                          list="registered-sellers-list"
+                          value={row.sellerName}
+                          onChange={(e) => handleSellerRowChange(row.id, "sellerName", e.target.value)}
+                          placeholder="Nama toko / seller..."
+                          className="h-8 w-full rounded-md border border-slate-200 bg-slate-50/50 px-3 text-xs font-medium text-slate-900 outline-none placeholder:text-slate-400 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20"
+                        />
+                      </div>
+
+                      {/* Jumlah AWB */}
+                      <div className="w-28 shrink-0">
+                        <div className="relative">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={row.awb}
+                            onChange={(e) => handleSellerRowChange(row.id, "awb", e.target.value.replace(/[^0-9]/g, ""))}
+                            onFocus={(e) => e.target.select()}
+                            placeholder="AWB"
+                            className="h-8 w-full rounded-md border border-slate-200 bg-slate-50/50 pl-2.5 pr-8 text-right text-xs font-black tabular-nums text-slate-900 outline-none placeholder:text-slate-300 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20"
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none">
+                            AWB
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Koli (Opsional) */}
+                      <div className="w-24 shrink-0">
+                        <div className="relative">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={row.koli}
+                            onChange={(e) => handleSellerRowChange(row.id, "koli", e.target.value.replace(/[^0-9]/g, ""))}
+                            onFocus={(e) => e.target.select()}
+                            placeholder="Koli"
+                            className="h-8 w-full rounded-md border border-slate-200 bg-slate-50/50 pl-2 pr-7 text-right text-xs font-medium tabular-nums text-slate-800 outline-none placeholder:text-slate-300 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20"
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-400 pointer-events-none">
+                            Koli
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Tombol Hapus Baris */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSellerRow(row.id)}
+                        disabled={sellerRows.length === 1 && !row.sellerName && !row.awb}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Hapus baris ini"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* FOOTER AKSI: TAMBAH BARIS & SIMPAN */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                {/* Tombol Tambah Baris */}
+                <button
+                  type="button"
+                  onClick={handleAddSellerRow}
+                  className="flex items-center gap-1.5 rounded-lg border border-dashed border-emerald-400 bg-emerald-50/60 px-3.5 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100/70 hover:border-emerald-500 transition-all active:scale-95"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  + Tambah Toko / Seller Lainnya
+                </button>
+
+                {/* Tombol Submit Batch */}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={quickSaving || !quickDriverId || validSellerRowsCount === 0}
+                    onClick={handleQuickInput}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg px-5 py-2 text-xs font-bold shadow-sm transition-all active:scale-95",
+                      quickSuccess
+                        ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                        : "bg-[#0c1e3a] text-white hover:bg-[#1a3358] disabled:opacity-40 disabled:cursor-not-allowed"
+                    )}
+                  >
+                    {quickSaving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : quickSuccess ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    {quickSuccess
+                      ? "Berhasil Tersimpan!"
+                      : validSellerRowsCount > 0
+                      ? `Simpan Muatan (${validSellerRowsCount} Seller • ${quickTotalAwb} AWB)`
+                      : "Simpan Muatan Driver"}
+                  </button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          {/* ─────────────────────────────────────────────────────────── */}
+
           {/* STATS CARDS DRIVER PICKUP */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <Card className="border-slate-200/80 bg-white shadow-2xs">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -771,6 +1110,26 @@ export default function ImplanPage() {
                 <div className="mt-2 flex items-baseline gap-2">
                   <span className="text-2xl font-black text-slate-900">{driverSummary.totalDrivers}</span>
                   <span className="text-xs text-slate-500">driver</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-amber-200 bg-amber-50/50 shadow-2xs">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">Menuju Seller</span>
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500 text-white">
+                    <Store className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-amber-900">{driverSummary.countMenujuSeller}</span>
+                  <span className="text-xs font-semibold text-amber-700">driver</span>
+                </div>
+                <div className="mt-1 flex items-center gap-2 text-[10px] text-amber-800 font-medium">
+                  <span>{driverSummary.totalAwbMenujuSeller} AWB</span>
+                  <span>•</span>
+                  <span>{driverSummary.totalKoliMenujuSeller} Koli</span>
                 </div>
               </CardContent>
             </Card>
@@ -868,6 +1227,16 @@ export default function ImplanPage() {
                   </button>
                   <button
                     type="button"
+                    onClick={() => setFilterDriverStatus("menuju_seller")}
+                    className={cn(
+                      "rounded-md px-2.5 py-1 font-semibold transition-colors",
+                      filterDriverStatus === "menuju_seller" ? "bg-amber-600 text-white shadow-2xs" : "text-slate-500 hover:text-slate-900"
+                    )}
+                  >
+                    Menuju Seller ({driverSummary.countMenujuSeller})
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setFilterDriverStatus("menuju_gudang")}
                     className={cn(
                       "rounded-md px-2.5 py-1 font-semibold transition-colors",
@@ -939,14 +1308,11 @@ export default function ImplanPage() {
                             <td className="py-3 px-4">
                               <div className="flex items-start gap-2.5">
                                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800 font-bold text-xs uppercase mt-0.5">
-                                  {d.nama_driver.slice(0, 2)}
+                                  {(d.username || d.nama_driver || "DP").slice(0, 2)}
                                 </div>
                                 <div>
                                   <p className="font-bold text-slate-900 capitalize flex items-center gap-1.5">
-                                    {d.nama_driver}
-                                    <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[9px] font-medium text-slate-500 lowercase">
-                                      @{d.username}
-                                    </span>
+                                    {d.username || d.nama_driver}
                                   </p>
                                   {d.no_hp ? (
                                     <a
@@ -1046,6 +1412,24 @@ export default function ImplanPage() {
                                   onClick={() =>
                                     setDriverEditValues((prev) => ({
                                       ...prev,
+                                      [d.id_user]: { ...rowEdit, status: "menuju_seller" },
+                                    }))
+                                  }
+                                  className={cn(
+                                    "rounded-md px-2 py-1 text-[10px] font-bold uppercase transition-all flex items-center gap-1",
+                                    rowEdit.status === "menuju_seller"
+                                      ? "bg-amber-600 text-white shadow-2xs"
+                                      : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                                  )}
+                                  title="Menuju Seller Selanjutnya"
+                                >
+                                  <Store className="h-3 w-3" /> Ke Seller
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDriverEditValues((prev) => ({
+                                      ...prev,
                                       [d.id_user]: { ...rowEdit, status: "menuju_gudang" },
                                     }))
                                   }
@@ -1055,6 +1439,7 @@ export default function ImplanPage() {
                                       ? "bg-emerald-600 text-white shadow-2xs"
                                       : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                                   )}
+                                  title="Menuju Gudang"
                                 >
                                   <Truck className="h-3 w-3" /> Menuju Gudang
                                 </button>
@@ -1072,6 +1457,7 @@ export default function ImplanPage() {
                                       ? "bg-sky-600 text-white shadow-2xs"
                                       : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                                   )}
+                                  title="Tiba di Gudang"
                                 >
                                   Tiba
                                 </button>
@@ -1089,6 +1475,7 @@ export default function ImplanPage() {
                                       ? "bg-slate-700 text-white shadow-2xs"
                                       : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                                   )}
+                                  title="Standby"
                                 >
                                   Standby
                                 </button>
@@ -1302,6 +1689,8 @@ export default function ImplanPage() {
                           "rounded-md px-2 py-0.5 text-[10px] font-bold uppercase",
                           log.status === "menuju_gudang"
                             ? "bg-emerald-100 text-emerald-800"
+                            : log.status === "menuju_seller"
+                            ? "bg-amber-100 text-amber-800"
                             : log.status === "selesai"
                             ? "bg-sky-100 text-sky-800"
                             : "bg-slate-100 text-slate-700"
@@ -1309,6 +1698,8 @@ export default function ImplanPage() {
                       >
                         {log.status === "menuju_gudang"
                           ? "Menuju Gudang"
+                          : log.status === "menuju_seller"
+                          ? "Menuju Seller"
                           : log.status === "selesai"
                           ? "Selesai"
                           : "Standby"}

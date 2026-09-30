@@ -51,7 +51,7 @@ export function useDriverPickupHistory(idUser: number | null) {
   });
 }
 
-/** Mutasi simpan muatan driver pickup. */
+/** Mutasi simpan muatan driver pickup (single). */
 export function useSaveDriverPickup() {
   const token = useAuthStore(tokenSelector);
   const qc = useQueryClient();
@@ -67,6 +67,32 @@ export function useSaveDriverPickup() {
       catatan?: string;
       asal_seller?: string;
     }) => post<{ message: string }>("/armada/pickup/barang", data, { token }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["driver-pickups"] });
+      qc.invalidateQueries({ queryKey: ["tracking-map"] });
+      qc.invalidateQueries({ queryKey: ["driver-pickup-history"] });
+    },
+  });
+}
+
+/** Mutasi simpan banyak seller sekaligus untuk satu driver pickup (batch). */
+export function useSaveDriverPickupBatch() {
+  const token = useAuthStore(tokenSelector);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      id_user: number;
+      nama_driver: string;
+      status: string;
+      catatan?: string;
+      items: Array<{
+        asal_seller: string;
+        jumlah_barang: number;
+        koli?: number;
+        ecer?: number;
+        high_value?: number;
+      }>;
+    }) => post<{ message: string }>("/armada/pickup/batch", data, { token }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["driver-pickups"] });
       qc.invalidateQueries({ queryKey: ["tracking-map"] });
