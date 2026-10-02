@@ -42,9 +42,9 @@ export const ROLE_LABEL: Record<UserRole, string> = {
 
 /** Mapping role -> modul yang boleh diakses (untuk menu & guard). */
 export const ROLE_MENU: Record<UserRole, string[]> = {
-  admin: ["dashboard", "armada", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "gudang", "absensi", "implan"],
-  tower_control: ["dashboard", "armada", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "implan"],
-  direktur: ["dashboard", "armada", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "implan"],
+  admin: ["dashboard", "armada", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "riwayat-pickup", "gudang", "absensi", "implan"],
+  tower_control: ["dashboard", "armada", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "riwayat-pickup", "implan"],
+  direktur: ["dashboard", "armada", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "riwayat-pickup", "implan"],
   driver: ["dashboard", "armada"],
   koor_gudang: ["peta"],
   driver_pickup: ["dashboard"],

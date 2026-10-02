@@ -101,6 +101,36 @@ export function useSaveDriverPickupBatch() {
   });
 }
 
+/** Riwayat seluruh log pickup driver dari tabel driver_pickup_log. */
+export function useAllDriverPickupHistory(params?: {
+  id_user?: number;
+  start_date?: string;
+  end_date?: string;
+  tanggal?: string;
+  status?: string;
+  limit?: number;
+}) {
+  const token = useAuthStore(tokenSelector);
+  return useQuery({
+    queryKey: ["driver-pickup-all-history", params],
+    queryFn: () =>
+      get<DriverPickupLog[]>("/armada/pickup/history", {
+        token,
+        query: {
+          id_user: params?.id_user ? params.id_user : undefined,
+          start_date: params?.start_date,
+          end_date: params?.end_date,
+          tanggal: params?.tanggal,
+          status: params?.status && params.status !== "all" ? params.status : undefined,
+          limit: params?.limit,
+        },
+      }),
+    enabled: !!token,
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+  });
+}
+
 /** Riwayat status (checkpoint) untuk satu kendaraan atau satu driver, opsional filter tanggal (YYYY-MM-DD).
  *  Cache 30s — jarang berubah & di-invalidate via SSE untuk kendaraan terpilih. */
 export function useTrackingHistory(idKendaraan: number | null, tanggal?: string, idDriver?: number | null) {
@@ -121,4 +151,4 @@ export function useTrackingHistory(idKendaraan: number | null, tanggal?: string,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
-}
+}

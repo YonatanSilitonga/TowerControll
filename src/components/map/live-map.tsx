@@ -56,7 +56,7 @@ function getTruckIcon(
   totalAwb?: number | null
 ): L.DivIcon {
   const isPickup = roleDriver === "driver_pickup";
-  const awbVal = totalAwb && totalAwb > 0 ? totalAwb : 0;
+  const awbVal = totalAwb != null && totalAwb >= 0 ? totalAwb : 0;
   const key = `${selected}:${isPickup}:${!!isLive}:${awbVal}`;
 
   const cached = truckIconCache.get(key);
@@ -79,22 +79,20 @@ function getTruckIcon(
     border = "#fff";
   }
 
-  const bubbleBg = isPickup ? "#c2410c" : "#047857";
+  const bubbleBg = awbVal > 0 ? (isPickup ? "#c2410c" : "#047857") : (isPickup ? "#ea580c" : "#475569");
 
   const icon = L.divIcon({
     className: "",
-    iconSize: [34, awbVal > 0 ? 54 : 34],
-    iconAnchor: [17, awbVal > 0 ? 37 : 17],
+    iconSize: [34, 54],
+    iconAnchor: [17, 37],
     html: `
-      <div style="position:relative;width:34px;height:${awbVal > 0 ? "54px" : "34px"};">
-        ${awbVal > 0 ? `
-          <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:10;white-space:nowrap;background:${bubbleBg};color:#fff;border:1.5px solid #fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800;box-shadow:0 2px 5px rgba(0,0,0,0.35);display:flex;align-items:center;gap:2px;">
-            <span>${awbVal}</span>
-            <span style="font-size:8px;opacity:0.85;">AWB</span>
-            <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid ${bubbleBg};"></div>
-          </div>
-        ` : ""}
-        ${selected ? `<span class="truck-pulse-ring" style="top:${awbVal > 0 ? "20px" : "0px"};"></span>` : ""}
+      <div style="position:relative;width:34px;height:54px;">
+        <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:10;white-space:nowrap;background:${bubbleBg};color:#fff;border:1.5px solid #fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800;box-shadow:0 2px 5px rgba(0,0,0,0.35);display:flex;align-items:center;gap:2px;">
+          <span>${awbVal}</span>
+          <span style="font-size:8px;opacity:0.85;">AWB</span>
+          <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid ${bubbleBg};"></div>
+        </div>
+        ${selected ? `<span class="truck-pulse-ring" style="top:20px;"></span>` : ""}
         <div class="marker-visual" style="
           position:absolute;bottom:0;left:0;z-index:1;
           width:34px;height:34px;
@@ -371,6 +369,7 @@ function VehicleMarker({
       ref={markerRef}
       position={[v.latitude, v.longitude]}
       icon={truckIcon}
+      zIndexOffset={selected ? 3000 : 1500}
       eventHandlers={{
         click: (e) => {
           playPopAnimation(e.target as L.Marker);
@@ -906,15 +905,27 @@ function LiveMapView({
   // Rute yang digambar saat seller/gateway diklik (dari Outgoing & DC).
 
 
-  // Hanya tampilkan kendaraan yang AKTIF (online & sesi driver aktif).
-  // Kendaraan yang offline / driver logout dihilangkan dari peta.
+  // Hanya tampilkan kendaraan yang AKTIF (online & sesi driver aktif atau ada update GPS fresh).
+  // Kendaraan yang offline explicit / driver logout dihilangkan dari peta.
   const activeVehicles = useMemo(() => {
-    return vehicles.filter((v) => !v.offline && hasActiveSession(v.last_login));
+    return vehicles.filter((v) => {
+      if (!v.latitude || !v.longitude) return false;
+      if (v.offline) return false;
+      if (hasActiveSession(v.last_login)) return true;
+      // Fallback untuk driver pickup / armada dengan GPS fresh (< 30 menit)
+      const t = new Date(v.last_update).getTime();
+      if (!Number.isNaN(t) && Date.now() - t < 30 * 60 * 1000) {
+        return true;
+      }
+      return false;
+    });
   }, [vehicles]);
 
   // Rute LIVE armada terpilih: dari posisi truk → stop berikutnya (ritase aktif).
   const selectedVehicle =
-    activeVehicles.find((v) => v.id_kendaraan === selectedVehicleId) ?? null;
+    activeVehicles.find((v) => v.id_kendaraan === selectedVehicleId) ??
+    vehicles.find((v) => v.id_kendaraan === selectedVehicleId) ??
+    null;
   const activeRoute = useActiveRoute(selectedVehicle, sellers, dropList, gudangList);
 
   // Pencarian semua kategori (truk/seller/gudang/drop) + popup saat klik hasil.
@@ -923,11 +934,15 @@ function LiveMapView({
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const [focus, setFocus] = useState<{ lat: number; lng: number; ts: number } | null>(null);
 
-  // Fokus awal (dari tabel armada via `initialFocus`) — aktifkan layer & buka popup sekali.
-  const initialedRef = useRef(false);
+  // Fokus dinamis (dari sidebar/tabel/pencarian) — aktifkan layer & buka popup
   useEffect(() => {
-    if (!initialFocus || initialedRef.current) return;
+    if (!initialFocus) return;
     const { type, id } = initialFocus;
+    if (type === "truck") {
+      setShow((s) => ({ ...s, trucks: true }));
+      onSelectVehicle(id);
+      return;
+    }
     const found =
       type === "seller"
         ? sellers.find((s) => s.id_seller === id)
@@ -937,14 +952,13 @@ function LiveMapView({
             ? gudangList.find((g) => g.id_gudang === id)
             : undefined;
     if (!found) return;
-    initialedRef.current = true;
     const ts = Date.now();
     setFocusKey(`${type}:${id}:${ts}`);
     setFocus({ lat: found.latitude, lng: found.longitude, ts });
     if (type === "seller") setShow((s) => ({ ...s, sellers: true }));
     else if (type === "drop") setShow((s) => ({ ...s, drop: true }));
     else if (type === "gudang") setShow((s) => ({ ...s, gudang: true }));
-  }, [initialFocus, sellers, dropList, gudangList]);
+  }, [initialFocus, sellers, dropList, gudangList, onSelectVehicle]);
 
   const searchItems = useMemo(() => {
     const items: { type: string; id: number; label: string; sub: string; lat: number; lng: number }[] = [
@@ -1236,7 +1250,13 @@ function LiveMapView({
               onSelect={() => onSelectVehicle(v.id_kendaraan)}
               phones={phones}
               compact={compact}
-              isCompleted={selectedVehicleId === v.id_kendaraan ? activeRoute.isCompleted : false}
+              isCompleted={
+                selectedVehicleId === v.id_kendaraan
+                  ? v.role_driver === "driver_pickup"
+                    ? v.status === "Selesai"
+                    : activeRoute.isCompleted
+                  : false
+              }
               kode={selectedVehicleId === v.id_kendaraan ? activeRoute.kode : null}
               eta={
                 selectedVehicleId === v.id_kendaraan && activeRoute.next && activeRoute.route
@@ -1340,7 +1360,7 @@ function LiveMapView({
   );
 }
 
-/** Popup interaktif untuk titik Implan (Seller): input jumlah barang, ubah status, & riwayat log */
+/** Popup info untuk titik Implan (Seller): informasi toko, jarak, & status muatan AWB (read-only) */
 function SellerPopupContent({
   seller,
   compact,
@@ -1348,85 +1368,13 @@ function SellerPopupContent({
   seller: SellerLocation;
   compact?: boolean;
 }) {
-  const token = useAuthStore((s) => s.token);
-  const queryClient = useQueryClient();
-
-  const [jumlah, setJumlah] = useState<string>(
-    seller.jumlah_barang != null && seller.jumlah_barang > 0
-      ? String(seller.jumlah_barang)
-      : ""
-  );
-  const [status, setStatus] = useState<string>(
-    seller.status_pickup || "menunggu"
-  );
-  const [catatan, setCatatan] = useState<string>(seller.catatan_pickup || "");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [historyLogs, setHistoryLogs] = useState<ImplanBarangLog[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-
-  useEffect(() => {
-    if (seller.jumlah_barang != null && seller.jumlah_barang > 0) {
-      setJumlah(String(seller.jumlah_barang));
-    }
-    if (seller.status_pickup) {
-      setStatus(seller.status_pickup);
-    }
-    if (seller.catatan_pickup) {
-      setCatatan(seller.catatan_pickup);
-    }
-  }, [seller.jumlah_barang, seller.status_pickup, seller.catatan_pickup]);
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!token) return;
-    setSaving(true);
-    setSaved(false);
-    try {
-      await post(
-        "/armada/implan/barang",
-        {
-          id_seller: seller.id_seller,
-          jumlah_barang: parseInt(jumlah, 10) || 0,
-          status,
-          catatan,
-        },
-        { token }
-      );
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-      queryClient.invalidateQueries({ queryKey: ["tracking-map"] });
-    } catch {
-      alert("Gagal menyimpan data barang implan.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const toggleHistory = async () => {
-    const nextState = !showHistory;
-    setShowHistory(nextState);
-    if (nextState) {
-      setLoadingHistory(true);
-      try {
-        const res = await get<ImplanBarangLog[]>(
-          `/armada/implan/${seller.id_seller}/history`,
-          { token }
-        );
-        setHistoryLogs(res ?? []);
-      } catch {
-        // silent
-      } finally {
-        setLoadingHistory(false);
-      }
-    }
-  };
+  const isDiambil = seller.status_pickup === "sudah_diambil";
+  const hasMuatan = (seller.jumlah_barang != null && seller.jumlah_barang > 0) || (seller.koli != null && seller.koli > 0);
 
   return (
-    <div className={compact ? "min-w-[170px] text-xs" : "min-w-[240px] max-w-[280px] text-xs"}>
+    <div className={compact ? "min-w-[140px] text-xs" : "min-w-[200px] max-w-[260px] text-xs"}>
       {/* Header Info Toko */}
-      <div className="border-b border-slate-100 pb-1.5">
+      <div>
         <p className="font-bold text-sky-800 text-sm">
           {seller.nama_seller}
           {seller.kode_seller && (
@@ -1434,7 +1382,7 @@ function SellerPopupContent({
           )}
         </p>
         {seller.alamat && (
-          <p className="text-[11px] text-slate-500 line-clamp-2">{seller.alamat}</p>
+          <p className="mt-0.5 text-[11px] text-slate-500 line-clamp-2">{seller.alamat}</p>
         )}
         {seller.kota && (
           <p className="text-[10px] text-slate-400">{seller.kota}</p>
@@ -1449,117 +1397,49 @@ function SellerPopupContent({
         )}
       </div>
 
-      {/* FORM INPUT BARANG IMPLAN */}
-      <form onSubmit={handleSave} className="mt-2 space-y-2 rounded-lg bg-slate-50 p-2 border border-slate-200/70">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1 font-bold text-slate-700 text-[11px]">
-            <Package className="h-3.5 w-3.5 text-amber-500" />
-            Jumlah Barang (AWB)
-          </span>
-          {saved && (
-            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600">
-              <Check className="h-3 w-3" /> Tersimpan
+      {/* Info Muatan / AWB Hari Ini (Read-only) */}
+      {hasMuatan && (
+        <div className="mt-2 rounded-lg border border-slate-200/80 bg-slate-50/80 p-2 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1 font-bold text-slate-800 text-xs">
+              <Package className="h-3.5 w-3.5 text-amber-500" />
+              {seller.jumlah_barang ?? 0} AWB
             </span>
+            <span
+              className={cn(
+                "rounded px-1.5 py-0.5 text-[10px] font-bold",
+                isDiambil ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+              )}
+            >
+              {isDiambil ? "✓ Sudah Diambil" : "⏳ Menunggu"}
+            </span>
+          </div>
+          {(seller.koli != null && seller.koli > 0) && (
+            <p className="mt-0.5 text-[10px] text-slate-500 font-medium">
+              {seller.koli} Koli {seller.ecer ? `• ${seller.ecer} Ecer` : ""} {seller.high_value ? `• ${seller.high_value} HV` : ""}
+            </p>
+          )}
+          {seller.catatan_pickup && (
+            <p className="mt-1 text-[10px] italic text-slate-600">"{seller.catatan_pickup}"</p>
           )}
         </div>
+      )}
 
-        <input
-          type="number"
-          min="0"
-          value={jumlah}
-          onChange={(e) => setJumlah(e.target.value)}
-          placeholder="Contoh: 150"
-          className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-sky-600 focus:ring-1 focus:ring-sky-600/30"
-        />
-
-        {/* Toggle Status */}
-        <div className="grid grid-cols-2 gap-1.5 pt-0.5">
-          <button
-            type="button"
-            onClick={() => setStatus("menunggu")}
-            className={cn(
-              "rounded-md py-1 text-[10px] font-bold transition-all border",
-              status === "menunggu"
-                ? "bg-amber-500 text-white border-amber-600 shadow-xs"
-                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
-            )}
-          >
-            ⏳ Menunggu
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatus("sudah_diambil")}
-            className={cn(
-              "rounded-md py-1 text-[10px] font-bold transition-all border",
-              status === "sudah_diambil"
-                ? "bg-emerald-600 text-white border-emerald-700 shadow-xs"
-                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
-            )}
-          >
-            ✓ Sudah Diambil
-          </button>
+      {/* Jarak dari Gudang Outgoing & DC */}
+      {(seller.jarak_tempuh_km != null || seller.jarak_dc_km != null) && (
+        <div className="mt-2 space-y-0.5 border-t border-slate-100 pt-1.5 text-[11px]">
+          {seller.jarak_tempuh_km != null && (
+            <p className="font-medium text-sky-700">
+              Outgoing: <span className="font-bold">{seller.jarak_tempuh_km.toFixed(1)} km</span>
+            </p>
+          )}
+          {seller.jarak_dc_km != null && (
+            <p className="font-medium text-violet-700">
+              DC: <span className="font-bold">{seller.jarak_dc_km.toFixed(1)} km</span>
+            </p>
+          )}
         </div>
-
-        <input
-          type="text"
-          value={catatan}
-          onChange={(e) => setCatatan(e.target.value)}
-          placeholder="Catatan (opsional)..."
-          className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] outline-none focus:border-sky-600 focus:ring-1 focus:ring-sky-600/30"
-        />
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="flex w-full items-center justify-center gap-1.5 rounded-md bg-[#0c1e3a] py-1.5 text-xs font-semibold text-white transition-all hover:bg-[#0c1e3a]/90 disabled:opacity-50"
-        >
-          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-          <span>{saving ? "Menyimpan..." : "Simpan Status"}</span>
-        </button>
-      </form>
-
-      {/* TOMBOL LIHAT RIWAYAT */}
-      <div className="mt-2 pt-1 border-t border-slate-100">
-        <button
-          type="button"
-          onClick={toggleHistory}
-          className="flex w-full items-center justify-between py-1 text-[11px] font-medium text-slate-500 hover:text-slate-800 transition-colors"
-        >
-          <span className="flex items-center gap-1">
-            <History className="h-3 w-3" /> Riwayat Log
-          </span>
-          <span className="text-[10px]">{showHistory ? "▲ Tutup" : "▼ Lihat"}</span>
-        </button>
-
-        {showHistory && (
-          <div className="mt-1 max-h-36 overflow-y-auto space-y-1.5 pr-0.5">
-            {loadingHistory ? (
-              <p className="py-2 text-center text-[10px] text-slate-400">Memuat riwayat...</p>
-            ) : historyLogs.length === 0 ? (
-              <p className="py-2 text-center text-[10px] text-slate-400">Belum ada riwayat</p>
-            ) : (
-              historyLogs.map((h) => (
-                <div key={h.id_log} className="rounded border border-slate-100 bg-slate-50/60 p-1.5 text-[10px]">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-700">{h.jumlah_barang} AWB</span>
-                    <span className={cn(
-                      "font-semibold px-1 rounded text-[9px]",
-                      h.status === "sudah_diambil" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                    )}>
-                      {h.status === "sudah_diambil" ? "Sudah Diambil" : "Menunggu"}
-                    </span>
-                  </div>
-                  <div className="mt-0.5 flex items-center justify-between text-slate-400 text-[9px]">
-                    <span>{h.tanggal}</span>
-                    <span>Oleh: {h.created_by || "-"}</span>
-                  </div>
-                  {h.catatan && <p className="mt-0.5 text-slate-600 italic text-[9px]">{h.catatan}</p>}
-                </div>
-              ))
-            )}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

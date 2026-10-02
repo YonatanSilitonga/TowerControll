@@ -484,3 +484,4 @@ export interface GpsPoint {
   kecepatan?: number | null;
   created_at: string;
 }
+
