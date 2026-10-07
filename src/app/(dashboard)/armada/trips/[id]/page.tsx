@@ -1,5 +1,6 @@
 "use client";
 
+import { WhatsAppContact } from "@/components/armada/whatsapp-contact";
 import { useParams } from "next/navigation";
 import { BellRing, Clock, MapPin, RadioTower, Timer, Truck, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +8,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { RuteStepper } from "@/components/armada/rute-stepper";
-import { ArmadaTabs } from "@/components/armada/armada-tabs";
 import dynamic from "next/dynamic";
 import { TripMapSkeleton } from "@/components/armada/trip-map";
 
@@ -17,9 +17,10 @@ const TripMap = dynamic(() => import("@/components/armada/trip-map").then(m => m
 });
 
 import { DriverSummary, summarizeEvents } from "@/components/armada/driver-summary";
-import { StatusTimeline, dedupEvents } from "@/components/armada/status-timeline";
+import { dedupEvents } from "@/components/armada/status-timeline";
+import { DashboardLogTable } from "@/components/dashboard/dashboard-log-table";
 import { InfoTip } from "@/components/ui/info-tip";
-import { useRitaseDetail, useGpsHistory } from "@/hooks/use-armada";
+import { useRitaseDetail, useGpsHistory, useDriver } from "@/hooks/use-armada";
 import { useAlertsByRitase } from "@/hooks/use-dashboard";
 import { useTrackingMap } from "@/hooks/use-tracking";
 import { displayTrackingStatus, isRitaseExpired, isStale, statusLabel } from "@/lib/constants";
@@ -29,6 +30,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
   const routeParams = useParams();
   const rawId = (routeParams?.id ?? params?.id ?? "") as string;
   const { data, isLoading } = useRitaseDetail(rawId);
+  const { data: contactDrivers } = useDriver();
   const { data: mapData } = useTrackingMap();
   const { data: alerts } = useAlertsByRitase(data?.id_ritase ?? null);
   const { data: gpsHistory } = useGpsHistory(data?.id_ritase ?? null);
@@ -65,12 +67,12 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
     return (
       <div className="space-y-4">
         <PageHeader
-          title="Ritase Tidak Ditemukan"
-          description="Data ritase tidak tersedia atau ID tidak valid."
-          crumbs={[{ label: "Armada", href: "/armada" }, { label: "Ritase", href: "/armada/trips" }]}
+          title="Jadwal Tidak Ditemukan"
+          description="Data jadwal tidak tersedia atau ID tidak valid."
+          crumbs={[{ label: "Armada", href: "/armada" }, { label: "Jadwal & Riwayat", href: "/armada/trips" }]}
         />
         <p className="rounded-lg border border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
-          Ritase dengan ID #{rawId} tidak ditemukan.
+          Jadwal dengan ID #{rawId} tidak ditemukan.
         </p>
       </div>
     );
@@ -124,17 +126,15 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
         description={`RIT ${data.ritase_ke ?? "-"} · ${formatDateDMY(data.tanggal)}`}
         crumbs={[
           { label: "Armada", href: "/armada" },
-          { label: "Ritase", href: "/armada/trips" },
+          { label: "Jadwal & Riwayat", href: "/armada/trips" },
           { label: data.kode_ritase },
         ]}
         actions={<StatusBadge status={data.status === "direncanakan" && isRitaseExpired(data.jam_selesai, data.tanggal, data.jam_mulai) ? "tidak terlaksana" : data.status} />}
       />
-      <ArmadaTabs />
-
       {/* Vitals bar — full width, mobile friendly */}
       <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <VitalItem icon={<User className="h-4 w-4" />} label="Driver" value={data.nama_driver} first />
+          <VitalItem icon={<User className="h-4 w-4" />} label="Driver" value={<span>{data.nama_driver}<WhatsAppContact phone={contactDrivers?.find((d) => d.id_driver === data.id_driver)?.no_hp} name={data.nama_driver} /></span>} first />
           <VitalItem icon={<Truck className="h-4 w-4" />} label="Kendaraan" value={data.plat_nomor} />
           {vehicle ? (
             <div className="flex items-center gap-2">
@@ -157,12 +157,12 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
       </div>
 
       {/* === 2-column grid: Desktop (kiri=perjalanan, kanan=muatan+jadwal) / Mobile (stacking) === */}
-      <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
+      <div className="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
 
         {/* KIRI — Mobile order-2 (bawah), Desktop order-1 (kiri) */}
-        <div className="order-2 space-y-3 lg:order-1">
+        <div className="order-2 flex min-w-0 flex-col lg:order-1">
           {/* Perjalanan + Peta */}
-          <Card>
+          <Card className="flex flex-1 flex-col">
             <CardHeader className="border-b px-4 py-3">
               <CardTitle className="flex items-center justify-between gap-2 text-sm font-semibold">
                 <span className="flex items-center gap-1.5">
@@ -182,7 +182,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 p-4">
+            <CardContent className="flex flex-1 flex-col gap-4 p-4">
               <RuteStepper stops={data.stops ?? []} />
               {sum.total > 0 && (
                 <div>
@@ -201,8 +201,8 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
                   </div>
                 </div>
               )}
-              <div className="overflow-hidden rounded-lg border border-slate-100">
-                <TripMap stops={data.stops ?? []} events={data.events ?? []} alerts={alerts ?? []} gpsHistory={gpsHistory ?? []} />
+              <div className="relative min-h-[300px] flex-1 overflow-hidden rounded-lg border border-slate-100 lg:min-h-[400px]">
+                <TripMap fill stops={data.stops ?? []} events={data.events ?? []} alerts={alerts ?? []} gpsHistory={gpsHistory ?? []} />
               </div>
             </CardContent>
           </Card>
@@ -215,7 +215,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
             <CardHeader className="border-b px-4 py-3">
               <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
                 Muatan
-                <InfoTip text="Muatan ritase" />
+                <InfoTip text="Muatan jadwal" />
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 p-4">
@@ -321,7 +321,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
               <CardHeader className="border-b px-4 py-3">
                 <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
                   <BellRing className="h-4 w-4 text-slate-400" /> Status Tidak Wajar
-                  <InfoTip text="Riwayat anomali pada ritase ini" />
+                  <InfoTip text="Riwayat anomali pada jadwal ini" />
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 p-4">
@@ -356,7 +356,7 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
         <CardHeader className="border-b px-4 py-3">
           <CardTitle className="flex items-center justify-between gap-2 text-sm font-semibold">
             <span className="flex items-center gap-1.5">
-              <Clock className="h-4 w-4 text-[#0c1e3a]" /> Timeline Status &amp; Durasi
+              <Clock className="h-4 w-4 text-[#0c1e3a]" /> Riwayat Aktivitas
               <InfoTip text="Riwayat status & durasi" />
             </span>
             <span className="text-xs text-slate-400">{formatNumber(dedupEvents(data.events ?? []).length)} event</span>
@@ -366,10 +366,13 @@ export default function RitaseDetailPage({ params }: { params?: { id?: string } 
           {(data.events ?? []).length === 0 ? (
             <p className="py-4 text-center text-sm text-slate-400">Belum ada event status</p>
           ) : (
-            <div className="grid gap-6 lg:grid-cols-2">
-              <DriverSummary events={data.events ?? []} stops={data.stops ?? []} />
-              <div className="border-t pt-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-                <StatusTimeline events={data.events ?? []} stops={data.stops ?? []} limit={15} />
+            <div className="min-w-0 space-y-3">
+              <details className="rounded-md border border-slate-200 px-3 py-2">
+                <summary className="cursor-pointer text-xs font-medium text-slate-600">Ringkasan durasi</summary>
+                <div className="mt-3"><DriverSummary events={data.events ?? []} stops={data.stops ?? []} /></div>
+              </details>
+              <div className="flex max-h-[480px] min-h-0 min-w-0 flex-col">
+                <DashboardLogTable roomy key={data.id_ritase} events={(data.events ?? []).map(event => ({ ...event, id_ritase: data.id_ritase, kode_ritase: data.kode_ritase }))} ritaseInfoMap={new Map([[data.kode_ritase, { nama_driver: data.nama_driver, plat_nomor: data.plat_nomor, ritase_ke: data.ritase_ke, tanggal: data.tanggal }]])} />
               </div>
             </div>
           )}
@@ -387,7 +390,7 @@ function VitalItem({
 }: {
   icon: React.ReactNode;
   label: string;
-  value: string;
+  value: React.ReactNode;
   first?: boolean;
 }) {
   return (

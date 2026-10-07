@@ -1,7 +1,9 @@
 "use client";
+import { WhatsAppContact } from "@/components/armada/whatsapp-contact";
+import { createPortal } from "react-dom";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
-import { Check, ChevronDown, ChevronUp, History, Loader2, Package, Phone, Save, Search } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Clock, Gauge, History, Loader2, MapPin, Package, Phone, Save, Search, Truck } from "lucide-react";
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
 import { useQueryClient } from "@tanstack/react-query";
 import { get, post } from "@/lib/api-client";
@@ -15,7 +17,7 @@ import type {
   SellerLocation,
   TrackingVehicle,
 } from "@/types/armada";
-import { useRitaseDetail } from "@/hooks/use-armada";
+import { useRitaseDetail, useDriver } from "@/hooks/use-armada";
 import { displayTrackingStatus, ritaseStatusLabel } from "@/lib/constants";
 import { cn, hasActiveSession } from "@/lib/utils";
 
@@ -314,6 +316,9 @@ function FocusSelected({
 }
 
 interface LiveMapProps {
+  fullscreen?: boolean;
+  controlsContainer?: HTMLElement | null;
+  onFilterOpenChange?: (open: boolean) => void;
   vehicles: TrackingVehicle[];
   sellers: SellerLocation[];
   /** Posisi gudang (Outgoing/DC) dari backend. Opsional — fallback konstanta. */
@@ -333,6 +338,8 @@ interface LiveMapProps {
 /** Satu marker truk. Saat `selected` jadi true → popup langsung dibuka. */
 function VehicleMarker({
   vehicle: v,
+  hidePopup = false,
+  onPopupChange,
   selected,
   onSelect,
   phones,
@@ -342,6 +349,8 @@ function VehicleMarker({
   kode,
 }: {
   vehicle: TrackingVehicle;
+  hidePopup?: boolean;
+  onPopupChange?: (open: boolean) => void;
   selected: boolean;
   onSelect: () => void;
   phones?: Record<string, string>;
@@ -353,12 +362,12 @@ function VehicleMarker({
   const markerRef = useRef<L.Marker>(null);
   const lastT = new Date(v.last_update).getTime();
   const stale = !Number.isNaN(lastT) && Date.now() - lastT > 5 * 60 * 1000;
-  const phone = v.nama_driver ? phones?.[v.nama_driver.toLowerCase()] : undefined;
+  const phone = phones?.[String(v.id_driver)];
 
   useEffect(() => {
-    if (selected) markerRef.current?.openPopup();
+    if (selected && !hidePopup) markerRef.current?.openPopup();
     else markerRef.current?.closePopup();
-  }, [selected]);
+  }, [selected, hidePopup]);
 
   const isLive = !v.offline && hasActiveSession(v.last_login);
   const awbCount = v.total_awb ?? v.total_koli ?? 0;
@@ -371,107 +380,47 @@ function VehicleMarker({
       icon={truckIcon}
       zIndexOffset={selected ? 3000 : 1500}
       eventHandlers={{
+        popupopen: () => onPopupChange?.(true),
+        popupclose: () => onPopupChange?.(false),
         click: (e) => {
           playPopAnimation(e.target as L.Marker);
           onSelect();
         },
       }}
     >
-      <Popup>
-        <div className={compact ? "min-w-[110px] text-xs" : "min-w-[210px] text-sm"}>
-          <p className="font-semibold text-[#1e3a5f]">{v.plat_nomor || "-"}</p>
-          <p className="text-xs text-muted-foreground">Driver: {v.nama_driver || "-"}</p>
-          {!compact && (
-            <p className="text-xs">
-              Status: {
-                !hasActiveSession(v.last_login) ? "Driver logout"
-                  : v.offline && v.id_ritase && v.status_ritase
-                    ? (ritaseStatusLabel(v.status_ritase, v.jam_selesai, v.tanggal, v.jam_mulai) ?? "Belum memulai")
-                    : v.offline ? "Belum memulai"
-                      : displayTrackingStatus(v.status, v.kecepatan, v.last_update)
-              }
-            </p>
-          )}
-          {!compact && !stale && hasActiveSession(v.last_login) && !v.offline && (
-            <p className="text-xs">Kecepatan: {v.kecepatan ?? 0} km/h</p>
-          )}
-          {/* Kotak Informasi Jumlah Muatan yang Dibawa */}
-          {!compact && v.session_online !== false && (
-            <div className="my-1.5 rounded-lg border border-amber-200/80 bg-amber-50/70 p-2 text-xs">
-              <p className="mb-1 flex items-center gap-1.5 text-[11px] font-bold text-amber-900">
-                <span>📦</span> Jumlah Muatan yang Dibawa:
-              </p>
-              <div className="grid grid-cols-3 gap-1.5 text-center">
-                <div className="rounded border border-amber-100 bg-white/90 px-1 py-1 shadow-xs">
-                  <span className="block text-[9px] font-medium text-slate-500">Koli</span>
-                  <span className="text-xs font-extrabold text-slate-800">{v.total_koli ?? 0}</span>
-                </div>
-                <div className="rounded border border-amber-100 bg-white/90 px-1 py-1 shadow-xs">
-                  <span className="block text-[9px] font-medium text-slate-500">Ecer</span>
-                  <span className="text-xs font-extrabold text-slate-800">{v.total_eceran ?? 0}</span>
-                </div>
-                <div className="rounded border border-amber-100 bg-white/90 px-1 py-1 shadow-xs">
-                  <span className="block text-[9px] font-medium text-slate-500">High Value</span>
-                  <span className="text-xs font-extrabold text-slate-800">{v.total_high_value ?? 0}</span>
-                </div>
-              </div>
+      {!hidePopup && <Popup maxWidth={340} minWidth={200} className="vehicle-compact-popup [&_.leaflet-popup-content]:!m-4 [&_.leaflet-popup-content-wrapper]:!rounded-2xl [&_.leaflet-popup-close-button]:!right-2 [&_.leaflet-popup-close-button]:!top-2 [&_.leaflet-popup-close-button]:!h-8 [&_.leaflet-popup-close-button]:!w-8">
+        <div className="w-[304px] max-w-[calc(100vw-80px)] space-y-3 text-xs leading-snug text-slate-700 [&_p]:!m-0">
+          <div className="flex items-start gap-3 pr-7">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><Truck className="h-6 w-6" aria-hidden="true" /></div>
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="break-words text-base font-bold tracking-tight text-[#0c1e3a]">{v.plat_nomor || "—"}</div>
+              <p className="break-words text-xs text-slate-600">{v.nama_driver || "Driver belum tersedia"}</p>
             </div>
-          )}
-          {!hasActiveSession(v.last_login) ? (
-            <p className="text-xs font-medium text-rose-600">Driver sudah logout dari aplikasi</p>
-          ) : v.offline && v.id_ritase && v.status_ritase ? (
-            (() => {
-              const rl = ritaseStatusLabel(v.status_ritase, v.jam_selesai, v.tanggal, v.jam_mulai);
-              return rl ? (
-                <p className="text-xs font-medium text-amber-600">{rl}</p>
-              ) : (
-                <p className="text-xs font-medium text-amber-600">Belum memulai</p>
-              );
-            })()
-          ) : v.offline ? (
-            <p className="text-xs font-medium text-amber-600">Belum memulai</p>
-          ) : (
-            <p className={stale ? "text-xs font-medium text-amber-600" : "text-xs text-muted-foreground"}>
-              Update: {minutesAgo(v.last_update)}
-            </p>
-          )}
-          {!compact && v.last_open && (
-            <p className="text-xs text-muted-foreground">App dibuka: {minutesAgo(v.last_open)}</p>
-          )}
-          {/* Estimasi waktu rute live armada — hanya untuk truk terpilih yang punya rute aktif & gak logout */}
-          {isCompleted && hasActiveSession(v.last_login) && !compact ? (
-            <div className="mt-1.5 rounded-md border border-green-200 bg-green-50 px-2 py-1 text-[11px]">
-              <p className="font-medium text-green-700">Rute selesai</p>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {(kode || v.kode_ritase) && <span className="min-w-0 break-all font-mono text-[10px] text-slate-500">{kode || v.kode_ritase}</span>}
+            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold", v.offline || stale ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700")}><i className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />{!hasActiveSession(v.last_login) ? "Logout" : v.offline ? "Offline" : displayTrackingStatus(v.status, v.kecepatan, v.last_update)}</span>
+          </div>
+          <div className="space-y-2">
+            <div className="grid grid-cols-3 divide-x divide-slate-200 rounded-xl border border-slate-100 bg-slate-50/70 py-3 [&>div]:min-w-0 [&>div]:px-2.5 [&>div>p]:min-h-[28px] [&>div>div]:leading-snug">
+              <div><Gauge className="mb-1.5 h-4 w-4 text-blue-600" aria-hidden="true" /><p className="text-[10px] text-slate-500">Kecepatan</p><div className="mt-1 break-words font-semibold text-[#0c1e3a]">{!stale && !v.offline && hasActiveSession(v.last_login) ? (v.kecepatan ?? 0) + " km/h" : "—"}</div></div>
+              <div><MapPin className="mb-1.5 h-4 w-4 text-emerald-600" aria-hidden="true" /><p className="text-[10px] text-slate-500">Update GPS</p><div className="mt-1 break-words font-semibold text-[#0c1e3a]">{minutesAgo(v.last_update)}</div></div>
+              <div><Clock className="mb-1.5 h-4 w-4 text-blue-600" aria-hidden="true" /><p className="text-[10px] text-slate-500">App dibuka</p><div className="mt-1 break-words font-semibold text-[#0c1e3a]">{v.last_open ? minutesAgo(v.last_open) : "—"}</div></div>
             </div>
-          ) : eta && hasActiveSession(v.last_login) && (
-            compact ? (
-              <p className="mt-1 rounded-md bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-700">
-                Tujuan Selanjutnya: {eta.label} · {eta.km} · ETA {fmtArrival(eta.durationSeconds)}
-              </p>
-            ) : (
-              <div className="mt-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px]">
-                <p className="font-medium text-emerald-700">Next: {eta.label}</p>
-                <p className="text-emerald-700">
-                  Estimasi tiba <b>{fmtArrival(eta.durationSeconds)}</b> · {eta.km} · {fmtDuration(eta.durationSeconds)}
-                </p>
-                <p className="mt-1 border-t border-emerald-200/70 pt-1 text-[10px] italic leading-snug text-emerald-700/70">
-                  Hanya estimasi dari perhitungan rute kondisi jalan & halangan lainnya tidak dihitung, jadi bisa berbeda dari kenyataan.
-                </p>
-              </div>
-            )
-          )}
-          {!compact && phone && (
-            <a
-              href={`tel:${phone.replace(/[^+\d]/g, "")}`}
-              style={{ color: "#fff" }}
-              className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-emerald-700"
-            >
-              <Phone className="h-3.5 w-3.5" /> Telpon Driver
-            </a>
-          )}
-
+            {v.session_online !== false && ((v.total_koli ?? 0) > 0 || (v.total_eceran ?? 0) > 0 || (v.total_high_value ?? 0) > 0) && <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-800">📦 {[(v.total_koli ?? 0) > 0 ? v.total_koli + " koli" : null, (v.total_eceran ?? 0) > 0 ? v.total_eceran + " ecer" : null, (v.total_high_value ?? 0) > 0 ? v.total_high_value + " HV" : null].filter(Boolean).join(" · ")}</div>}
+          </div>
+          {isCompleted ? <div className="border-t border-slate-100 pt-3 text-emerald-700">Rute selesai</div> : eta && !v.offline && hasActiveSession(v.last_login) && <div className="flex items-start gap-2.5 border-t border-slate-100 pt-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600"><MapPin className="h-4 w-4" aria-hidden="true" /></div>
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="text-[10px] text-slate-500">Tujuan berikutnya</div>
+              <p className="break-words text-xs font-semibold leading-snug text-[#0c1e3a]">{eta.label}</p>
+              <div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-slate-500"><span>{eta.km}</span><span>· ±{fmtDuration(eta.durationSeconds)}</span></div>
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600"><Clock className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" /><span>Estimasi tiba</span><span className="font-semibold text-[#0c1e3a]">{fmtArrival(eta.durationSeconds)} WIB</span></div>
+            </div>
+          </div>}
+          {phone && <div className="[&>a]:w-full [&>a]:min-h-11 [&>a]:border [&>a]:border-emerald-600 [&>a]:bg-emerald-600 [&>a]:!text-white [&>a:hover]:bg-emerald-700"><WhatsAppContact phone={phone} name={v.nama_driver} /></div>}
         </div>
-      </Popup>
+      </Popup>}
     </Marker>
   );
 }
@@ -807,7 +756,7 @@ function useActiveRoute(
       lastPosRef.current = null;
       return;
     }
-    const key = `${vehicle.id_kendaraan}:${next.stop.id_stop}:${next.point.lat}:${next.point.lng}`;
+    const key = `${vehicle.id_kendaraan}:${vehicle.id_ritase}:${next.stop.id_stop}:${next.point.lat}:${next.point.lng}`;
     const moved =
       !lastPosRef.current ||
       haversineM(
@@ -816,6 +765,7 @@ function useActiveRoute(
       ) > 15;
     if (lastKeyRef.current === key && !moved) return;
 
+    setRoute(null);
     let cancelled = false;
     (async () => {
       const r = await fetchRoute(
@@ -830,7 +780,7 @@ function useActiveRoute(
     return () => {
       cancelled = true;
     };
-  }, [vehicle, next]);
+  }, [vehicle?.id_kendaraan, vehicle?.id_ritase, vehicle?.latitude, vehicle?.longitude, vehicle?.last_login, next?.stop.id_stop, next?.point.lat, next?.point.lng]);
 
   // Detect trip completed: last event = "Selesai" atau ritase status = "completed"
   const isCompleted = useMemo(() => {
@@ -869,7 +819,13 @@ function LiveMapView({
   selectedVehicleId,
   onSelectVehicle,
   compact: compactProp,
+  fullscreen = false,
+  controlsContainer,
+  onFilterOpenChange,
 }: LiveMapProps) {
+  const { data: contactDrivers } = useDriver();
+  const contactPhones = Object.fromEntries((contactDrivers ?? []).map((d) => [String(d.id_driver), d.no_hp ?? ""]));
+
   // Compact OTOMATIS di layar kecil (HP): popup marker, search, dan legenda
   // jadi ramping biar gampang dipakai & gak nutup peta.
   const [isSmall, setIsSmall] = useState(false);
@@ -878,7 +834,17 @@ function LiveMapView({
   const toggleLayer = (k: keyof typeof show) =>
     setShow((s) => ({ ...s, [k]: !s[k] }));
 
-  const [legendOpen, setLegendOpen] = useState(true);
+  const [legendOpen, setLegendOpen] = useState(!fullscreen);
+
+  const uniqueVehicles = useMemo(() => {
+    const seen = new Set<number>();
+    return (vehicles ?? []).filter((v) => {
+      if (!v || v.id_kendaraan == null) return false;
+      if (seen.has(v.id_kendaraan)) return false;
+      seen.add(v.id_kendaraan);
+      return true;
+    });
+  }, [vehicles]);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 768px)");
@@ -926,6 +892,7 @@ function LiveMapView({
     activeVehicles.find((v) => v.id_kendaraan === selectedVehicleId) ??
     vehicles.find((v) => v.id_kendaraan === selectedVehicleId) ??
     null;
+  const [vehiclePopupOpen, setVehiclePopupOpen] = useState(false);
   const activeRoute = useActiveRoute(selectedVehicle, sellers, dropList, gudangList);
 
   // Pencarian semua kategori (truk/seller/gudang/drop) + popup saat klik hasil.
@@ -987,12 +954,12 @@ function LiveMapView({
         lat: g.latitude, lng: g.longitude,
       })),
     ];
-    return items;
+    return items.filter(i => Number.isFinite(Number(i.lat)) && Number.isFinite(Number(i.lng)) && i.lat != null && i.lng != null && Math.abs(Number(i.lat)) <= 90 && Math.abs(Number(i.lng)) <= 180);
   }, [vehicles, sellers, dropList, gudangList]);
 
   const ql = q.trim().toLowerCase();
   const matches = ql
-    ? searchItems.filter((i) => `${i.label} ${i.sub}`.toLowerCase().includes(ql))
+    ? searchItems.filter((i) => `${i.label} ${i.sub} ${typeLabel(i.type)}`.toLowerCase().replace(/[^a-z0-9]/g, "").includes(ql.replace(/[^a-z0-9]/g, "")))
     : [];
 
   const onPickSearch = (it: (typeof searchItems)[number]) => {
@@ -1001,6 +968,7 @@ function LiveMapView({
     // Aktifkan layer-nya dulu biar marker pasti ada sebelum popup dibuka.
     if (it.type === "truck") {
       setShow((s) => ({ ...s, trucks: true }));
+      setFocus({ lat: Number(it.lat), lng: Number(it.lng), ts: Date.now() });
       onSelectVehicle(it.id);
       return;
     }
@@ -1013,12 +981,50 @@ function LiveMapView({
     setFocusKey(`${it.type}:${it.id}:${ts}`);
   };
 
+  const layerControl = (
+      <div data-map-control="layers"
+        className={cn(
+          controlsContainer ? "relative rounded-md border bg-white text-xs" : "absolute z-10 rounded-md border bg-white/95 shadow-sm",
+          fullscreen ? "px-3 py-2" : compact
+            ? "right-2.5 top-3 flex flex-col gap-1 p-1"
+            : "right-3 top-3 rounded-lg px-2.5 py-2 text-[11px]"
+        )}
+      >
+        <button
+          type="button"
+          aria-expanded={legendOpen}
+          onClick={() => { setLegendOpen(!legendOpen); onFilterOpenChange?.(!legendOpen); }}
+          className={cn(
+            "flex w-full items-center justify-between gap-2 font-semibold text-slate-700",
+            !compact && !fullscreen && "mb-1.5"
+          )}
+        >
+          {(fullscreen || !compact) && <span>Filter</span>}
+          {legendOpen ? (
+            <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+          )}
+        </button>
+
+        {legendOpen && (
+          <div className={fullscreen ? "absolute right-0 bottom-full mb-3 w-60 max-w-[calc(100vw-32px)] space-y-1 rounded-xl border bg-white p-3 shadow-lg lg:bottom-auto lg:top-full lg:mb-0 lg:mt-3" : compact ? "flex flex-col items-center gap-1" : "space-y-0.5"}>
+            <LegendToggle compact={fullscreen ? false : compact} label="Truk" color="#1e3a5f" active={show.trucks} onClick={() => toggleLayer("trucks")} />
+            <LegendToggle compact={fullscreen ? false : compact} label="Seller" color="#10b981" active={show.sellers} onClick={() => toggleLayer("sellers")} />
+            <LegendToggle compact={fullscreen ? false : compact} label="Gudang Outgoing" color="#0ea5e9" active={show.gudang} onClick={() => toggleLayer("gudang")} />
+            <LegendToggle compact={fullscreen ? false : compact} label="Gudang DC" color="#7c3aed" active={show.gudang} onClick={() => toggleLayer("gudang")} />
+            <LegendToggle compact={fullscreen ? false : compact} label="Gateway" color="#f97316" active={show.drop} onClick={() => toggleLayer("drop")} />
+          </div>
+        )}
+      </div>
+  );
+
   return (
     <div className="relative h-full w-full">
       {/* Pencarian semua kategori → klik hasil buka popup */}
       <div
         className={cn(
-          "absolute left-3 bottom-3 z-20",
+          fullscreen ? "absolute left-3 bottom-20 z-20 lg:bottom-3" : "absolute left-3 bottom-3 z-20",
           compact ? "w-40 max-w-[75%]" : "w-56 max-w-[75%]"
         )}
       >
@@ -1188,7 +1194,7 @@ function LiveMapView({
               <Popup autoPan={false}>    {/* ⬅️ INI — tambahkan autoPan={false} di sini */}
                 <div className={compact ? "min-w-[140px] text-xs" : "min-w-[200px] text-sm"}>
                   {s.nama_seller && (
-                    <p className="font-semibold text-emerald-700">
+                    <p className="w-full break-words font-semibold text-emerald-700">
                       {s.nama_seller}
                       {s.kode_seller && (
                         <span className="ml-1 text-[10px] font-normal text-slate-400">({s.kode_seller})</span>
@@ -1226,12 +1232,7 @@ function LiveMapView({
                         </p>
                       ) : null}
                       {s.no_hp && (
-                        <a
-                          href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`}
-                          className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"
-                        >
-                          <Phone className="h-3 w-3" /> Telpon: {s.no_hp}
-                        </a>
+                        <WhatsAppContact phone={s.no_hp} />
                       )}
                     </>
                   )}
@@ -1244,11 +1245,13 @@ function LiveMapView({
         {show.trucks &&
           activeVehicles.map((v) => (
             <VehicleMarker
+              onPopupChange={setVehiclePopupOpen}
+              hidePopup={fullscreen}
               key={`vehicle-${v.id_kendaraan}`}
               vehicle={v}
               selected={selectedVehicleId === v.id_kendaraan}
               onSelect={() => onSelectVehicle(v.id_kendaraan)}
-              phones={phones}
+              phones={contactPhones}
               compact={compact}
               isCompleted={
                 selectedVehicleId === v.id_kendaraan
@@ -1296,20 +1299,23 @@ function LiveMapView({
         <FocusPoi focus={focus} />
       </MapContainer>
 
-      {/* Route chip — floating pojok kanan bawah map */}
-      {!compact && activeRoute.next && activeRoute.route && (
-        <div className="absolute bottom-0 right-0 z-[400] max-w-[80%] rounded-tl-lg border border-b-0 border-l-0 border-emerald-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur-sm">
-          <div className="flex items-center gap-2 text-[11px]">
-            <span className="font-semibold text-emerald-700">
+      {/* Route chip — fullscreen: top center sejajar filter; non-fullscreen: bottom di atas search bar */}
+      {!compact && !open && !vehiclePopupOpen && !activeRoute.isCompleted && activeRoute.next && activeRoute.route && (
+        <div className={cn(
+          "pointer-events-auto z-20 overflow-hidden rounded-lg border border-emerald-200 bg-white/95 px-3 py-1.5 shadow-sm backdrop-blur-sm",
+          fullscreen
+            ? "absolute left-1/2 top-3 -translate-x-1/2"
+            : "absolute bottom-20 left-3 right-3 sm:right-auto sm:max-w-[calc(100%-24px)]"
+        )}>
+          <div className="flex min-w-0 items-center gap-1.5 text-[11px]">
+            <span className="truncate font-semibold text-emerald-700">
               {activeRoute.kode ?? "RIT"} → {activeRoute.next.point.label}
             </span>
-            <span className="text-slate-300">·</span>
-            <span className="font-semibold tabular-nums text-emerald-700">
+            <span className="shrink-0 whitespace-nowrap font-semibold tabular-nums text-emerald-700">
               {(activeRoute.route.distanceMeters / 1000).toFixed(1)} km
             </span>
-            <span className="text-slate-300">·</span>
-            <span className="tabular-nums text-emerald-600">
-              ETA {fmtArrival(activeRoute.route.durationSeconds)}
+            <span className="shrink-0 whitespace-nowrap tabular-nums text-emerald-600">
+              Estimasi {fmtArrival(activeRoute.route.durationSeconds)} WIB
               <span className="ml-1 text-[10px] text-emerald-400">
                 ({fmtDuration(activeRoute.route.durationSeconds)})
               </span>
@@ -1320,41 +1326,7 @@ function LiveMapView({
 
       {/* Legend filter — z-10: di atas peta tapi di bawah header sticky (z-30) */}
       {/* Legend filter — collapsible */}
-      <div
-        className={cn(
-          "absolute z-10 rounded-md border bg-white/95 shadow-sm",
-          compact
-            ? "right-2.5 top-3 flex flex-col gap-1 p-1"
-            : "right-3 top-3 rounded-lg px-2.5 py-2 text-[11px]"
-        )}
-      >
-        <button
-          type="button"
-          onClick={() => setLegendOpen((v) => !v)}
-          className={cn(
-            "flex w-full items-center justify-between font-semibold text-slate-700",
-            !compact && "mb-1.5"
-          )}
-        >
-          {!compact && <span>Filter</span>}
-          {legendOpen ? (
-            <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
-          ) : (
-            <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-          )}
-        </button>
-
-        {legendOpen && (
-          <div className={compact ? "flex flex-col items-center gap-1" : "space-y-0.5"}>
-            <LegendToggle compact={compact} label="Driver Reguler" color="#10b981" active={show.trucks} onClick={() => toggleLayer("trucks")} />
-            <LegendToggle compact={compact} label="Driver Pickup" color="#ea580c" active={show.trucks} onClick={() => toggleLayer("trucks")} />
-            <LegendToggle compact={compact} label="Seller (Implan)" color="#0284c7" active={show.sellers} onClick={() => toggleLayer("sellers")} />
-            <LegendToggle compact={compact} label="Gudang Outgoing" color="#0ea5e9" active={show.gudang} onClick={() => toggleLayer("gudang")} />
-            <LegendToggle compact={compact} label="Gudang DC" color="#7c3aed" active={show.gudang} onClick={() => toggleLayer("gudang")} />
-            <LegendToggle compact={compact} label="Gateway" color="#ef4444" active={show.drop} onClick={() => toggleLayer("drop")} />
-          </div>
-        )}
-      </div>
+      {controlsContainer ? createPortal(layerControl, controlsContainer) : layerControl}
     </div>
 
   );
@@ -1485,6 +1457,8 @@ function LegendToggle({
 
 /** Comparator: hanya render ulang kalau ada yang BERUBAH (posisi/status/id), bukan tiap poll. */
 function liveMapPropsEqual(prev: LiveMapProps, next: LiveMapProps): boolean {
+  if (prev.controlsContainer !== next.controlsContainer || prev.onFilterOpenChange !== next.onFilterOpenChange) return false;
+  if (prev.fullscreen !== next.fullscreen || prev.onSelectVehicle !== next.onSelectVehicle) return false;
   if (prev.selectedVehicleId !== next.selectedVehicleId) return false;
   if (prev.initialFocus !== next.initialFocus) return false;
   if (prev.phones !== next.phones) return false;

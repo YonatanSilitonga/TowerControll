@@ -1,6 +1,8 @@
 "use client";
 
+import { normalizeTripEvents as dedupEvents } from "@/lib/normalize-trip-events";
 import { useState, useMemo } from "react";
+import { ChevronRight } from "lucide-react";
 import { cn, formatDur } from "@/lib/utils";
 import { statusLabel } from "@/lib/constants";
 import type { RitaseStop } from "@/types/armada";
@@ -51,6 +53,21 @@ function dateLabel(iso: string): string {
   return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" }).format(d);
 }
 
+/** Date label from YYYY-MM-DD string (for ritase.tanggal). */
+function dateLabelFromStr(tgl: string): string {
+  const [y, m, d] = tgl.split("-").map(Number);
+  const date = new Date(y, (m || 1) - 1, d || 1);
+  if (Number.isNaN(date.getTime())) return tgl;
+  const today = new Date();
+  const yest = new Date();
+  yest.setDate(yest.getDate() - 1);
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (sameDay(date, today)) return "Hari Ini";
+  if (sameDay(date, yest)) return "Kemarin";
+  return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" }).format(date);
+}
+
 function timeOnly(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "-";
@@ -59,40 +76,35 @@ function timeOnly(iso: string): string {
   return `${hh}:${mm}`;
 }
 
-/** Deduplicate: buang exact duplikat + consecutive same-status (spam tombol).
- *  Tapi JANGAN buang kalau muatannya beda (koli/ecer/hv berubah). */
-export function dedupEvents(events: TimelineItem[]): TimelineItem[] {
-  return events.filter((ev, i, arr) => {
-    if (i === 0) return true;
-    const prev = arr[i - 1];
-    const sameTime =
-      new Date(ev.created_at).getTime() === new Date(prev.created_at).getTime();
-    if (sameTime && ev.status === prev.status) return false;
-    if (ev.status === prev.status) {
-      // Jangan buang kalau muatan beda
-      const prevKoli = prev.jumlah_koli ?? 0;
-      const prevEcer = prev.jumlah_ecer ?? 0;
-      const prevHV = prev.jumlah_high_value ?? 0;
-      const curKoli = ev.jumlah_koli ?? 0;
-      const curEcer = ev.jumlah_ecer ?? 0;
-      const curHV = ev.jumlah_high_value ?? 0;
-      if (curKoli !== prevKoli || curEcer !== prevEcer || curHV !== prevHV) return true;
-      return false;
-    }
-    return true;
-  });
+/** Info ritase untuk ditampilkan di header group (driver name + ritase ke). */
+export interface RitaseInfo {
+  plat_nomor?: string | null;
+  nama_driver?: string;
+  ritase_ke?: number | null;
+  tanggal?: string;
 }
 
+/** Deduplicate: merge consecutive bongkar muat di ritase + lokasi sama,
+ *  buang exact duplikat, buang spam tombol (same status + same payload). */
+export { normalizeTripEvents as dedupEvents } from "@/lib/normalize-trip-events";
 /** Render timeline list (flat) — dipakai per-group atau single group. */
 function TimelineList({
   items,
   showDateHeader,
+  compact,
+  ritaseTanggal,
 }: {
   items: (TimelineItem & { titik?: string; durasi?: number })[];
   showDateHeader?: boolean;
+  compact?: boolean;
+  ritaseTanggal?: string;
 }) {
-  // Group by date
+  // Group by date — if ritaseTanggal provided, all items share one date header
   const groups = useMemo(() => {
+    if (ritaseTanggal) {
+      const label = dateLabelFromStr(ritaseTanggal);
+      return [{ label, items }];
+    }
     const g: { label: string; items: typeof items }[] = [];
     for (const ev of items) {
       const label = dateLabel(ev.created_at);
@@ -101,7 +113,7 @@ function TimelineList({
       else g.push({ label, items: [ev] });
     }
     return g;
-  }, [items]);
+  }, [items, ritaseTanggal]);
 
   return (
     <div className="space-y-3">
@@ -124,18 +136,18 @@ function TimelineList({
                   <div className="min-w-0 pb-2.5">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                       <p className="min-w-0 truncate text-sm font-medium text-slate-800">{statusLabel(ev.status)}</p>
-                      {ev.titik && (
+                      {!compact && ev.titik && (
                         <span className="min-w-0 truncate text-[11px] text-slate-500">{ev.titik}</span>
                       )}
-                      {ev.status.toLowerCase().includes("bongkar") && (
+                      {!compact && ((ev.jumlah_koli ?? 0) > 0 || (ev.jumlah_ecer ?? 0) > 0 || (ev.jumlah_high_value ?? 0) > 0) && (
                         <span className="rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
-                          📦 {ev.jumlah_koli ?? 0} Koli
+                          📦 {(ev.jumlah_koli ?? 0) > 0 && `${ev.jumlah_koli} Koli`}
                           {(ev.jumlah_ecer ?? 0) > 0 && ` • ${ev.jumlah_ecer} Ecer`}
                           {(ev.jumlah_high_value ?? 0) > 0 && ` • ${ev.jumlah_high_value} HV`}
                         </span>
                       )}
                       <span className="text-xs text-slate-400">{timeOnly(ev.created_at)}</span>
-                      {ev.durasi_detik ? formatDur(ev.durasi_detik) && (
+                      {!compact && ev.durasi_detik ? formatDur(ev.durasi_detik) && (
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                           {formatDur(ev.durasi_detik)}
                         </span>
@@ -153,17 +165,29 @@ function TimelineList({
   );
 }
 
-/** Timeline status yang rapi: auto-group per kode_ritase, dedup, dot berwarna. */
+/** Timeline status yang rapi: auto-group per kode_ritase, dedup, dot berwarna. Tiap group bisa di-collapse. */
 export function StatusTimeline({
   events,
-  limit = 20,
   stops,
+  ritaseInfoMap,
+  variant,
 }: {
   events: TimelineItem[];
-  limit?: number;
   stops?: RitaseStop[];
+  ritaseInfoMap?: Map<string, RitaseInfo>;
+  variant?: "default" | "compact";
 }) {
-  const [showAll, setShowAll] = useState(false);
+  const isCompact = variant === "compact";
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (kode: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(kode)) next.delete(kode);
+      else next.add(kode);
+      return next;
+    });
+  };
 
   // 1. Sort chronologically ASC
   const sorted = [...(events ?? [])].sort(
@@ -177,55 +201,13 @@ export function StatusTimeline({
     return <p className="py-3 text-center text-sm text-slate-400">Belum ada riwayat status</p>;
   }
 
-  // 3. Label titik (fallback ke nama_lokasi)
-  const names = (stops ?? []).map((s) => {
-    if (!s) return "";
-    if (s.nama_gudang) return `${s.nama_gudang}${s.tipe_gudang ? ` (${s.tipe_gudang})` : ""}`;
-    if (s.nama_seller) return s.nama_seller;
-    if (s.nama_drop_point) return s.nama_drop_point;
-    if (s.keterangan) return s.keterangan;
-    return s.jenis_stop;
-  });
-  let arrived = 0;
-  const labeled = cleaned.map((ev, i) => {
-    const s = ev.status.toLowerCase();
-    const isTiba = s.includes("tiba") || s.includes("sampai");
-    const isMenuju = s.includes("menuju") || s.includes("berangkat");
-
-    let titik = "";
-    if (names.length > 0) {
-      const idx = isTiba || isMenuju ? arrived + 1 : arrived;
-      if (idx < names.length) titik = names[idx];
-      else titik = ev.nama_lokasi || "";
-    } else {
-      // Path B (no stops): derive lokasi "Tiba" dari event "menuju" sebelumnya
-      if (isTiba) {
-        const prevMenuju = cleaned.slice(0, i).reverse().find((e2) =>
-          e2.status?.toLowerCase().includes("menuju") || e2.status?.toLowerCase().includes("berangkat")
-        );
-        titik = prevMenuju?.nama_lokasi || ev.nama_lokasi || "";
-      } else {
-        titik = ev.nama_lokasi || "";
-      }
-    }
-    if (isTiba) arrived += 1;
-
-    const next = cleaned[i + 1];
-    const durasi = next
-      ? Math.max(
-          0,
-          (new Date(next.created_at).getTime() - new Date(ev.created_at).getTime()) / 1000
-        )
-      : ev.status.toLowerCase().includes("selesai")
-        ? (ev.durasi_detik ?? 0)
-        : 0;
-    return { ...ev, titik, durasi };
-  });
+  // Use the recorded location and shared duration, never infer a different stop.
+  const labeled = cleaned.map(ev => ({ ...ev, titik: ev.nama_lokasi || "—", durasi: ev.durasi_detik ?? 0 }));
 
   // 4. Group by kode_ritase
   const byKode = new Map<string, typeof labeled>();
   for (const ev of labeled) {
-    const key = ev.kode_ritase || "Tanpa Ritase";
+    const key = ev.kode_ritase || "Tanpa Jadwal";
     const arr = byKode.get(key) ?? [];
     arr.push(ev);
     byKode.set(key, arr);
@@ -236,37 +218,46 @@ export function StatusTimeline({
     return tA - tB;
   });
 
-  const shownItems = showAll ? labeled : labeled.slice(0, limit);
-
-  // 5. Selalu render dengan header kode_ritase per group
+  // 5. Render per-group dengan collapse/expand
   return (
     <div className="space-y-4">
       {kodeGroups.map(([kode, groupEvents]) => {
-        const items = showAll ? groupEvents : groupEvents.slice(0, limit);
-        const hasCode = kode !== "Tanpa Ritase";
+        const isCollapsed = collapsedGroups.has(kode);
+        const hasCode = kode !== "Tanpa Jadwal";
         return (
           <div key={kode}>
             {hasCode && (
-              <div className="mb-1.5 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => toggleGroup(kode)}
+                className="mb-1.5 flex flex-wrap items-center gap-2 rounded-md px-1 py-0.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50"
+              >
+                <ChevronRight
+                  className={cn(
+                    "h-3 w-3 shrink-0 text-slate-400 transition-transform duration-200",
+                    !isCollapsed && "rotate-90",
+                  )}
+                />
                 <span className="rounded bg-[#0c1e3a]/10 px-2 py-0.5 font-mono text-[10px] font-medium text-[#0c1e3a]">
                   {kode}
                 </span>
+                {ritaseInfoMap?.get(kode)?.nama_driver && (
+                  <span className="text-[10px] font-semibold text-slate-600">
+                    {ritaseInfoMap.get(kode)!.nama_driver}
+                  </span>
+                )}
+                {ritaseInfoMap?.get(kode)?.ritase_ke != null && (
+                  <span className="text-[10px] text-slate-400">
+                    Rit {ritaseInfoMap.get(kode)!.ritase_ke}
+                  </span>
+                )}
                 <span className="text-[10px] text-slate-400">{groupEvents.length} event</span>
-              </div>
+              </button>
             )}
-            <TimelineList items={items} showDateHeader />
+            {!isCollapsed && <TimelineList items={groupEvents} showDateHeader={!isCompact} compact={isCompact} ritaseTanggal={ritaseInfoMap?.get(kode)?.tanggal} />}
           </div>
         );
       })}
-      {cleaned.length > limit && (
-        <button
-          type="button"
-          onClick={() => setShowAll((v) => !v)}
-          className="text-xs font-semibold text-primary hover:underline"
-        >
-          {showAll ? "Sembunyikan" : `Tampilkan semua (${cleaned.length})`}
-        </button>
-      )}
     </div>
   );
 }

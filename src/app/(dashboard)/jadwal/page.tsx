@@ -1,5 +1,7 @@
 "use client";
 
+import { WhatsAppContact } from "@/components/armada/whatsapp-contact";
+import { useDriver } from "@/hooks/use-armada";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -41,13 +43,33 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { JenisBadge } from "@/components/ui/jenis-badge";
 import { PengaturanTab } from "@/components/jadwal/pengaturan-tab";
 import { PageHeader } from "@/components/layout/page-header";
+import { MiniMapWrapper } from "@/components/jadwal/mini-map-wrapper";
 import { KPICard } from "@/components/ui/kpi-card";
 import { GAPS } from "@/lib/design-tokens";
 import { ApiError } from "@/types/api";
 import type { AdminRitaseItem, AdminRitaseStop } from "@/types/armada";
 import { useAuthStore } from "@/stores/auth-store";
+import { useTrackingMap } from "@/hooks/use-tracking";
 
 export default function JadwalPage() {
+  // ── Koordinat asli dari tracking map (seller/gudang/drop_point) ──
+  const trackingMap = useTrackingMap();
+  const locationLookup = useMemo(() => {
+    const lk = new Map();
+    for (const s of trackingMap.data?.sellers ?? []) {
+      lk.set("seller_" + s.id_seller, [s.latitude, s.longitude]);
+    }
+    for (const g of trackingMap.data?.gudang ?? []) {
+      lk.set("gudang_" + g.id_gudang, [g.latitude, g.longitude]);
+    }
+    for (const d of trackingMap.data?.drop_points ?? []) {
+      lk.set("dp_" + d.id_drop_point, [d.latitude, d.longitude]);
+    }
+    return lk;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackingMap.data?.sellers, trackingMap.data?.gudang, trackingMap.data?.drop_points]);
+
+  const { data: contactDrivers } = useDriver();
   const currentUser = useAuthStore((s) => s.user);
   const isWhisnu = currentUser?.username?.toLowerCase() === "whisnu";
 
@@ -1072,14 +1094,14 @@ const askCancelGenerate = async () => {
       {/* ── PENGATURAN PANEL (inline) ── */}
 
       {showPengaturan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm">
           <div className="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5 dark:border-slate-800">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5 sm:py-3.5 dark:border-slate-800">
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
                   Pengaturan Jadwal
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">
                   Atur jam ritase & template rute yang dipakai saat generate
                   otomatis
                 </p>
@@ -1092,7 +1114,7 @@ const askCancelGenerate = async () => {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-5">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-5">
               <PengaturanTab />
             </div>
           </div>
@@ -1260,230 +1282,151 @@ const askCancelGenerate = async () => {
           {filteredRitases.map((r) => (
             <div
               key={r.id_ritase}
-              className="group relative flex flex-col justify-between rounded-lg border border-slate-200 bg-white p-5 transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900"
+              className="group relative flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 overflow-hidden"
             >
-              <div>
-                {/* Card Header */}
-                <div className="flex items-start justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                        Ritase ke-{r.ritase_ke}
-                      </span>
-                      <JenisBadge jenis={r.jenis_ritase} />
-                      <StatusBadge
-                        status={
-                          r.status === "direncanakan" &&
-                          isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai)
-                            ? "tidak terlaksana"
-                            : r.status
-                        }
-                      />
-                    </div>
-                    <h4 className="mt-1.5 text-base font-bold text-slate-900 dark:text-white">
-                      {r.nama_driver}
-                    </h4>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
-                      <span className="inline-flex items-center gap-1">
-                        <Truck className="h-3 w-3" />
-                        <span className="font-semibold font-mono text-slate-700 dark:text-slate-300">
-                          {r.nopol}
+              {/* ── Header strip warna status ── */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 flex-1 h-full">
+                {/* ── Kolom Kiri: Info + Stops ── */}
+                <div className="sm:col-span-7 flex flex-col gap-3 p-4">
+                  {/* Badge row */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      Ritase ke-{r.ritase_ke}
+                    </span>
+                    <JenisBadge jenis={r.jenis_ritase} />
+                    <StatusBadge
+                      status={
+                        r.status === "direncanakan" &&
+                        isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai)
+                          ? "tidak terlaksana"
+                          : r.status
+                      }
+                    />
+                  </div>
+
+                  {/* Driver name + WA */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-[15px] font-extrabold text-slate-900 dark:text-white uppercase tracking-tight leading-tight">
+                        {r.nama_driver}
+                        <WhatsAppContact
+                          phone={contactDrivers?.find((d) => d.id_driver === r.id_driver)?.no_hp}
+                          name={r.nama_driver}
+                          compact
+                        />
+                      </h4>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
+                        <span className="inline-flex items-center gap-1">
+                          <Truck className="h-3 w-3 text-slate-400" />
+                          <span className="font-semibold font-mono text-slate-700 dark:text-slate-200">{r.nopol}</span>
                         </span>
-                      </span>
-                      {r.jam_mulai && (
-                        <span
-                          className="inline-flex items-center gap-1"
-                          title="Jadwal berangkat → tiba"
-                        >
-                          <Clock className="h-3 w-3" />
-                          {r.jam_mulai} – {r.jam_selesai ?? "?"}
-                          {r.jam_berangkat && (
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">
-                              {" "}
-                              → {fmtTime(r.jam_berangkat)}
-                            </span>
-                          )}
-                          {r.jam_tiba && (
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">
-                              {" "}
-                              → {fmtTime(r.jam_tiba)}
-                            </span>
-                          )}
-                        </span>
-                      )}
-                    </div>
-                    {((r.total_koli ?? 0) > 0 ||
-                      (r.total_eceran ?? 0) > 0 ||
-                      (r.total_high_value ?? 0) > 0) && (
-                      <div
-                        className="mt-2 flex flex-wrap items-center gap-1.5"
-                        title="Total muatan ritase ini"
-                      >
-                        {(r.total_koli ?? 0) > 0 && (
-                          <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                            <Package className="h-3 w-3" />
-                            {r.total_koli}{" "}
-                            <span className="font-normal text-slate-400">
-                              Koli
-                            </span>
-                          </span>
-                        )}
-                        {(r.total_eceran ?? 0) > 0 && (
-                          <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                            {r.total_eceran}{" "}
-                            <span className="font-normal text-slate-400">
-                              Ecer
-                            </span>
-                          </span>
-                        )}
-                        {(r.total_high_value ?? 0) > 0 && (
-                          <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-                            {r.total_high_value}{" "}
-                            <span className="font-normal text-amber-500">
-                              HV
-                            </span>
+                        {r.jam_mulai && (
+                          <span className="inline-flex items-center gap-1">
+                            <Clock className="h-3 w-3 text-slate-400" />
+                            <span>{r.jam_mulai} – {r.jam_selesai ?? "?"}</span>
                           </span>
                         )}
                       </div>
-                    )}
-                  </div>
+                    </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    {/* Action Edit — direncanakan (belum expired) & berjalan saja (KECUALI whisnu/admin yang selalu bisa edit) */}
-                    {(isWhisnu ||
-                      (r.status !== "selesai" &&
-                        !(
-                          r.status === "direncanakan" &&
-                          isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai)
-                        ))) && (
+                    {/* Edit / Delete actions */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {(isWhisnu ||
+                        (r.status !== "selesai" &&
+                          !(r.status === "direncanakan" &&
+                            isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai)))) && (
                         <button
                           type="button"
-                          onClick={() => {
-                            setEditingRitase(r);
-                            setEditingOriginal(r);
-                          }}
-                          className="inline-flex items-center gap-1 rounded-lg bg-blue-500 px-2.5 py-1.5 text-xs font-medium text-white transition-all duration-200 ease-out hover:bg-blue-600 hover:scale-[1.05] active:scale-[0.95] dark:bg-blue-600 dark:hover:bg-blue-700"
+                          onClick={() => { setEditingRitase(r); setEditingOriginal(r); }}
+                          className="inline-flex items-center gap-1 rounded-lg bg-blue-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
                         >
-                          <Edit2 className="h-3.5 w-3.5" />
-                          <span>Edit</span>
+                          <Edit2 className="h-3 w-3" />
+                          Edit
                         </button>
                       )}
-
-                    {/* Delete action — direncanakan saja (belum expired) (KECUALI whisnu/admin yang selalu bisa hapus) */}
-                    {(isWhisnu ||
-                      (r.status === "direncanakan" &&
-                        !isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai))) && (
+                      {(isWhisnu ||
+                        (r.status === "direncanakan" &&
+                          !isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai))) && (
                         <button
                           type="button"
-                          onClick={() =>
-                            handleDelete(r.id_ritase, r.kode_ritase)
-                          }
-                          className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-600 transition-all duration-200 ease-out hover:bg-rose-50 hover:scale-[1.05] active:scale-[0.95] dark:border-rose-700 dark:bg-slate-800 dark:text-rose-400 dark:hover:bg-rose-950/30"
+                          onClick={() => handleDelete(r.id_ritase, r.kode_ritase)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors dark:border-rose-700 dark:bg-slate-800 dark:text-rose-400"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span>Hapus</span>
+                          <Trash2 className="h-3 w-3" />
+                          Hapus
                         </button>
                       )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Timeline Stops — single row per stop */}
-                <div className="mt-4 space-y-1.5">
-                  <div className="relative pl-4 space-y-2 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
+                  {/* Stops timeline */}
+                  <div className="relative pl-4 space-y-2 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700">
                     {(r.stops ?? []).map((stop) => (
-                      <div
-                        key={stop.id_stop}
-                        className="relative flex items-center justify-between gap-2 text-xs"
-                      >
-                        {/* Kiri: Nomor + Nama + Jenis + Info inline */}
+                      <div key={stop.id_stop} className="relative flex items-center justify-between gap-2 text-xs">
                         <div className="flex flex-1 min-w-0 items-center gap-1.5">
-                          <span className="relative z-10 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0c1e3a] text-[10px] font-bold text-white">
+                          <span className="relative z-10 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0c1e3a] text-[10px] font-bold text-white ring-2 ring-white dark:ring-slate-900">
                             {stop.urutan}
                           </span>
                           <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
                             {stop.nama_lokasi}
                           </span>
-                          <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 uppercase dark:bg-slate-800">
+                          <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 text-[9px] font-bold text-slate-500 uppercase dark:bg-slate-800">
                             {stop.jenis_stop}
                           </span>
-                          {/* Muatan inline */}
-                          {((stop.jumlah_koli ?? 0) > 0 ||
-                            (stop.jumlah_ecer ?? 0) > 0 ||
-                            (stop.jumlah_high_value ?? 0) > 0) && (
-                            <span className="shrink-0 text-[10px] text-amber-600 dark:text-amber-400">
-                              📦 {stop.jumlah_koli ?? 0}K
-                              {(stop.jumlah_ecer ?? 0) > 0 && (
-                                <span>·{stop.jumlah_ecer}E</span>
-                              )}
-                              {(stop.jumlah_high_value ?? 0) > 0 && (
-                                <span>·{stop.jumlah_high_value}HV</span>
-                              )}
+                          {((stop.jumlah_koli ?? 0) > 0 || (stop.jumlah_ecer ?? 0) > 0) && (
+                            <span className="shrink-0 text-[9px] text-amber-600 dark:text-amber-400">
+                              📦 {stop.jumlah_koli ?? 0}K{(stop.jumlah_ecer ?? 0) > 0 && <span>·{stop.jumlah_ecer}E</span>}
                             </span>
                           )}
-                          {/* Durasi inline */}
-                          {stop.durasi_detik != null &&
-                            stop.durasi_detik > 0 && (
-                              <span className="shrink-0 text-[10px] text-slate-400 dark:text-slate-500">
-                                ⏱️ {formatDur(stop.durasi_detik)}
-                              </span>
-                            )}
                         </div>
-                        {/* Kanan: Foto button */}
                         {stop.foto_manifest_url && (
                           <button
                             type="button"
-                            onClick={() =>
-                              setSelectedFoto({
-                                url: stop.foto_manifest_url!,
-                                title: stop.nama_lokasi,
-                              })
-                            }
-                            title="Lihat foto bukti bongkar muat"
-                            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 hover:bg-[#0c1e3a] hover:text-white hover:border-[#0c1e3a] transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-[#0c1e3a] cursor-pointer"
+                            onClick={() => setSelectedFoto({ url: stop.foto_manifest_url!, title: stop.nama_lokasi })}
+                            className="shrink-0 inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] font-semibold text-slate-600 hover:bg-[#0c1e3a] hover:text-white hover:border-[#0c1e3a] transition-colors dark:border-slate-700 dark:bg-slate-800"
                           >
-                            📷 Foto
+                            <Camera className="h-2.5 w-2.5" /> Foto
                           </button>
                         )}
                       </div>
                     ))}
                   </div>
-                </div>
-              </div>
 
-              {/* Footer: Tanggal + Audit */}
-              <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <span>
-                    Tanggal:{" "}
-                    <span className="font-medium text-slate-600 dark:text-slate-300">
-                      {formatDateDMY(r.tanggal)}
-                    </span>
-                  </span>
-                  {r.created_at && (
-                    <span className="text-slate-400">
-                      Dibuat{" "}
-                      <span className="font-medium text-slate-500">
-                        {formatAuditTime(r.created_at)}
+                  {/* Footer audit */}
+                  <div className="mt-auto border-t border-slate-100 pt-2 dark:border-slate-800">
+                    <div className="flex items-center justify-between text-[10px] text-slate-400">
+                      <span>
+                        Tanggal:{" "}
+                        <span className="font-semibold text-slate-600 dark:text-slate-300">
+                          {formatDateDMY(r.tanggal)}
+                        </span>
                       </span>
-                      {r.created_by_name && (
-                        <span className="ml-0.5">oleh {r.created_by_name}</span>
+                      {r.created_at && (
+                        <span>
+                          Dibuat {formatAuditTime(r.created_at)}
+                          {r.created_by_name && <span className="ml-1">oleh {r.created_by_name}</span>}
+                        </span>
                       )}
-                    </span>
-                  )}
-                </div>
-                {r.updated_at && (
-                  <div className="mt-0.5 flex items-center justify-end text-[11px] text-slate-400">
-                    <span>
-                      Diubah{" "}
-                      <span className="font-medium text-slate-500">
-                        {formatAuditTime(r.updated_at)}
-                      </span>
-                      {r.updated_by_name && (
-                        <span className="ml-0.5">oleh {r.updated_by_name}</span>
-                      )}
-                    </span>
+                    </div>
                   </div>
-                )}
+                </div>
+
+                {/* ── Kolom Kanan: Avatar + Real Leaflet Map ── */}
+                <div className="sm:col-span-5 relative flex flex-col bg-slate-50 dark:bg-slate-800/50 min-h-[220px] h-full">
+                  {/* Avatar supir di pojok kanan atas */}
+                  <div className="absolute top-3 right-3 z-10">
+                    <img
+                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(r.nama_driver)}`}
+                      alt={r.nama_driver}
+                      className="h-10 w-10 rounded-full border-2 border-amber-300 bg-white shadow-md"
+                    />
+                  </div>
+
+                  {/* Real Leaflet Map */}
+                  <div className="flex-1 w-full h-full min-h-[220px]">
+                    <MiniMapWrapper stops={r.stops ?? []} ritaseId={r.id_ritase} locationLookup={locationLookup} className="h-full w-full" />
+                  </div>
+                </div>
               </div>
             </div>
           ))}
@@ -1497,21 +1440,24 @@ const askCancelGenerate = async () => {
             className="flex w-11/12 max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-[#0c1e3a] border border-slate-200 dark:border-slate-700/50"
             style={{ maxHeight: "90vh" }}
           >
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700/50 px-6 py-4 bg-[#0c1e3a]">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-white shadow-md">
-                  <Zap className="h-6 w-6 text-white" />
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700/50 px-4 py-3 sm:px-6 sm:py-4 bg-[#0c1e3a]">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-white/10 text-white shadow-md">
+                  <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-extrabold text-white">
+                  <h3 className="text-base sm:text-xl font-extrabold text-white">
                     Preview & Edit Tambah Rute Otomatis
                   </h3>
-                  <p className="text-xs text-blue-200/80 mt-0.5">
+                  <p className="text-[10px] sm:text-xs text-blue-200/80 mt-0.5 hidden sm:block">
                     Anda dapat mengubah rute, driver, kendaraan,
                     menambah/menghapus ritase atau perhentian sebelum disave
                     untuk tanggal{" "}
                     <span className="font-bold text-white">{selectedDate}</span>
                     .
+                  </p>
+                  <p className="text-[10px] text-blue-200/80 mt-0.5 sm:hidden">
+                    Tanggal: <span className="font-bold text-white">{selectedDate}</span>
                   </p>
                 </div>
               </div>
@@ -1524,7 +1470,7 @@ const askCancelGenerate = async () => {
 </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-slate-950/80">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-50 dark:bg-slate-950/80">
               {isFetchingPreview ? (
                 <div className="flex flex-col items-center justify-center py-20">
                   <RefreshCw className="h-10 w-10 animate-spin text-[#0c1e3a] dark:text-blue-400" />
@@ -1542,8 +1488,8 @@ const askCancelGenerate = async () => {
                           <div>
                             {/* Route Header Edit Controls */}
                             <div className="mb-4 border-b border-slate-100 pb-3.5 dark:border-slate-700/50">
-                              <div className="flex items-center justify-between gap-2 mb-2">
-                                                                <div className="flex items-center gap-2">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+                                                                 <div className="flex items-center gap-2">
                                   <select
                                     value={getRouteJenis(route)}
                                     onChange={(e) =>
@@ -1688,7 +1634,7 @@ const askCancelGenerate = async () => {
                                     key={sIdx}
                                     className="rounded-lg border border-slate-100 bg-slate-50/80 p-2.5 dark:border-slate-700/50 dark:bg-[#0c1e3a]/40 space-y-2"
                                   >
-                                    <div className="flex items-center justify-between gap-2">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
                                       <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0c1e3a] dark:bg-blue-700 text-[10px] font-bold text-white">
                                         {sIdx + 1}
                                       </span>
@@ -1712,7 +1658,7 @@ const askCancelGenerate = async () => {
                                         <option value="gudang">GUDANG</option>
                                         <option value="seller">SELLER</option>
                                         <option value="drop_point">
-                                          GATEWAY / DROP POINT
+                                          GATEWAY
                                         </option>
                                       </select>
 
@@ -1815,7 +1761,7 @@ const askCancelGenerate = async () => {
                     <button
                       type="button"
                       onClick={handleAddRoute}
-                      className="inline-flex items-center gap-2 rounded-xl border border-dashed border-[#0c1e3a]/30 bg-[#0c1e3a]/5 px-6 py-3 text-xs font-bold text-[#0c1e3a] hover:bg-[#0c1e3a]/10 dark:border-blue-700/50 dark:bg-blue-950/40 dark:text-blue-300 transition-colors"
+                      className="inline-flex items-center justify-center gap-2 w-full sm:w-auto rounded-xl border border-dashed border-[#0c1e3a]/30 bg-[#0c1e3a]/5 px-6 py-3 text-xs font-bold text-[#0c1e3a] hover:bg-[#0c1e3a]/10 dark:border-blue-700/50 dark:bg-blue-950/40 dark:text-blue-300 transition-colors"
                     >
                       <Plus className="h-4 w-4" />
                       <span>Tambah Jadwal Ritase Baru</span>
@@ -1846,8 +1792,8 @@ const askCancelGenerate = async () => {
               )}
             </div>
 
-            <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-700/50 bg-white dark:bg-[#0c1e3a] px-6 py-4">
-              <div className="text-xs text-slate-500 dark:text-blue-200/60 font-medium">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-t border-slate-200 dark:border-slate-700/50 bg-white dark:bg-[#0c1e3a] px-4 py-3 sm:px-6 sm:py-4 gap-3">
+              <div className="text-[11px] sm:text-xs text-slate-500 dark:text-blue-200/60 font-medium">
                 * Total{" "}
                 <span className="font-bold text-[#0c1e3a] dark:text-blue-300">
                   {editableRoutes.length}
@@ -1874,7 +1820,7 @@ const askCancelGenerate = async () => {
                 <button
   type="button"
   onClick={askCancelGenerate}
-  className="rounded-lg border border-slate-200 dark:border-slate-600 px-5 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+  className="flex-1 sm:flex-none rounded-lg border border-slate-200 dark:border-slate-600 px-5 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
 >
   Batal
 </button>
@@ -1886,7 +1832,7 @@ const askCancelGenerate = async () => {
                     editableRoutes.length === 0
                   }
                   onClick={handleGenerate}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#0c1e3a] dark:bg-white px-6 py-2.5 text-xs font-bold text-white dark:text-[#0c1e3a] shadow-md disabled:opacity-50 hover:bg-[#16335a] dark:hover:bg-slate-100 transition-all"
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-lg bg-[#0c1e3a] dark:bg-white px-5 sm:px-6 py-2.5 text-xs font-bold text-white dark:text-[#0c1e3a] shadow-md disabled:opacity-50 hover:bg-[#16335a] dark:hover:bg-slate-100 transition-all"
                 >
                   {generateMutation.isPending ? (
                     <>
@@ -1908,14 +1854,14 @@ const askCancelGenerate = async () => {
 
       {/* ── MODAL BUAT JADWAL MANUAL ── */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-lg bg-white p-5 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-lg bg-white p-4 sm:p-5 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
                   Buat Jadwal Ritase Manual
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-[10px] sm:text-xs text-slate-500">
                   Pilih driver & lokasi terdaftar untuk alokasi tugas ritase
                   baru
                 </p>
@@ -1933,7 +1879,7 @@ const askCancelGenerate = async () => {
               onSubmit={handleSaveCreate}
               className="flex-1 overflow-y-auto mt-4 space-y-4 pr-1"
             >
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
                     Tanggal Perjalanan
@@ -2107,8 +2053,10 @@ const askCancelGenerate = async () => {
                   {newRitase.stops.map((stop, idx) => (
                     <div
                       key={stop.id_stop || idx}
-                      className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/50"
+                      className="rounded-md border border-slate-200 bg-slate-50 p-2.5 sm:p-3 dark:border-slate-800 dark:bg-slate-800/50 space-y-2"
                     >
+                      {/* Row 1: Number + Arrows + Type Select + Trash */}
+                      <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1">
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#0c1e3a] text-xs font-bold text-white">
                           {idx + 1}
@@ -2185,7 +2133,18 @@ const askCancelGenerate = async () => {
                         <option value="gateway">Gateway</option>
                       </select>
 
-                      {/* Select Option Terhubung Ke Database */}
+                      <div className="flex-1" />
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveStop(false, idx)}
+                        className="p-1.5 text-slate-400 transition-colors hover:text-rose-500"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      </div>
+
+                      {/* Row 2: Location Select — full width */}
                       {stop.jenis_stop === "seller" ? (
                         <SearchSelect
                           value={stop.id_seller}
@@ -2227,14 +2186,6 @@ const askCancelGenerate = async () => {
                           )}
                         />
                       )}
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveStop(false, idx)}
-                        className="p-1.5 text-slate-400 transition-colors hover:text-rose-500"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -2244,7 +2195,7 @@ const askCancelGenerate = async () => {
                 <MutationError error={createMutation.error} />
               )}
 
-              <div className="mt-6 flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={askCancelCreate}
@@ -2255,7 +2206,7 @@ const askCancelGenerate = async () => {
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="inline-flex items-center gap-2 rounded-md bg-[#FEA103] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#E09102] disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-[#FEA103] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#E09102] disabled:opacity-50"
                 >
                   {createMutation.isPending ? (
                     <>
@@ -2274,14 +2225,14 @@ const askCancelGenerate = async () => {
 
       {/* ── MODAL EDIT RITASE & RUTE STOPS ── */}
       {editingRitase && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-lg bg-white p-5 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-lg bg-white p-4 sm:p-5 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">
                   Edit Ritase & Rute Perjalanan - {editingRitase.kode_ritase}
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-[10px] sm:text-xs text-slate-500">
                   Ubah status, urutan ritase, atau atur lokasi tempat yang harus
                   dikunjungi oleh {editingRitase.nama_driver} hari ini
                 </p>
@@ -2316,7 +2267,7 @@ const askCancelGenerate = async () => {
                   </p>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
                     Driver
@@ -2380,7 +2331,7 @@ const askCancelGenerate = async () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
                     Status Perjalanan {isWhisnu && <span className="text-blue-600 dark:text-blue-400 font-semibold">(Bisa Diedit)</span>}
@@ -2441,8 +2392,10 @@ const askCancelGenerate = async () => {
                   {(editingRitase.stops ?? []).map((stop, idx) => (
                     <div
                       key={stop.id_stop || idx}
-                      className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/50"
+                      className="rounded-md border border-slate-200 bg-slate-50 p-2.5 sm:p-3 dark:border-slate-800 dark:bg-slate-800/50 space-y-2"
                     >
+                      {/* Row 1: Number + Arrows + Type Select + Trash */}
+                      <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1">
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#0c1e3a] text-xs font-bold text-white">
                           {idx + 1}
@@ -2520,7 +2473,18 @@ const askCancelGenerate = async () => {
                         <option value="gateway">Gateway</option>
                       </select>
 
-                      {/* Select Option Terhubung Ke Database */}
+                      <div className="flex-1" />
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveStop(true, idx)}
+                        className="p-1.5 text-slate-400 transition-colors hover:text-rose-500"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      </div>
+
+                      {/* Row 2: Location Select — full width */}
                       {stop.jenis_stop === "seller" ? (
                         <SearchSelect
                           value={stop.id_seller}
@@ -2562,14 +2526,6 @@ const askCancelGenerate = async () => {
                           )}
                         />
                       )}
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveStop(true, idx)}
-                        className="p-1.5 text-slate-400 transition-colors hover:text-rose-500"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -2610,7 +2566,7 @@ const askCancelGenerate = async () => {
                 </div>
               )}
 
-              <div className="mt-6 flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={askCancelEdit}
@@ -2621,7 +2577,7 @@ const askCancelGenerate = async () => {
                 <button
                   type="submit"
                   disabled={updateMutation.isPending}
-                  className="inline-flex items-center gap-2 rounded-md bg-[#FEA103] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#E09102] disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-[#FEA103] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#E09102] disabled:opacity-50"
                 >
                   {updateMutation.isPending ? (
                     <>

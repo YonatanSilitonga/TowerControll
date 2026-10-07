@@ -1,5 +1,6 @@
 "use client";
 
+import { WhatsAppContact } from "@/components/armada/whatsapp-contact";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,7 +11,6 @@ import { InfoTip } from "@/components/ui/info-tip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
 import { PageHeader } from "@/components/layout/page-header";
-import { ArmadaTabs } from "@/components/armada/armada-tabs";
 import { useDriver } from "@/hooks/use-armada";
 import { useTrackingMap } from "@/hooks/use-tracking";
 import { cn } from "@/lib/utils";
@@ -72,8 +72,6 @@ export default function DriversPage() {
         description="Daftar driver armada — klik baris untuk detail"
         crumbs={[{ label: "Armada", href: "/armada" }, { label: "Driver" }]}
       />
-      <ArmadaTabs />
-
       {/* Sama persis dengan pola Seller: table kiri, sidebar kanan */}
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_360px]">
 
@@ -142,13 +140,7 @@ export default function DriversPage() {
                 className: "w-28",
                 render: (d) =>
                   d.no_hp ? (
-                    <a
-                      href={`tel:${d.no_hp.replace(/[^+\d]/g, "")}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100"
-                    >
-                      <Phone className="h-3 w-3" /> Telepon
-                    </a>
+                    <WhatsAppContact phone={d.no_hp} />
                   ) : (
                     <span className="text-xs text-slate-300">-</span>
                   ),
@@ -247,12 +239,7 @@ export default function DriversPage() {
                       label="No HP"
                       value={
                         selectedDriver.no_hp ? (
-                          <a
-                            href={`tel:${selectedDriver.no_hp.replace(/[^+\d]/g, "")}`}
-                            className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
-                          >
-                            <Phone className="h-3 w-3" /> {selectedDriver.no_hp}
-                          </a>
+                          <WhatsAppContact phone={selectedDriver.no_hp} />
                         ) : "-"
                       }
                     />

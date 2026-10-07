@@ -1,5 +1,6 @@
 "use client";
 
+import { normalizeTripEvents } from "@/lib/normalize-trip-events";
 import { Clock, PackageCheck, Route as RouteIcon, Timer } from "lucide-react";
 import { cn, formatDur } from "@/lib/utils";
 import { statusLabel } from "@/lib/constants";
@@ -42,14 +43,14 @@ export interface DurationSummary {
  *  terpengaruh bug atribusi durasi_detik dari mobile yang geser ke stage berikutnya).
  *  durasi_detik cuma fallback untuk event terakhir (gak ada next). */
 export function summarizeEvents(events: Ev[]): DurationSummary {
-  const sorted = [...(events ?? [])].sort(
+  const sorted = normalizeTripEvents(events ?? []).sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
   const out: DurationSummary = { loading: 0, perjalanan: 0, tiba: 0, selesai: 0, total: 0 };
   sorted.forEach((ev, i) => {
     let dur = 0;
     const next = sorted[i + 1];
-    if (next) {
+    if (next && (next.id_ritase ?? next.kode_ritase) === (ev.id_ritase ?? ev.kode_ritase)) {
       dur = Math.max(
         0,
         (new Date(next.created_at).getTime() - new Date(ev.created_at).getTime()) / 1000
@@ -75,7 +76,7 @@ export function DriverSummary({
   title?: string;
   stops?: RitaseStop[];
 }) {
-  const sorted = [...(events ?? [])].sort(
+  const sorted = normalizeTripEvents(events ?? []).sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
@@ -164,7 +165,7 @@ export function LegBreakdownTimeline({
   events: Ev[];
   stops?: RitaseStop[];
 }) {
-  const sorted = [...(events ?? [])].sort(
+  const sorted = normalizeTripEvents(events ?? []).sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
@@ -179,7 +180,7 @@ export function LegBreakdownTimeline({
   const legs: LegBreakdownItem[] = sorted.map((ev, i) => {
     const next = sorted[i + 1];
     let dur = 0;
-    if (next) {
+    if (next && (next.id_ritase ?? next.kode_ritase) === (ev.id_ritase ?? ev.kode_ritase)) {
       dur = Math.max(
         0,
         (new Date(next.created_at).getTime() - new Date(ev.created_at).getTime()) / 1000

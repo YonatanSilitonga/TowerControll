@@ -1,5 +1,6 @@
 "use client";
 
+import { WhatsAppContact } from "@/components/armada/whatsapp-contact";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,14 +9,14 @@ import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
 import { PageHeader } from "@/components/layout/page-header";
-import { ArmadaTabs } from "@/components/armada/armada-tabs";
-import { useRitase } from "@/hooks/use-armada";
+import { useRitase, useDriver } from "@/hooks/use-armada";
 import { cn, formatDateDMY, formatNumber } from "@/lib/utils";
 import { isRitaseExpired } from "@/lib/constants";
 import type { Ritase } from "@/types/armada";
 
 export default function RitasePage() {
   const { data, isLoading } = useRitase();
+  const { data: contactDrivers } = useDriver();
   const router = useRouter();
 
   // ── Search (di atas filter) ──
@@ -38,19 +39,8 @@ export default function RitasePage() {
     [data],
   );
 
-  // ── Status options with counts ──
-  const statusOptions = useMemo(() => {
-    const base = data ?? [];
-    return [
-      { value: "all", label: "Semua", count: base.length },
-      { value: "direncanakan", label: "Direncanakan", count: base.filter((r) => r.status === "direncanakan").length },
-      { value: "berjalan", label: "Berjalan", count: base.filter((r) => r.status === "berjalan").length },
-      { value: "selesai", label: "Selesai", count: base.filter((r) => r.status === "selesai").length },
-    ];
-  }, [data]);
-
-  // ── Filter logic ──
-  const rows = useMemo(
+  // ── Filter tanpa status (basis untuk status counts) ──
+  const filteredBase = useMemo(
     () =>
       (data ?? [])
         .filter((r) => {
@@ -63,11 +53,24 @@ export default function RitasePage() {
           );
         })
         .filter((r) => !tanggal || r.tanggal === tanggal)
-        .filter((r) => statusFilter === "all" || r.status === statusFilter)
         .filter((r) => jenisFilter === "all" || (r.jenis_ritase ?? "outgoing") === jenisFilter)
         .filter((r) => driverFilter === "all" || r.nama_driver === driverFilter)
         .filter((r) => dropPointFilter === "all" || r.nama_drop_point === dropPointFilter),
-    [data, searchQuery, tanggal, statusFilter, jenisFilter, driverFilter, dropPointFilter],
+    [data, searchQuery, tanggal, jenisFilter, driverFilter, dropPointFilter],
+  );
+
+  // ── Status options (dinamis dari filteredBase) ──
+  const statusOptions = useMemo(() => [
+    { value: "all",          label: "Semua",        count: filteredBase.length },
+    { value: "direncanakan", label: "Direncanakan",  count: filteredBase.filter((r) => r.status === "direncanakan").length },
+    { value: "berjalan",     label: "Berjalan",      count: filteredBase.filter((r) => r.status === "berjalan").length },
+    { value: "selesai",      label: "Selesai",       count: filteredBase.filter((r) => r.status === "selesai").length },
+  ], [filteredBase]);
+
+  // ── Rows final (filteredBase + status) ──
+  const rows = useMemo(
+    () => filteredBase.filter((r) => statusFilter === "all" || r.status === statusFilter),
+    [filteredBase, statusFilter],
   );
 
   const hasFilter = searchQuery || tanggal || statusFilter !== "all" || jenisFilter !== "all" || driverFilter !== "all" || dropPointFilter !== "all";
@@ -84,12 +87,10 @@ export default function RitasePage() {
   return (
     <div>
       <PageHeader
-        title="Ritase"
+        title="Jadwal & Riwayat Ritase"
         description="Daftar RIT / penugasan perjalanan — klik baris untuk lihat detail rute & timeline"
-        crumbs={[{ label: "Armada", href: "/armada" }, { label: "Ritase" }]}
+        crumbs={[{ label: "Armada", href: "/armada" }, { label: "Jadwal & Riwayat" }]}
       />
-      <ArmadaTabs />
-
       {/* ── FILTER BAR ── */}
       <div className="mb-4 flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900">
         {/* Row 1: Search + Reset (mobile: full width) */}
@@ -213,7 +214,7 @@ export default function RitasePage() {
         rows={rows}
         rowKey={(r) => String(r.id_ritase)}
         showRowIndex
-        emptyText="Belum ada ritase"
+          emptyText="Belum ada jadwal"
         onRowClick={(r) => router.push(`/armada/trips/${r.id_ritase}`)}
         rowClassName={(r) => {
           const s = r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai) ? "tidak terlaksana" : r.status;
@@ -235,7 +236,7 @@ export default function RitasePage() {
             ),
           },
           { header: "Tanggal", className: "tabular-nums", sortKey: "tanggal", sortable: true, render: (r) => formatDateDMY(r.tanggal) },
-          { header: "Driver", className: "font-medium", sortKey: "nama_driver", sortable: true, render: (r) => r.nama_driver },
+          { header: "Driver", className: "font-medium", sortKey: "nama_driver", sortable: true, render: (r) => <span>{r.nama_driver}<WhatsAppContact phone={contactDrivers?.find((d) => d.id_driver === r.id_driver)?.no_hp} name={r.nama_driver} compact /></span> },
           { header: "Plat", className: "font-mono text-xs", sortKey: "plat_nomor", sortable: true, render: (r) => r.plat_nomor },
           { header: "RIT", className: "text-right", sortKey: "ritase_ke", sortable: true, render: (r) => r.ritase_ke ?? "-" },
           { header: "AWB", className: "text-right tabular-nums", sortKey: "total_awb", sortable: true, render: (r) => formatNumber(r.total_awb ?? 0) },

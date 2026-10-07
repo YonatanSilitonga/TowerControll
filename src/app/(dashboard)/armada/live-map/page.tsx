@@ -1,10 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import * as Dialog from "@radix-ui/react-dialog";
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { MapPin, RadioTower, X } from "lucide-react";
-import { PageHeader } from "@/components/layout/page-header";
+import { useQueries } from "@tanstack/react-query";
+import { get } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
+import { LIVE_MAP_RETURN_KEY, safeMapReturn } from "@/lib/live-map-navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { MapPin, RadioTower, X, ArrowLeft, List, ChevronUp, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -13,11 +17,13 @@ import {
 } from "@/hooks/use-tracking";
 import { OFFLINE_MINUTES } from "@/lib/constants";
 import { cn, hasActiveSession } from "@/lib/utils";
+import { useDriver } from "@/hooks/use-armada";
+import { WhatsAppContact } from "@/components/armada/whatsapp-contact";
 import { VehicleItem } from "@/components/armada/vehicle-item";
-import { StatusTimeline } from "@/components/armada/status-timeline";
-import { DriverSummary } from "@/components/armada/driver-summary";
+import { DashboardLogTable } from "@/components/dashboard/dashboard-log-table";
+import type { RitaseInfo } from "@/components/armada/status-timeline";
 import { InfoTip } from "@/components/ui/info-tip";
-import type { TrackingVehicle } from "@/types/armada";
+import type { TrackingVehicle, RitaseDetail } from "@/types/armada";
 
 const LiveMap = dynamic(
   () => import("@/components/map/live-map").then((m) => m.LiveMap),
@@ -57,24 +63,52 @@ function LiveMapBody() {
   const kendaraanParam = searchParams.get("kendaraan");
   const sellerParam = searchParams.get("seller");
 
-  const { data, isLoading } = useTrackingMap();
+  const { data, isLoading, isError: mapError, refetch: reloadMap } = useTrackingMap();
+  const { data: drivers } = useDriver();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(todayLocal());
-  // Mobile (< lg): switch antara tampilan Peta dan daftar Armada.
-  const [mobileTab, setMobileTab] = useState<"peta" | "armada">("peta");
+  const router = useRouter();
+  const [listOpen, setListOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
+  const [controlsContainer, setControlsContainer] = useState<HTMLDivElement | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  useEffect(() => {
+    const screen = window.matchMedia("(min-width: 1024px)");
+    setListOpen(screen.matches);
+    const resize = () => { if (!screen.matches) { setListOpen(false); setDetailOpen(false); setLogOpen(false); } };
+    screen.addEventListener("change", resize);
+    return () => screen.removeEventListener("change", resize);
+  }, []);
+  const goBack = () => {
+    let saved: string | null = null;
+    try { saved = sessionStorage.getItem(LIVE_MAP_RETURN_KEY); } catch {}
+    router.replace(safeMapReturn(searchParams.get("from") ?? saved));
+  };
   const { data: history, isLoading: loadingHistory } = useTrackingHistory(selectedId, selectedDate);
 
+  const token = useAuthStore((state) => state.token);
+  const tripIds = [...new Set((history ?? []).map((event) => event.id_ritase))];
+  const tripQueries = useQueries({ queries: tripIds.map((id) => ({
+    queryKey: ["armada-ritase", id],
+    queryFn: () => get<RitaseDetail>(`/armada/ritase/${id}`, { token }),
+    enabled: !!token,
+    staleTime: 30_000,
+  })) });
+  const ritaseInfoMap = new Map<string, RitaseInfo>();
+  tripQueries.forEach(({ data: trip }) => {
+    if (trip) ritaseInfoMap.set(trip.kode_ritase, { nama_driver: trip.nama_driver, ritase_ke: trip.ritase_ke });
+  });
   // Fokus mobil dari tabel armada (`?kendaraan=ID`)
   useEffect(() => {
-    if (kendaraanParam) setSelectedId(Number(kendaraanParam));
+    if (kendaraanParam) { const id = Number(kendaraanParam); if (Number.isInteger(id) && id > 0) { setSelectedId(id); setDetailOpen(true); } }
   }, [kendaraanParam]);
 
-  // Pilih armada (dari marker peta): set selected + di mobile pindah ke tab armada
+  // Preserve vehicle selection; open the floating detail panel.
   const handleSelectVehicle = (id: number | null) => {
     setSelectedId(id);
-    if (typeof window !== "undefined" && window.innerWidth < 1024) {
-      setMobileTab("armada");
-    }
+    setDetailOpen(id != null);
+    if (window.innerWidth < 1024) { setListOpen(false); setLogOpen(false); }
   };
 
   const vehicles = data?.vehicles ?? [];
@@ -98,86 +132,22 @@ function LiveMapBody() {
   const offlineVehicles = restingVehicles.filter((v) => !hasActiveSession(v.last_login));
 
   return (
-    <div>
-      <PageHeader
-        title="Live Tracking"
-        description="Posisi terkini armada + lokasi seller (auto-refresh tiap 10 detik)"
-        crumbs={[
-          { label: "Armada", href: "/armada" },
-          { label: "Live Map" },
-        ]}
-        actions={
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <RadioTower className="h-4 w-4 text-emerald-600" />
-            <span>{liveVehicles.length} truk aktif</span>
-            <span className="text-slate-300">|</span>
-            <span>{sellers.length} seller</span>
-          </div>
-        }
-      />
-
-      {/* Tab switch mobile (< lg): Peta atau Armada */}
-      <div className="mb-3 grid grid-cols-2 gap-1 rounded-md border border-slate-200 bg-slate-50 p-1 lg:hidden">
-        <button
-          type="button"
-          onClick={() => setMobileTab("peta")}
-          className={cn(
-            "rounded px-3 py-1.5 text-xs font-semibold transition-colors",
-            mobileTab === "peta"
-              ? "bg-white text-[#0c1e3a] shadow-sm"
-              : "text-slate-500"
-          )}
-        >
-          Peta
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileTab("armada")}
-          className={cn(
-            "rounded px-3 py-1.5 text-xs font-semibold transition-colors",
-            mobileTab === "armada"
-              ? "bg-white text-[#0c1e3a] shadow-sm"
-              : "text-slate-500"
-          )}
-        >
-          Armada ({liveVehicles.length})
-        </button>
+    <div className="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-slate-100">
+      <div className="absolute inset-0"><LiveMap fullscreen controlsContainer={controlsContainer} onFilterOpenChange={setFilterOpen} vehicles={vehicles} sellers={sellers} gudang={data?.gudang ?? []} dropPoints={data?.drop_points ?? []} initialFocus={sellerParam ? { type: "seller", id: Number(sellerParam) } : undefined} selectedVehicleId={selectedId} onSelectVehicle={handleSelectVehicle} />{isLoading && <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70 text-sm">Memuat peta...</div>}</div>
+      <div className="pointer-events-none absolute left-14 right-44 top-3 z-30 flex flex-wrap items-center gap-2">
+        <button type="button" onClick={goBack} className="pointer-events-auto inline-flex items-center gap-1 rounded-lg border bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm"><ArrowLeft className="h-4 w-4" />Kembali</button>
+        <div className="hidden rounded-lg border bg-white px-3 py-2 text-xs text-slate-600 shadow-sm lg:block"><b className="mr-2 text-[#0c1e3a]">Live Maps</b>{vehicles.length} armada · {liveVehicles.length} GPS online</div>
       </div>
-
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
-        {/* Peta — mobile: tab "peta" full tinggi; desktop: flex-1 setara tinggi panel kanan */}
-        <div className={cn("flex-1 min-w-0", mobileTab !== "peta" && "hidden lg:block")}>
-          <Card className="flex h-[calc(100svh-220px)] min-h-[400px] lg:h-full flex-col overflow-hidden">
-            <CardContent className="flex h-full flex-1 p-0">
-              <div className="h-full w-full flex-1">
-                {isLoading ? (
-                  <Skeleton className="h-full w-full" />
-                ) : (
-                  <LiveMap
-                    vehicles={vehicles}
-                    sellers={sellers}
-                    gudang={data?.gudang ?? []}
-                    dropPoints={data?.drop_points ?? []}
-                    initialFocus={sellerParam ? { type: "seller", id: Number(sellerParam) } : undefined}
-                    selectedVehicleId={selectedId}
-                    onSelectVehicle={handleSelectVehicle}
-                  />
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Panel samping — mobile: tab "armada" */}
-        <div className={cn("flex flex-col gap-4 lg:w-[340px] shrink-0", mobileTab !== "armada" && "hidden lg:block")}>
-          <Card className="flex flex-col flex-1 min-h-0">
+      {mapError && <div role="alert" className="absolute left-14 top-14 z-[70] rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs text-rose-700">Pembaruan peta gagal; posisi mungkin belum terkini. <button onClick={() => reloadMap()} className="underline">Coba lagi</button></div>}
+      {listOpen && <aside aria-label="Daftar armada" className={cn("absolute left-3 right-3 z-30 min-h-0 lg:right-auto lg:w-[280px]", "top-20 bottom-20")}>
+        <Card className="flex h-full min-h-0 flex-col overflow-hidden">
             <CardHeader className="pb-3 shrink-0">
               <CardTitle className="flex items-center gap-2 text-base">
                 <RadioTower className="h-4 w-4 text-[#0c1e3a]" />
-                Armada Aktif <InfoTip text="Posisi realtime. LIVE = GPS masih fresh" align="right" />
-              </CardTitle>
+                Daftar Armada <InfoTip text="Posisi realtime. LIVE = GPS masih fresh" align="right" />
+              <button type="button" onClick={() => setListOpen(false)} aria-label="Tutup daftar armada" className="ml-auto rounded p-1 hover:bg-slate-100"><X className="h-4 w-4" /></button></CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 min-h-0 space-y-2 overflow-y-auto">
+            <CardContent className="flex-1 min-h-0 space-y-2 overflow-y-auto overscroll-contain [scrollbar-width:thin]" tabIndex={0} aria-label="Daftar armada, gulir untuk melihat lainnya">
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <Skeleton key={i} className="h-14 w-full" />
@@ -191,9 +161,9 @@ function LiveMapBody() {
                   {liveVehicles.map((v) => (
                     <VehicleItem
                       key={v.id_kendaraan}
-                      vehicle={v}
+                      vehicle={v} phone={drivers?.find((driver) => driver.id_driver === v.id_driver)?.no_hp ?? null}
                       selected={selectedId === v.id_kendaraan}
-                      onSelect={() => setSelectedId(v.id_kendaraan)}
+                      onSelect={() => handleSelectVehicle(v.id_kendaraan)}
                     />
                   ))}
                   {inactiveVehicles.length > 0 && (
@@ -204,9 +174,9 @@ function LiveMapBody() {
                       {inactiveVehicles.map((v) => (
                         <VehicleItem
                           key={v.id_kendaraan}
-                          vehicle={v}
+                          vehicle={v} phone={drivers?.find((driver) => driver.id_driver === v.id_driver)?.no_hp ?? null}
                           selected={selectedId === v.id_kendaraan}
-                          onSelect={() => setSelectedId(v.id_kendaraan)}
+                          onSelect={() => handleSelectVehicle(v.id_kendaraan)}
                         />
                       ))}
                     </>
@@ -219,9 +189,9 @@ function LiveMapBody() {
                       {offlineVehicles.map((v) => (
                         <VehicleItem
                           key={v.id_kendaraan}
-                          vehicle={v}
+                          vehicle={v} phone={drivers?.find((driver) => driver.id_driver === v.id_driver)?.no_hp ?? null}
                           selected={selectedId === v.id_kendaraan}
-                          onSelect={() => setSelectedId(v.id_kendaraan)}
+                          onSelect={() => handleSelectVehicle(v.id_kendaraan)}
                         />
                       ))}
                     </>
@@ -230,32 +200,28 @@ function LiveMapBody() {
               )}
             </CardContent>
           </Card>
-
-          {selectedVehicle && (
-            <Card className="flex flex-col flex-1 min-h-0">
+      </aside>}
+      {selectedVehicle && detailOpen && !filterOpen && <aside aria-label="Detail armada" className={cn("absolute left-3 right-3 z-30 min-h-0 lg:left-auto lg:w-[300px]", "top-20 max-h-[calc(100dvh-170px)]")}>
+        <Card className="flex max-h-[inherit] min-h-0 flex-col overflow-hidden shadow-lg">
               <CardHeader className="pb-3 shrink-0">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <MapPin className="h-4 w-4 text-amber-600" />
-                  Detail Armada · {selectedVehicle.plat_nomor || "-"}
+                  <span className="min-w-0 flex-1 truncate">{selectedVehicle.plat_nomor || "-"}</span>
                   <InfoTip text="Log status kendaraan" />
                   <button
                     type="button"
-                    onClick={() => setSelectedId(null)}
+                    onClick={() => setDetailOpen(false)}
                     className="ml-auto rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                     title="Tutup detail"
                   >
                     <X className="h-4 w-4" />
                   </button>
                 </CardTitle>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  max={todayLocal()}
-                  onChange={(e) => setSelectedDate(e.target.value || "")}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#0c1e3a] focus:outline-none focus:ring-2 focus:ring-[#0c1e3a]/20"
-                />
+
               </CardHeader>
               <CardContent className="flex-1 min-h-0 space-y-3 overflow-y-auto">
+                <p className="text-sm font-medium text-slate-600">{selectedVehicle.nama_driver || "Driver belum tersedia"}</p>
+                <WhatsAppContact phone={drivers?.find((driver) => driver.id_driver === selectedVehicle.id_driver)?.no_hp} name={selectedVehicle.nama_driver} />
                 {(() => {
                   const selLive = isOnline(selectedVehicle);
                   const sesOnline = hasActiveSession(selectedVehicle.last_login);
@@ -265,7 +231,7 @@ function LiveMapBody() {
                       ? "Tidak aktif"
                       : "Offline";
                   return (
-                    <div className="space-y-1.5 border-b border-slate-100 pb-2">
+                    <div className="grid grid-cols-2 gap-3 border-b border-slate-100 pb-3 [&>div]:flex-col [&>div]:items-start [&>div]:gap-1">
                       <div className="flex items-center justify-between gap-2 text-sm">
                         <span className="text-xs text-slate-500">Status</span>
                         <span
@@ -329,33 +295,38 @@ function LiveMapBody() {
                     </div>
                   );
                 })()}
-                {loadingHistory ? (
-                  <Skeleton className="h-24 w-full" />
-                ) : (history ?? []).length === 0 ? (
-                  <p className="py-6 text-center text-sm text-muted-foreground">
-                    Belum ada riwayat status
-                  </p>
-                ) : (
-                  <>
-                    <DriverSummary events={history ?? []} stops={[]} title="Ringkasan Durasi" />
-                    <div className="mt-3 border-t pt-3">
-                      <StatusTimeline events={history ?? []} stops={[]} limit={15} />
-                    </div>
-                  </>
-                )}
+                <button type="button" className="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700" onClick={() => { setLogOpen(true); if (window.innerWidth < 1024) setDetailOpen(false); }}>Lihat log perjalanan</button>
               </CardContent>
             </Card>
-          )}
-        </div>
+      </aside>}
+      <Dialog.Root open={logOpen && !!selectedVehicle} onOpenChange={setLogOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[100] bg-slate-950/40 backdrop-blur-[2px]" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-[101] flex h-[75dvh] max-h-[720px] w-[calc(100%-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl focus:outline-none">
+            <div className="shrink-0 border-b p-4 sm:p-5">
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_210px] sm:pr-10">
+                <div className="min-w-0 pr-10 sm:pr-0"><Dialog.Title className="break-words text-lg font-semibold text-slate-900">Log perjalanan · {selectedVehicle?.plat_nomor}</Dialog.Title><Dialog.Description className="mt-1 text-sm text-slate-500">Driver saat ini: {selectedVehicle?.nama_driver || "—"}</Dialog.Description><p className="mt-2 text-xs text-slate-400">Riwayat kendaraan · seluruh waktu dalam WIB</p></div>
+                <div className="min-w-0"><label htmlFor="live-log-date" className="mb-1.5 block text-xs font-medium text-slate-500">Tanggal aktivitas (WIB)</label><input id="live-log-date" type="date" value={selectedDate} max={todayLocal()} onChange={(e) => setSelectedDate(e.target.value || "")} className="min-h-11 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-blue-600" /></div>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg bg-slate-50 p-3 text-xs">
+                <div><p className="text-slate-500">Aktivitas</p><p className="mt-1 font-semibold text-slate-800">{loadingHistory ? "…" : (history ?? []).length}</p></div>
+                <div className="border-l pl-3"><p className="text-slate-500">Ritase</p><p className="mt-1 font-semibold text-slate-800">{loadingHistory ? "…" : new Set((history ?? []).filter(e => e.kode_ritase || e.id_ritase).map(e => e.kode_ritase || String(e.id_ritase))).size}</p></div>
+                <div className="border-l pl-3"><p className="text-slate-500">Aktivitas terakhir</p><p className="mt-1 font-semibold text-slate-800">{(() => { const times = (history ?? []).map(e => Date.parse(e.created_at)).filter(Number.isFinite); return loadingHistory ? "…" : times.length ? new Intl.DateTimeFormat("id-ID", {hour:"2-digit",minute:"2-digit",timeZone:"Asia/Jakarta"}).format(new Date(Math.max(...times))) + " WIB" : "—"; })()}</p></div>
+              </div>
+            </div>
+            <Dialog.Close aria-label="Tutup log perjalanan" className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></Dialog.Close>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
+              {loadingHistory ? <Skeleton className="h-40" /> : !(history ?? []).length ? <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center"><p className="font-medium text-slate-700">Belum ada aktivitas</p><p className="text-sm text-slate-500">Tidak ada log kendaraan pada tanggal ini. Pilih tanggal lain untuk melihat riwayat.</p></div> : <DashboardLogTable roomy key={String(selectedId) + selectedDate} events={history ?? []} ritaseInfoMap={ritaseInfoMap} />}
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+      <div className="absolute bottom-[calc(1rem+env(safe-area-inset-bottom))] right-3 z-50 flex flex-wrap justify-end gap-2 rounded-xl bg-white/95 p-2 shadow-lg lg:bottom-auto lg:right-3 lg:top-3">
+        <button type="button" aria-expanded={listOpen} onClick={() => { setListOpen(!listOpen); if (window.innerWidth < 1024) { setDetailOpen(false); setLogOpen(false); } }} className="inline-flex items-center gap-1 rounded-md border px-2 py-2 text-xs font-semibold text-[#0c1e3a]"><List className="h-4 w-4" />Armada</button>
+        {selectedVehicle && <><button type="button" aria-expanded={detailOpen} onClick={() => { setDetailOpen(!detailOpen); if (window.innerWidth < 1024) { setListOpen(false); setLogOpen(false); } }} className="rounded-md border px-2 py-2 text-xs font-semibold text-[#0c1e3a]">Detail</button><button type="button" aria-expanded={logOpen} onClick={() => { setLogOpen(!logOpen); if (window.innerWidth < 1024) { setListOpen(false); setDetailOpen(false); } }} className="inline-flex items-center gap-1 rounded-md border px-2 py-2 text-xs font-semibold text-[#0c1e3a]"><ChevronUp className="h-4 w-4" />Log</button></>}
+        <div ref={setControlsContainer} />
       </div>
     </div>
   );
 }
-
-export default function LiveMapPage() {
-  return (
-    <Suspense fallback={<div className="p-6 text-sm text-slate-400">Memuat peta live...</div>}>
-      <LiveMapBody />
-    </Suspense>
-  );
-}
+export default function LiveMapPage() { return <Suspense fallback={<div className="p-6 text-sm text-slate-400">Memuat peta live...</div>}><LiveMapBody /></Suspense>; }

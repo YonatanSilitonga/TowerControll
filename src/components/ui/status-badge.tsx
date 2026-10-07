@@ -16,7 +16,7 @@ export function StatusBadge({ status, className }: { status?: string | null; cla
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold border",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-semibold border",
         tone,
         className
       )}

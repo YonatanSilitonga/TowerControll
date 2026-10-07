@@ -1,5 +1,6 @@
 "use client";
 
+import { WhatsAppContact } from "@/components/armada/whatsapp-contact";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { MapPin, Truck, Gauge, Package } from "lucide-react";
@@ -7,12 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { ArmadaTabs } from "@/components/armada/armada-tabs";
 import { DriverSummary } from "@/components/armada/driver-summary";
-import { StatusTimeline } from "@/components/armada/status-timeline";
+import { DashboardLogTable } from "@/components/dashboard/dashboard-log-table";
+import type { RitaseInfo } from "@/components/armada/status-timeline";
 import { InfoTip } from "@/components/ui/info-tip";
-import { DataTable } from "@/components/ui/data-table";
-import { useKendaraan, useRitase } from "@/hooks/use-armada";
+import { CompactScheduleHistory } from "@/components/armada/compact-schedule-history";
+import { useKendaraan, useRitase, useDriver } from "@/hooks/use-armada";
 import { useTrackingHistory, useTrackingMap } from "@/hooks/use-tracking";
 import { formatDateDMY, formatNumber } from "@/lib/utils";
 import { isRitaseExpired } from "@/lib/constants";
@@ -47,6 +48,7 @@ export default function VehicleDetailPage({ params }: { params?: { id?: string }
 
   const { data: kendaraan, isLoading: lK } = useKendaraan();
   const { data: ritase, isLoading: lRitase } = useRitase();
+  const { data: contactDrivers } = useDriver();
   const { data: mapData } = useTrackingMap();
   const vehicle = Number.isFinite(id) ? (kendaraan ?? []).find((k) => k.id_kendaraan === id) : null;
   const [selectedDate, setSelectedDate] = useState<string>(todayLocal());
@@ -82,6 +84,16 @@ export default function VehicleDetailPage({ params }: { params?: { id?: string }
 
   const vehicleRitase = (ritase ?? []).filter((r) => r.id_kendaraan === id);
 
+  const ritaseInfoMap = (() => {
+    const m = new Map<string, RitaseInfo>();
+    for (const r of vehicleRitase) {
+      if (!m.has(r.kode_ritase)) {
+        m.set(r.kode_ritase, { nama_driver: r.nama_driver, ritase_ke: r.ritase_ke, tanggal: r.tanggal, plat_nomor: r.plat_nomor });
+      }
+    }
+    return m;
+  })();
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -94,229 +106,66 @@ export default function VehicleDetailPage({ params }: { params?: { id?: string }
         ]}
         actions={<StatusBadge status={vehicle.status_kendaraan} />}
       />
-      <ArmadaTabs />
-
-      {/* === MOBILE: info bar compact === */}
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 lg:hidden">
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Jenis</p>
-            <p className="text-sm font-medium text-slate-800">{vehicle.jenis_kendaraan ?? "-"}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Kapasitas</p>
-            <p className="text-sm font-medium text-slate-800">{formatNumber(vehicle.kapasitas_kg ?? 0)} kg</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">GPS</p>
-            {liveV ? (
-              <span className={`inline-flex items-center gap-1 text-xs font-semibold ${liveV.offline ? "text-rose-600" : "text-emerald-700"}`}>
-                <i className={`h-1.5 w-1.5 rounded-full ${liveV.offline ? "bg-rose-500" : "bg-emerald-500 animate-pulse"}`} />
-                {liveV.offline ? "Offline" : "Online"}
-              </span>
-            ) : <p className="text-xs text-slate-400">-</p>}
-          </div>
-          {liveV && !liveV.offline && (
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Driver</p>
-              <p className="text-sm font-medium text-slate-800">{liveV.nama_driver ?? "-"}</p>
-            </div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => router.push(`/armada/live-map?kendaraan=${vehicle.id_kendaraan}`)}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-[#FEA103] px-3 py-2 text-xs font-semibold text-white hover:bg-[#E09102]"
-        >
-          <MapPin className="h-3.5 w-3.5" /> Lihat Peta
-        </button>
-      </div>
-
-      {/* === DESKTOP: grid sidebar === */}
-      <div className="grid gap-5 lg:grid-cols-[1fr_400px]">
-        {/* KIRI: Riwayat Tracking */}
-        <Card className="overflow-hidden">
-          <CardHeader className="border-b px-3 py-2 lg:pb-2 lg:px-3">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <Truck className="h-4 w-4 text-[#0c1e3a]" /> Riwayat Tracking
-              <InfoTip text="Timeline status kendaraan" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 lg:p-2">
-            <input
-              type="date"
-              value={selectedDate}
-              max={todayLocal()}
-              onChange={(e) => setSelectedDate(e.target.value || "")}
-              className="mb-3 w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm focus:border-[#0c1e3a] focus:outline-none"
-            />
-            {lHist ? (
-              <Skeleton className="h-20 w-full" />
-            ) : (history ?? []).length === 0 ? (
-              <p className="py-4 text-center text-sm text-slate-400">Belum ada riwayat status</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <div className="min-w-0">
-                  <DriverSummary events={history ?? []} stops={[]} title="Ringkasan Durasi" />
-                  <div className="mt-4 border-t pt-3">
-                    <StatusTimeline events={history ?? []} stops={[]} limit={12} />
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* KANAN: sidebar — desktop only */}
-        <div className="hidden lg:flex lg:flex-col lg:gap-3">
-          {/* Card: Informasi Kendaraan */}
-          <Card className="h-fit">
+          <Card className="min-w-0">
             <CardHeader className="border-b px-3 py-2 lg:pb-2 lg:px-3">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                 <Truck className="h-4 w-4 text-[#0c1e3a]" /> Informasi Kendaraan
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1.5 lg:space-y-1.5 lg:p-3">
-              <InfoRow icon={<Truck className="h-3.5 w-3.5" />} label="Plat Nomor" value={vehicle.plat_nomor} mono />
-              <InfoRow icon={<Gauge className="h-3.5 w-3.5" />} label="Jenis" value={vehicle.jenis_kendaraan ?? "-"} />
-              <InfoRow icon={<Package className="h-3.5 w-3.5" />} label="Kapasitas" value={`${formatNumber(vehicle.kapasitas_kg ?? 0)} kg`} />
-              <div className="border-t pt-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Status</p>
-                <div className="mt-1">
-                  <StatusBadge status={vehicle.status_kendaraan} />
-                </div>
-              </div>
-              {liveV && (
-                <div className="border-t pt-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">GPS</p>
-                  <span className={`mt-1 inline-flex items-center gap-1.5 text-xs font-semibold ${liveV.offline ? "text-rose-600" : "text-emerald-700"}`}>
-                    <i className={`h-1.5 w-1.5 rounded-full ${liveV.offline ? "bg-rose-500" : "bg-emerald-500 animate-pulse"}`} />
-                    {liveV.offline ? "Offline" : "Online"} — {liveV.nama_driver ?? "-"}
-                  </span>
-                  {(liveV.kecepatan ?? 0) > 0 && (
-                    <p className="mt-1 text-xs text-slate-500">{liveV.kecepatan} km/h · {minutesAgo(liveV.last_update)}</p>
-                  )}
-                </div>
-              )}
+            <CardContent className="grid items-center gap-4 p-4 lg:grid-cols-[minmax(180px,1fr)_minmax(0,2fr)_auto]"><div className="flex min-w-0 flex-wrap items-start justify-between gap-2"><div className="min-w-0"><p className="font-mono text-base font-semibold text-slate-900">{vehicle.plat_nomor}</p><p className="mt-1 text-xs text-slate-500">{vehicle.jenis_kendaraan || "—"}</p></div><StatusBadge status={vehicle.status_kendaraan} /></div>
+<div className="grid grid-cols-2 gap-3 border-y py-3 text-xs sm:grid-cols-4 lg:border-y-0 lg:border-x lg:px-4"><div><p className="text-slate-400">Driver</p><p className="mt-1 break-words font-medium">{liveV?.nama_driver || "Belum tersedia"}</p></div><div><p className="text-slate-400">GPS</p><p className="mt-1 font-medium">{liveV ? liveV.offline ? "Offline" : "Online" : "Belum tersedia"}</p></div><div><p className="text-slate-400">Kapasitas berat</p><p className="mt-1 font-medium">{vehicle.kapasitas_kg != null ? formatNumber(vehicle.kapasitas_kg) + " kg" : "—"}</p></div><div><p className="text-slate-400">Kapasitas koli</p><p className="mt-1 font-medium">{vehicle.kapasitas_koli ?? "—"}</p></div>{liveV && <div className="col-span-2 text-slate-500">Update {minutesAgo(liveV.last_update)} · {liveV.kecepatan ?? 0} km/h</div>}</div>
+<div className="grid grid-cols-2 items-center gap-2 [&>a]:min-h-11 [&>button]:min-h-11 lg:flex lg:flex-wrap lg:[&>a]:min-h-0 lg:[&>button]:min-h-0"><WhatsAppContact phone={contactDrivers?.find(d=>d.id_driver===liveV?.id_driver)?.no_hp} name={liveV?.nama_driver} /><button type="button" onClick={()=>router.push('/armada/live-map?kendaraan='+vehicle.id_kendaraan)} className="rounded-md bg-[#0c1e3a] px-3 py-2 text-xs font-semibold text-white">Lihat Peta</button></div>
             </CardContent>
           </Card>
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <Card className="min-w-0 self-start overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 border-b px-3 py-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <Truck className="h-4 w-4 text-[#0c1e3a]" /> Riwayat Tracking
+              <InfoTip text="Tabel aktivitas per ritase, beserta driver dan kendaraan" />
+            </CardTitle>
+          <div className="w-[140px] shrink-0 sm:w-[180px]"><label htmlFor="tracking-date" className="sr-only">Tanggal aktivitas (WIB)</label>            <input
+              aria-label="Tanggal riwayat tracking"
+              id="tracking-date"
+              type="date"
+              value={selectedDate}
+              max={todayLocal()}
+              onChange={(e) => setSelectedDate(e.target.value || "")}
+              className="min-h-11 w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 py-2 text-xs sm:text-sm focus:border-[#0c1e3a] focus:outline-none"
+            /></div>
+          </CardHeader>
+          <CardContent className="p-3 lg:p-2">
 
-          {/* Riwayat Ritase — desktop sidebar */}
-          <Card className="overflow-hidden">
+            {lHist ? (
+              <Skeleton className="h-20 w-full" />
+            ) : (history ?? []).length === 0 ? (
+              <p className="py-4 text-center text-sm text-slate-400">Belum ada riwayat status</p>
+            ) : (
+              <div className="min-w-0 space-y-3">
+                <details className="rounded-md border border-slate-200 px-3 py-2">
+                  <summary className="cursor-pointer text-xs font-medium text-slate-600">Ringkasan durasi</summary>
+                  <div className="mt-3"><DriverSummary events={history ?? []} stops={[]} title="Ringkasan Durasi" /></div>
+                </details>
+                <div className="flex max-h-[480px] min-h-0 flex-col">
+                  <DashboardLogTable roomy newestFirst key={selectedDate} events={history ?? []} ritaseInfoMap={ritaseInfoMap} />
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+          <Card className="min-w-0 self-start overflow-hidden">
             <CardHeader className="border-b px-3 py-2 lg:pb-2 lg:px-3">
               <CardTitle className="text-sm font-semibold">
-                Riwayat Ritase
+                Riwayat Jadwal
                 <InfoTip text="Riwayat penugasan kendaraan" />
               </CardTitle>
             </CardHeader>
             <CardContent className="p-2 lg:p-2">
               <div className="min-w-0 overflow-hidden">
-                <DataTable<Ritase>
-                  loading={lRitase}
-                  rows={vehicleRitase}
-                  rowKey={(r) => String(r.id_ritase)}
-                  searchPlaceholder="Cari kode ritase..."
-                  searchFilter={(r, q) => r.kode_ritase.toLowerCase().includes(q.toLowerCase())}
-                  tableLayout="fixed"
-                  emptyText="Belum ada ritase"
-                  onRowClick={(r) => router.push(`/armada/trips/${r.id_ritase}`)}
-                  columns={[
-                    {
-                      header: "Kode",
-                      className: "w-[100px] font-mono text-xs font-semibold",
-                      sortKey: "kode_ritase",
-                      sortable: true,
-                      render: (r) => (
-                        <span className="inline-flex items-center gap-1 text-[#0c1e3a] underline-offset-2 hover:underline">{r.kode_ritase}</span>
-                      ),
-                    },
-                    {
-                      header: "Tanggal",
-                      className: "w-20 tabular-nums text-xs",
-                      sortKey: "tanggal",
-                      sortable: true,
-                      render: (r) => formatDateDMY(r.tanggal),
-                    },
-                    {
-                      header: "Driver",
-                      className: "text-xs",
-                      sortKey: "nama_driver",
-                      sortable: true,
-                      render: (r) => r.nama_driver ?? "-",
-                    },
-                    {
-                      header: "Status",
-                      className: "w-20",
-                      sortKey: "status",
-                      sortable: true,
-                      render: (r) => (
-                        <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai) ? "tidak terlaksana" : r.status} />
-                      ),
-                    },
-                  ]}
-                />
+                <CompactScheduleHistory loading={lRitase} rows={vehicleRitase} context="vehicle" />
               </div>
             </CardContent>
           </Card>
-
-          {/* Button Lihat Peta — desktop */}
-          <button
-            type="button"
-            onClick={() => router.push(`/armada/live-map?kendaraan=${vehicle.id_kendaraan}`)}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#0c1e3a] px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-[#1a3358]"
-          >
-            <MapPin className="h-3.5 w-3.5" /> Lihat di Peta
-          </button>
-        </div>
-
-        {/* KANAN: Riwayat Ritase — mobile (di bawah tracking) */}
-        <Card className="overflow-hidden lg:hidden">
-          <CardHeader className="border-b px-4 py-3">
-            <CardTitle className="text-sm font-semibold">
-              Riwayat Ritase
-              <InfoTip text="Riwayat penugasan kendaraan" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3">
-            <div className="min-w-0 overflow-hidden">
-              <DataTable<Ritase>
-                loading={lRitase}
-                rows={vehicleRitase}
-                rowKey={(r) => String(r.id_ritase)}
-                searchPlaceholder="Cari kode ritase..."
-                tableLayout="fixed"
-                searchFilter={(r, q) => r.kode_ritase.toLowerCase().includes(q.toLowerCase())}
-                emptyText="Belum ada ritase"
-                onRowClick={(r) => router.push(`/armada/trips/${r.id_ritase}`)}
-                columns={[
-                  {
-                    header: "Kode",
-                    className: "font-mono text-xs font-semibold",
-                    sortKey: "kode_ritase",
-                    sortable: true,
-                    render: (r) => r.kode_ritase,
-                  },
-                  {
-                    header: "Tanggal",
-                    className: "tabular-nums text-xs",
-                    sortKey: "tanggal",
-                    sortable: true,
-                    render: (r) => formatDateDMY(r.tanggal),
-                  },
-                  {
-                    header: "Status",
-                    className: "w-20",
-                    sortKey: "status",
-                    sortable: true,
-                    render: (r) => (
-                      <StatusBadge status={r.status === "direncanakan" && isRitaseExpired(r.jam_selesai, r.tanggal, r.jam_mulai) ? "tidak terlaksana" : r.status} />
-                    ),
-                  },
-                ]}
-              />
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, post } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
+import { normalizeTripEvents } from "@/lib/normalize-trip-events";
 import type { DriverPickupItem, DriverPickupLog, TrackingCheckpoint, TrackingMap } from "@/types/armada";
 
 const tokenSelector = (s: { token: string | null }) => s.token;
@@ -17,7 +18,19 @@ export function useTrackingMap() {
 
   return useQuery({
     queryKey: ["tracking-map"],
-    queryFn: () => get<TrackingMap>("/armada/tracking/map", { token }),
+    queryFn: async () => {
+      const data = await get<TrackingMap>("/armada/tracking/map", { token });
+      if (data && Array.isArray(data.vehicles)) {
+        const seen = new Set<number>();
+        data.vehicles = data.vehicles.filter((v) => {
+          if (!v || v.id_kendaraan == null) return false;
+          if (seen.has(v.id_kendaraan)) return false;
+          seen.add(v.id_kendaraan);
+          return true;
+        });
+      }
+      return data;
+    },
     enabled: !!token,
     staleTime: 15_000,
     refetchOnWindowFocus: false,
@@ -45,7 +58,7 @@ export function useDriverPickupHistory(idUser: number | null) {
   const token = useAuthStore(tokenSelector);
   return useQuery({
     queryKey: ["driver-pickup-history", idUser],
-    queryFn: () => get<DriverPickupLog[]>(`/armada/pickup/${idUser}/history`, { token }),
+    queryFn: () => get<DriverPickupLog[]>('/armada/pickup/' + idUser + '/history', { token }),
     enabled: !!token && !!idUser,
     staleTime: 15_000,
   });
@@ -137,6 +150,7 @@ export function useTrackingHistory(idKendaraan: number | null, tanggal?: string,
   const token = useAuthStore(tokenSelector);
   return useQuery({
     queryKey: ["tracking-history", idKendaraan, idDriver, tanggal],
+    select: (events: TrackingCheckpoint[]) => normalizeTripEvents(events),
     queryFn: () =>
       get<TrackingCheckpoint[]>("/armada/tracking/history", {
         token,
@@ -151,4 +165,4 @@ export function useTrackingHistory(idKendaraan: number | null, tanggal?: string,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
-}
+}

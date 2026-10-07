@@ -1,5 +1,6 @@
 "use client";
 
+import { WhatsAppContact } from "@/components/armada/whatsapp-contact";
 import { useState, useEffect, useRef, useCallback, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { swal } from "@/lib/swal";
@@ -7,6 +8,7 @@ import {
   Plus, Pencil, Trash2, Search, X, Loader2, Phone,
   UserCog, CheckCircle2, AlertTriangle, ChevronDown, Check,
   Eye, EyeOff, ArrowUpDown, Filter, UserPlus, ToggleLeft, ToggleRight, FileSpreadsheet,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -228,6 +230,7 @@ const INIT_AKUN = { username: "", password: "" };
 export default function AdminDriversPage() {
   const [data, setData]           = useState<DriverAdmin[]>([]);
   const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState<string | null>(null);
   const [search, setSearch]       = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [sortKey, setSortKey]     = useState<string | null>(null);
@@ -260,7 +263,8 @@ export default function AdminDriversPage() {
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    try { setData(await adminDriver.list()); } catch { /* ignore */ }
+    setError(null);
+    try { setData(await adminDriver.list()); } catch (e: any) { setError(e?.message || "Gagal memuat data driver."); }
     setLoading(false);
   }, []);
 
@@ -469,6 +473,18 @@ export default function AdminDriversPage() {
         </div>
       </div>
 
+      {/* ── Error Banner ── */}
+      {error && !loading && (
+        <div className="flex items-center gap-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 dark:border-rose-900/30 dark:bg-rose-950/20">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
+          <p className="flex-1 text-xs font-medium text-rose-600 dark:text-rose-400">{error}</p>
+          <button onClick={refresh} className="inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:border-rose-700 dark:bg-slate-800 dark:text-rose-400 dark:hover:bg-rose-950/30">
+            <RefreshCw className="h-3 w-3" />
+            Coba Lagi
+          </button>
+        </div>
+      )}
+
       {/* ── Table ── */}
       <div className="rounded-md border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
         <div className="overflow-x-auto">
@@ -511,7 +527,7 @@ export default function AdminDriversPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
                         <Phone className="h-3.5 w-3.5 text-slate-400" />
-                        <span className="font-mono text-xs">{row.no_hp || "—"}</span>
+                        <span className="inline-flex items-center gap-1"><span className="font-mono text-xs">{row.no_hp || "—"}</span><WhatsAppContact phone={row.no_hp} name={row.nama_driver} compact /></span>
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -716,7 +732,7 @@ export default function AdminDriversPage() {
             {[
               { label: "ID Driver", value: `#${detailRow.id_driver}` },
               { label: "Nama Driver", value: detailRow.nama_driver },
-              { label: "No HP", value: detailRow.no_hp || "—" },
+              { label: "No HP", value: <span>{detailRow.no_hp || "—"}<WhatsAppContact phone={detailRow.no_hp} name={detailRow.nama_driver} /></span> },
               { label: "No SIM", value: detailRow.no_sim || "—" },
               { label: "Jenis SIM", value: detailRow.jenis_sim || "—" },
               {

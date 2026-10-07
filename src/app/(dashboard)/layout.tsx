@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import { LiveMapsLauncher } from "@/components/layout/live-maps-launcher";
+import { LIVE_MAP_PATH } from "@/lib/live-map-navigation";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { ALLOWED_WEB_ROLES } from "@/lib/constants";
@@ -44,6 +46,7 @@ let bootDone = false;
  */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
   const token = useAuthStore((s) => s.token);
   // Kalau boot sudah pernah selesai, langsung ready — skip loading screen
@@ -116,18 +119,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return <BootLoader />;
   }
 
+  if (pathname.replace(/\/$/, "") === LIVE_MAP_PATH) return <main className="h-[100dvh] overflow-hidden"><RealtimeSync />{children}</main>;
+
   const role = useAuthStore.getState().user?.role;
   const isKoorGudang = role === "koor_gudang";
-
   return (
     <div className="flex min-h-screen">
       <RealtimeSync />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />
-        <main className={cn("flex-1 overflow-x-hidden", isKoorGudang ? "p-2 lg:p-3" : "p-4 lg:p-5")}>
+        <main className={cn("flex-1 overflow-x-hidden", isKoorGudang ? "p-2 lg:p-3" : "p-4 pb-12 lg:p-5 lg:pb-12")}>
           {children}
         </main>
+        <LiveMapsLauncher />
       </div>
     </div>
   );

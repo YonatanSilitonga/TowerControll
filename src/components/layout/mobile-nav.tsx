@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -20,7 +20,7 @@ export function MobileNav() {
   const role = useAuthStore((s) => s.user?.role);
   const user = useAuthStore((s) => s.user);
   const isAdminRoute = pathname.startsWith("/admin");
-  const nav = isAdminRoute ? ADMIN_NAV : filterNav(role);
+  const nav = useMemo(() => isAdminRoute ? ADMIN_NAV : filterNav(role), [isAdminRoute, role]);
 
   const toggleDropdown = (key: string) => {
     setOpenDropdowns((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -75,12 +75,22 @@ export function MobileNav() {
             <nav className="flex-1 space-y-1 overflow-y-auto p-3">
               {nav.map((item) => {
                 const Icon = item.icon;
+
+                // Section header
+                if (item.isSection) {
+                  return (
+                    <p key={item.key} className="px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                      {item.label}
+                    </p>
+                  );
+                }
+
                 const hasChildren = item.children && item.children.length > 0;
                 const isDropdownOpen = !!openDropdowns[item.key];
 
                 if (hasChildren) {
                   const isAnyChildActive = item.children!.some(
-                    (c) => pathname === c.href || (c.href !== "/analitik" && pathname.startsWith(`${c.href}/`))
+                    (c) => pathname === c.href || (c.href !== "/analitik" && pathname.startsWith(`${c.href}/`) && !pathname.startsWith("/armada/live-map"))
                   );
 
                   return (
@@ -141,7 +151,7 @@ export function MobileNav() {
 
                 const active = isAdminRoute
                   ? (item.href === "/admin" ? pathname === "/admin" : pathname === item.href || pathname.startsWith(`${item.href}/`))
-                  : (item.href === "/" || item.href === "/analitik"
+                  : (item.href === "/" || item.href === "/analitik" || item.href === "/armada"
                       ? pathname === item.href
                       : pathname === item.href || pathname.startsWith(`${item.href}/`));
 
@@ -151,7 +161,8 @@ export function MobileNav() {
                     href={item.href}
                     onClick={() => setOpen(false)}
                     className={cn(
-                      "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                      "flex items-center gap-3 rounded-md py-2.5 text-sm font-medium transition-colors",
+                      item.indent ? "pl-8 pr-3" : "px-3",
                       active
                         ? "bg-white text-[#0c1e3a] font-semibold"
                         : "text-slate-300 hover:bg-white/10 hover:text-white"

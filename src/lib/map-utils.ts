@@ -14,6 +14,7 @@ export type RouteResult = {
 export async function fetchRoute(
   lat1: number, lon1: number, lat2: number, lon2: number
 ): Promise<RouteResult | undefined> {
+  if (![lat1, lon1, lat2, lon2].every(Number.isFinite) || Math.abs(lat1) > 90 || Math.abs(lat2) > 90 || Math.abs(lon1) > 180 || Math.abs(lon2) > 180) return undefined;
   try {
     const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=full&geometries=geojson`;
     const res = await fetch(url);
@@ -21,7 +22,7 @@ export async function fetchRoute(
     const j = await res.json();
     const route = j?.routes?.[0];
     const coords = route?.geometry?.coordinates as [number, number][] | undefined;
-    if (!Array.isArray(coords)) return undefined;
+    if (!Array.isArray(coords) || coords.length < 2 || !coords.every(c => Array.isArray(c) && c.length >= 2 && Number.isFinite(c[0]) && Number.isFinite(c[1]) && Math.abs(c[0]) <= 180 && Math.abs(c[1]) <= 90) || !Number.isFinite(route.distance) || route.distance < 0 || !Number.isFinite(route.duration) || route.duration < 0) return undefined;
     return {
       points: coords.map(([lng, lat]) => [lat, lng] as [number, number]),
       distanceMeters: Math.round(route.distance ?? 0),

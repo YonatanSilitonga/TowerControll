@@ -10,6 +10,7 @@ import {
   useMap,
 } from "react-leaflet";
 import L from "leaflet";
+import { normalizeMapPoints } from "@/lib/map-coordinates";
 import { RitaseEvent, RitaseStop, GpsPoint } from "@/types/armada";
 import { AlertAnomali } from "@/types/dashboard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -140,26 +141,44 @@ function segmentGps(points: GpsPoint[]): GpsPoint[][] {
   return segments.filter(seg => seg.length >= 2);
 }
 
+function ResizeMap() {
+  const map = useMap();
+  useEffect(() => {
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => map.invalidateSize({ pan: false }));
+    });
+    observer.observe(map.getContainer());
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [map]);
+  return null;
+}
+
 function FitBounds({ bounds }: { bounds: L.LatLngBounds | null }) {
   const map = useMap();
   useEffect(() => {
-    if (bounds) {
-      map.fitBounds(bounds, { padding: [50, 50] });
+    if (bounds?.isValid()) {
+      if (bounds.getSouthWest().equals(bounds.getNorthEast())) {
+        map.setView(bounds.getCenter(), 15);
+      } else {
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+      }
     }
   }, [map, bounds]);
   return null;
 }
 
-export function TripMap({ stops, events, alerts, gpsHistory }: { stops: RitaseStop[]; events?: RitaseEvent[]; alerts?: AlertAnomali[]; gpsHistory?: GpsPoint[] }) {
-  const { routePoints, gpsSegments, allGps, bounds } = useMemo(() => {
-    const validStops = stops.filter(s => s.latitude && s.longitude);
-    const validEvents = (events ?? [])
-      .filter(e => e.latitude && e.longitude)
+export function TripMap({ stops, events, alerts, gpsHistory, fill = false }: { stops: RitaseStop[]; events?: RitaseEvent[]; alerts?: AlertAnomali[]; gpsHistory?: GpsPoint[]; fill?: boolean }) {
+  const { routePoints, validStops, validAlerts, gpsSegments, allGps, bounds } = useMemo(() => {
+    const validStops = normalizeMapPoints(stops);
+    const validEvents = normalizeMapPoints(events ?? [])
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    const validAlerts = (alerts ?? [])
-      .filter(a => a.latitude != null && a.longitude != null);
-    const validGps = (gpsHistory ?? [])
-      .filter(p => p.latitude && p.longitude);
+    const validAlerts = normalizeMapPoints(alerts ?? []);
+    const validGps = normalizeMapPoints(gpsHistory ?? []);
 
     const segments = segmentGps(validGps);
 
@@ -172,18 +191,18 @@ export function TripMap({ stops, events, alerts, gpsHistory }: { stops: RitaseSt
 
     return {
       routePoints: validEvents,
+      validStops,
+      validAlerts,
       gpsSegments: segments,
       allGps: validGps,
       bounds: allPoints.length > 0 ? new L.LatLngBounds(allPoints) : null,
     };
   }, [stops, events, alerts, gpsHistory]);
 
-  const validStops = useMemo(() => stops.filter(s => s.latitude && s.longitude), [stops]);
-  const validAlerts = useMemo(() => (alerts ?? []).filter(a => a.latitude != null && a.longitude != null), [alerts]);
 
-  if (!bounds) {
+  if (!bounds?.isValid()) {
     return (
-      <div className="h-[300px] w-full flex items-center justify-center bg-slate-50 rounded-md">
+      <div className={`${fill ? "absolute inset-0" : "h-[300px]"} w-full flex items-center justify-center bg-slate-50 rounded-md}`}>
         <p className="text-sm text-slate-500">Tidak ada data lokasi untuk ditampilkan di peta.</p>
       </div>
     );
@@ -193,9 +212,11 @@ export function TripMap({ stops, events, alerts, gpsHistory }: { stops: RitaseSt
   const endPoint = allGps.length > 1 ? allGps[allGps.length - 1] : null;
 
   return (
-    <div className="relative h-[300px] w-full rounded-lg overflow-hidden border lg:h-[400px] z-0 isolate">
+    <div className={`${fill ? "absolute inset-0" : "relative h-[300px] lg:h-[400px]"} w-full rounded-lg overflow-hidden border z-0 isolate}`}>
       <MapContainer
-        bounds={bounds}
+        center={bounds.getCenter()}
+        zoom={15}
+        maxZoom={18}
         minZoom={11}
         maxBounds={TANGERANG_BOUNDS}
         maxBoundsViscosity={1.0}
@@ -302,6 +323,7 @@ export function TripMap({ stops, events, alerts, gpsHistory }: { stops: RitaseSt
             </Marker>
         ))}
 
+        <ResizeMap />
         <FitBounds bounds={bounds} />
       </MapContainer>
 

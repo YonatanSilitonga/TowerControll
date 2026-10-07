@@ -11,7 +11,7 @@ interface PageHeaderProps {
   title: string;
   description?: string;
   actions?: React.ReactNode;
-  /** Breadcrumb (opsional): mulai dari Dashboard otomatis. */
+  /** Breadcrumb (opsional): mulai dari Beranda otomatis. */
   crumbs?: Crumb[];
   className?: string;
 }
@@ -19,32 +19,32 @@ interface PageHeaderProps {
 export function PageHeader({ title, description, actions, crumbs, className }: PageHeaderProps) {
   return (
     <div className={cn("mb-4 flex flex-wrap items-start justify-between gap-4", className)}>
-      <div>
+      <div className="min-w-0 flex-1 basis-full sm:basis-auto">
         {crumbs && crumbs.length > 0 && (
           <nav className="mb-1.5 flex flex-wrap items-center gap-1 text-xs text-slate-400" aria-label="Breadcrumb">
             <Link href="/" className="inline-flex items-center gap-1 rounded hover:text-[#0c1e3a]">
-              <Home className="h-3 w-3" /> Dashboard
+              <Home className="h-3 w-3" /> Beranda
             </Link>
             {crumbs.map((c, i) => (
-              <span key={i} className="inline-flex items-center gap-1">
+              <span key={i} className="inline-flex min-w-0 items-center gap-1">
                 <ChevronRight className="h-3 w-3" />
                 {c.href ? (
                   <Link href={c.href} className="rounded transition-colors hover:text-[#0c1e3a]">
                     {c.label}
                   </Link>
                 ) : (
-                  <span className="font-medium text-slate-600">{c.label}</span>
+                  <span className="min-w-0 break-words font-medium text-slate-600">{c.label}</span>
                 )}
               </span>
             ))}
           </nav>
         )}
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
+        <h1 className="break-words text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
         {description && (
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{description}</p>
         )}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {actions && <div className="flex max-w-full flex-wrap items-center gap-2 [&>button]:min-h-11 sm:[&>button]:min-h-0">{actions}</div>}
     </div>
   );
 }

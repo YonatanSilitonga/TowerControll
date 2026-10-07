@@ -198,7 +198,7 @@ export function DataTable<T>({
           <tbody>
             {loading ? (
               Array.from({ length: skeletonRows }).map((_, i) => (
-                <tr key={i} className="border-b border-slate-100 last:border-0">
+                <tr key={i} className="border-b border-slate-100 last:border-b-0">
                   {showRowIndex && (
                     <td className="px-4 py-3"><Skeleton className="h-4 w-6" /></td>
                   )}
@@ -221,7 +221,7 @@ export function DataTable<T>({
                   key={rowKey(row)}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   className={cn(
-                    "border-b border-slate-100 last:border-0",
+                    "border-b border-slate-100 last:border-b-0",
                     onRowClick && "cursor-pointer transition-colors hover:bg-slate-50",
                     rowClassName?.(row)
                   )}

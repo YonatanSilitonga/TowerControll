@@ -1,5 +1,6 @@
 "use client";
 
+import { WhatsAppContact } from "@/components/armada/whatsapp-contact";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { MapPin, Phone, User } from "lucide-react";
@@ -12,7 +13,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable } from "@/components/ui/data-table";
 import { PageHeader } from "@/components/layout/page-header";
-import { ArmadaTabs } from "@/components/armada/armada-tabs";
 import { InfoTip } from "@/components/ui/info-tip";
 import { useSeller } from "@/hooks/use-seller";
 import { useTrackingMap } from "@/hooks/use-tracking";
@@ -48,8 +48,6 @@ export default function SellersPage() {
         description="Master data titik pickup — informasi kontak & posisi"
         crumbs={[{ label: "Armada", href: "/armada" }, { label: "Seller" }]}
       />
-
-      <ArmadaTabs />
 
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_360px]">
         <div className="min-w-0 overflow-hidden">
@@ -106,13 +104,7 @@ export default function SellersPage() {
               className: "w-32",
               render: (s) =>
                 s.no_hp ? (
-                  <a
-                    href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="inline-flex min-h-[44px] items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 sm:min-h-[30px]"
-                  >
-                    <Phone className="h-3 w-3" /> Telepon
-                  </a>
+                  <WhatsAppContact phone={s.no_hp} />
                 ) : (
                   <span className="text-xs text-slate-300">-</span>
                 ),
@@ -217,12 +209,7 @@ export default function SellersPage() {
                       label="No HP"
                       value={
                         selected.no_hp ? (
-                          <a
-                            href={`tel:${selected.no_hp.replace(/[^+\d]/g, "")}`}
-                            className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
-                          >
-                            <Phone className="h-3 w-3" /> {selected.no_hp}
-                          </a>
+                          <WhatsAppContact phone={selected.no_hp} />
                         ) : (
                           "-"
                         )

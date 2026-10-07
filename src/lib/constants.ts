@@ -42,9 +42,9 @@ export const ROLE_LABEL: Record<UserRole, string> = {
 
 /** Mapping role -> modul yang boleh diakses (untuk menu & guard). */
 export const ROLE_MENU: Record<UserRole, string[]> = {
-  admin: ["dashboard", "armada", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "riwayat-pickup", "gudang", "absensi", "implan"],
-  tower_control: ["dashboard", "armada", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "riwayat-pickup", "implan"],
-  direktur: ["dashboard", "armada", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "riwayat-pickup", "implan"],
+  admin: ["dashboard", "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "armada-live-map", "riwayat-pickup", "implan", "gudang", "absensi", "section-armada", "section-menu", "section-lainnya"],
+  tower_control: ["dashboard", "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "armada-live-map", "riwayat-pickup", "implan", "section-armada", "section-menu", "section-lainnya"],
+  direktur: ["dashboard", "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "armada-live-map", "riwayat-pickup", "implan", "section-armada", "section-menu", "section-lainnya"],
   driver: ["dashboard", "armada"],
   koor_gudang: ["peta"],
   driver_pickup: ["dashboard"],

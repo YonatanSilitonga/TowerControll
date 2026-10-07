@@ -1,5 +1,6 @@
 "use client";
 
+import { WhatsAppContact } from "@/components/armada/whatsapp-contact";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,7 +11,6 @@ import { InfoTip } from "@/components/ui/info-tip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable } from "@/components/ui/data-table";
 import { PageHeader } from "@/components/layout/page-header";
-import { ArmadaTabs } from "@/components/armada/armada-tabs";
 import { useKendaraan, useDriver } from "@/hooks/use-armada";
 import { useTrackingMap } from "@/hooks/use-tracking";
 import { cn, formatNumber } from "@/lib/utils";
@@ -71,8 +71,6 @@ export default function KendaraanPage() {
         description="Daftar kendaraan armada — klik baris untuk detail"
         crumbs={[{ label: "Armada", href: "/armada" }, { label: "Kendaraan" }]}
       />
-      <ArmadaTabs />
-
       {/* Sama persis dengan pola Seller: table kiri, sidebar kanan */}
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_360px]">
 
@@ -209,7 +207,7 @@ export default function KendaraanPage() {
                   <div className="space-y-1.5">
                     <DetailRow label="Kapasitas" value={`${formatNumber(selectedRow.kapasitas_kg ?? 0)} kg`} />
                     <DetailRow label="Status" value={<StatusBadge status={selectedRow.status_kendaraan} />} />
-                    <DetailRow label="Driver" value={selectedLive?.nama_driver ?? "-"} />
+                    <DetailRow label="Driver" value={<span>{selectedLive?.nama_driver ?? "-"}<WhatsAppContact phone={drivers?.find((d) => d.id_driver === selectedLive?.id_driver)?.no_hp} name={selectedLive?.nama_driver} /></span>} />
                     {selectedLive && isLiveV(selectedLive) && (
                       <DetailRow label="Kecepatan" value={`${selectedLive.kecepatan ?? 0} km/h`} />
                     )}

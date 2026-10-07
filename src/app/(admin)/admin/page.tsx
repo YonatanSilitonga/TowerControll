@@ -17,6 +17,8 @@ import {
   Navigation,
   ArrowUpRight,
   CheckCircle2,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -34,6 +36,7 @@ export default function AdminDashboardPage() {
     users: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -41,34 +44,36 @@ export default function AdminDashboardPage() {
     return () => clearInterval(t);
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [d, v, s, dp, u] = await Promise.all([
-          adminDriver.list(),
-          adminKendaraan.list(),
-          adminSeller.list(),
-          adminDropPoint.list(),
-          adminUser.list(),
-        ]);
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [d, v, s, dp, u] = await Promise.all([
+        adminDriver.list(),
+        adminKendaraan.list(),
+        adminSeller.list(),
+        adminDropPoint.list(),
+        adminUser.list(),
+      ]);
 
-        setCounts({
-          drivers: d.length,
-          activeDrivers: d.filter((item) => item.status_driver === "aktif").length,
-          vehicles: v.length,
-          activeVehicles: v.filter((item) => item.status_kendaraan === "aktif").length,
-          sellers: s.length,
-          activeSellers: s.filter((item) => item.status === "aktif").length,
-          dropPoints: dp.length,
-          activeDropPoints: dp.filter((item) => item.status === "aktif").length,
-          users: u.length,
-        });
-      } catch {
-        /* ignore */
-      }
-      setLoading(false);
-    })();
-  }, []);
+      setCounts({
+        drivers: d.length,
+        activeDrivers: d.filter((item) => item.status_driver === "aktif").length,
+        vehicles: v.length,
+        activeVehicles: v.filter((item) => item.status_kendaraan === "aktif").length,
+        sellers: s.length,
+        activeSellers: s.filter((item) => item.status === "aktif").length,
+        dropPoints: dp.length,
+        activeDropPoints: dp.filter((item) => item.status === "aktif").length,
+        users: u.length,
+      });
+    } catch (e: any) {
+      setError(e?.message || "Gagal memuat data dashboard.");
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchData(); }, []);
 
   const today = new Intl.DateTimeFormat("id-ID", {
     weekday: "long",
@@ -141,6 +146,18 @@ export default function AdminDashboardPage() {
           </span>
         </div>
       </div>
+
+      {/* Error Banner */}
+      {error && !loading && (
+        <div className="flex items-center gap-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 dark:border-rose-900/30 dark:bg-rose-950/20">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
+          <p className="flex-1 text-xs font-medium text-rose-600 dark:text-rose-400">{error}</p>
+          <button onClick={fetchData} className="inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:border-rose-700 dark:bg-slate-800 dark:text-rose-400 dark:hover:bg-rose-950/30">
+            <RefreshCw className="h-3 w-3" />
+            Coba Lagi
+          </button>
+        </div>
+      )}
 
       {/* KPI */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

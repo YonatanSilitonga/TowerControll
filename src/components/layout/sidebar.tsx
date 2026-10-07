@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -13,6 +13,7 @@ import {
   MapPin,
   Package,
   PackageCheck,
+  Route,
   Store,
   TrendingUp,
   Truck,
@@ -35,24 +36,27 @@ export interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   key: string;
   children?: NavChild[];
+  isSection?: boolean;
+  indent?: boolean;
 }
 
 const NAV: NavItem[] = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard, key: "dashboard" },
-  { label: "Peta", href: "/", icon: MapPin, key: "peta" },
+  { label: "Menu Utama", href: "", icon: LayoutDashboard, key: "section-menu", isSection: true },
+  { label: "Beranda", href: "/", icon: LayoutDashboard, key: "dashboard" },
+  { label: "Dashboard", href: "/analitik/efektivitas-armada", icon: BarChart3, key: "efektivitas-armada" },
+  { label: "Live Maps", href: "/armada/live-map", icon: MapPin, key: "armada-live-map" },
+  { label: "Armada", href: "", icon: Truck, key: "section-armada", isSection: true },
+  { label: "Ringkasan Armada", href: "/armada", icon: Truck, key: "armada" },
+  { label: "Kendaraan", href: "/armada/vehicles", icon: Car, key: "armada-vehicles" },
+  { label: "Driver", href: "/armada/drivers", icon: Users, key: "armada-drivers" },
+  { label: "Seller", href: "/armada/sellers", icon: Store, key: "armada-sellers" },
+  { label: "Jadwal & Riwayat Ritase", href: "/armada/trips", icon: Route, key: "armada-trips" },
+  { label: "Lainnya", href: "", icon: LayoutDashboard, key: "section-lainnya", isSection: true },
   { label: "Kelola AWB Implan", href: "/implan", icon: Package, key: "implan" },
-  { label: "Armada", href: "/armada", icon: Truck, key: "armada" },
-  { label: "Live Map", href: "/armada/live-map", icon: MapPin, key: "live-map" },
   { label: "Riwayat Pickup", href: "/riwayat-pickup", icon: PackageCheck, key: "riwayat-pickup" },
   { label: "Jadwal Ritase", href: "/jadwal", icon: Calendar, key: "jadwal" },
   { label: "Foto Manifest", href: "/manifest-foto", icon: Camera, key: "manifest-foto" },
   { label: "Analitik", href: "/analitik", icon: BarChart3, key: "analitik" },
-  {
-    label: "Efektivitas Armada",
-    href: "/analitik/efektivitas-armada",
-    icon: TrendingUp,
-    key: "efektivitas-armada",
-  },
   { label: "Gudang", href: "/gudang", icon: Warehouse, key: "gudang" },
   { label: "Absensi", href: "/absensi", icon: ClipboardCheck, key: "absensi" },
 ];
@@ -78,7 +82,7 @@ export function Sidebar() {
   const user = useAuthStore((s) => s.user);
 
   const isAdminRoute = pathname.startsWith("/admin");
-  const nav = isAdminRoute ? ADMIN_NAV : filterNav(role);
+  const nav = useMemo(() => isAdminRoute ? ADMIN_NAV : filterNav(role), [isAdminRoute, role]);
   const navLabel = isAdminRoute ? "Admin" : "Menu Utama";
 
   // State untuk melacak dropdown yang terbuka
@@ -91,7 +95,7 @@ export function Sidebar() {
     nav.forEach((item) => {
       if (item.children) {
         const isChildActive = item.children.some(
-          (c) => pathname === c.href || pathname.startsWith(`${c.href}/`)
+          (c) => pathname === c.href || (pathname.startsWith(`${c.href}/`) && !pathname.startsWith("/armada/live-map"))
         );
         if (isChildActive) {
           setOpenDropdowns((prev) => ({ ...prev, [item.key]: true }));
@@ -131,17 +135,24 @@ export function Sidebar() {
 
       {/* Menu */}
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-          {navLabel}
-        </p>
         {nav.map((item) => {
           const Icon = item.icon;
+
+          // Section header
+          if (item.isSection) {
+            return (
+              <p key={item.key} className="px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                {item.label}
+              </p>
+            );
+          }
+
           const hasChildren = item.children && item.children.length > 0;
           const isDropdownOpen = !!openDropdowns[item.key];
 
           if (hasChildren) {
             const isAnyChildActive = item.children!.some(
-              (c) => pathname === c.href || (c.href !== "/analitik" && pathname.startsWith(`${c.href}/`))
+              (c) => pathname === c.href || (c.href !== "/analitik" && pathname.startsWith(`${c.href}/`) && !pathname.startsWith("/armada/live-map"))
             );
 
             return (
@@ -200,7 +211,7 @@ export function Sidebar() {
           }
 
           const active =
-            item.href === "/" || item.href === "/admin" || item.href === "/analitik"
+            item.href === "/" || item.href === "/admin" || item.href === "/analitik" || item.href === "/armada"
               ? pathname === item.href
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
@@ -209,7 +220,8 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-colors",
+                "flex items-center gap-3 rounded-md py-2 text-[13px] font-medium transition-colors",
+                item.indent ? "pl-8 pr-3" : "px-3",
                 active
                   ? "bg-white text-[#0c1e3a] shadow-sm font-semibold"
                   : "text-slate-300 hover:bg-white/10 hover:text-white"

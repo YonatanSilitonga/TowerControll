@@ -281,6 +281,7 @@ export interface Kendaraan {
   id_kendaraan: number;
   plat_nomor: string;
   jenis_kendaraan?: string | null;
+  kapasitas_koli?: number | null;
   kapasitas_kg?: number | null;
   status_kendaraan: string;
 }
@@ -408,6 +409,9 @@ export interface ManifestPhotoItem {
   total_koli: number;
   total_ecer: number;
   total_hv: number;
+  jumlah_koli?: number;
+  jumlah_ecer?: number;
+  jumlah_high_value?: number;
   durasi_detik: number;
   foto_manifest_url: string;
   created_at: string;

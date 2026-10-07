@@ -1,5 +1,6 @@
 "use client";
 
+import { WhatsAppContact } from "@/components/armada/whatsapp-contact";
 import { AdminCrudPage, Column, FieldConfig } from "../_components/crud-layout";
 import { adminSeller, SellerAdmin } from "@/lib/admin-api";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -49,7 +50,7 @@ const columns: Column<SellerAdmin>[] = [
         {r.no_hp && (
           <div className="flex items-center gap-1 font-mono text-[11px] text-slate-500">
             <Phone className="h-3 w-3 text-slate-400" />
-            <span>{r.no_hp}</span>
+            <span>{r.no_hp}</span><WhatsAppContact phone={r.no_hp} name={r.pic} compact />
           </div>
         )}
       </div>

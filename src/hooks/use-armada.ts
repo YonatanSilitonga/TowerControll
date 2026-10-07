@@ -1,5 +1,6 @@
 "use client";
 
+import { normalizeTripEvents } from "@/lib/normalize-trip-events";
 import { useQuery } from "@tanstack/react-query";
 import { get } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
@@ -12,7 +13,17 @@ export function useKendaraan() {
   const token = useAuthStore(tokenSelector);
   return useQuery({
     queryKey: ["armada-kendaraan"],
-    queryFn: () => get<Kendaraan[]>("/armada/kendaraan", { token }),
+    queryFn: async () => {
+      const data = await get<Kendaraan[]>("/armada/kendaraan", { token });
+      if (!Array.isArray(data)) return [];
+      const seen = new Set<number>();
+      return data.filter((v) => {
+        if (!v || v.id_kendaraan == null) return false;
+        if (seen.has(v.id_kendaraan)) return false;
+        seen.add(v.id_kendaraan);
+        return true;
+      });
+    },
     enabled: !!token,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
@@ -56,6 +67,7 @@ export function useRitaseDetail(id: number | string | undefined) {
   return useQuery({
     queryKey: ["armada-ritase", id],
     queryFn: () => get<RitaseDetail>(`/armada/ritase/${id}`, { token }),
+    select: (trip: RitaseDetail) => ({ ...trip, events: normalizeTripEvents(trip.events ?? []) }),
     enabled: !!token && !!id,
     staleTime: 15_000,
     refetchOnWindowFocus: false,

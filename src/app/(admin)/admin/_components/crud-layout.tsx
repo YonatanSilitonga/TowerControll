@@ -21,6 +21,7 @@ import {
   ChevronDown,
   Check,
   Eye,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -437,6 +438,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
 }) {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [modalOpen, setModalOpen] = useState(false);
@@ -476,10 +478,11 @@ export function AdminCrudPage<T extends Record<string, any>>({
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       setData(await listFn());
-    } catch {
-      /* ignore */
+    } catch (e: any) {
+      setError(e?.message || "Gagal memuat data. Periksa koneksi atau server.");
     }
     setLoading(false);
   }, [listFn]);
@@ -757,6 +760,23 @@ export function AdminCrudPage<T extends Record<string, any>>({
           </div>
         )}
       </div>
+
+      {/* ── Error Banner ── */}
+      {error && !loading && (
+        <div className="flex items-center gap-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 dark:border-rose-900/30 dark:bg-rose-950/20">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
+          <p className="flex-1 text-xs font-medium text-rose-600 dark:text-rose-400">
+            {error}
+          </p>
+          <button
+            onClick={refresh}
+            className="inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:border-rose-700 dark:bg-slate-800 dark:text-rose-400 dark:hover:bg-rose-950/30"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Coba Lagi
+          </button>
+        </div>
+      )}
 
       {/* ── Table ── */}
       <div className="rounded-md border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
