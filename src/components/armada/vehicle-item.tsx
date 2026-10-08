@@ -109,16 +109,31 @@ export function VehicleItem({ vehicle, selected, onSelect, durasi, variant, phon
     return "bg-emerald-500";
   })();
 
+  const isPickup = vehicle.role_driver === "driver_pickup";
+
   if (variant === "table") return (
     <div className="flex min-w-0 items-center"><div className="min-w-0 flex-1"><button type="button" onClick={onSelect} aria-pressed={!!selected}
       className={cn("grid w-full grid-cols-[minmax(0,1.15fr)_64px_minmax(0,1fr)_10px] items-center gap-2 border-b border-l-2 border-b-slate-100 px-2 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 min-[1800px]:grid-cols-[minmax(0,1.2fr)_76px_48px_minmax(0,1fr)_12px]", selected ? "border-l-blue-600 bg-blue-50" : "border-l-transparent hover:bg-slate-50")}>
       <span className="flex min-w-0 items-center gap-2">
         <Truck aria-hidden="true" className="hidden h-5 w-5 shrink-0 text-[#0c1e3a] min-[1800px]:block" />
-        <span className="min-w-0"><span className="block truncate text-[11px] font-bold text-slate-900" title={vehicle.plat_nomor}>{vehicle.plat_nomor || "—"}</span><span className="mt-1 block truncate text-[10px] text-slate-500" title={vehicle.nama_driver || ""}>{vehicle.nama_driver || "—"}</span></span>
+        <span className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="block truncate text-[11px] font-bold text-slate-900" title={vehicle.plat_nomor}>{vehicle.plat_nomor || "—"}</span>
+            {isPickup && <span className="rounded bg-amber-100 px-1 py-0.5 text-[8px] font-bold text-amber-800">PICKUP</span>}
+          </div>
+          <span className="mt-1 block truncate text-[10px] text-slate-500" title={vehicle.nama_driver || ""}>{vehicle.nama_driver || "—"}</span>
+        </span>
       </span>
       <span className={cn("rounded-md px-1.5 py-1.5 text-center text-[10px] font-semibold leading-tight", badgeStyle)}>{statusText}</span>
       <span className="hidden whitespace-nowrap text-[10px] tabular-nums text-slate-700 min-[1800px]:block">{live && !loggedOut && vehicle.kecepatan != null ? vehicle.kecepatan + " km/h" : "—"}</span>
-      <span className="min-w-0"><span className="mb-1 block text-[9px] tabular-nums text-slate-600 min-[1800px]:hidden">{live && !loggedOut && vehicle.kecepatan != null ? vehicle.kecepatan + " km/h" : "—"}</span><span className="block truncate text-[10px] text-slate-700" title={vehicle.nama_lokasi || "Lokasi belum tersedia"}>{vehicle.nama_lokasi || "—"}</span><span className="mt-1 block text-[9px] text-slate-500">{minutesAgo(vehicle.last_update)}</span></span>
+      <span className="min-w-0">
+        <span className="mb-1 block text-[9px] tabular-nums text-slate-600 min-[1800px]:hidden">{live && !loggedOut && vehicle.kecepatan != null ? vehicle.kecepatan + " km/h" : "—"}</span>
+        <span className="block truncate text-[10px] text-slate-700" title={vehicle.nama_lokasi || "Lokasi belum tersedia"}>{vehicle.nama_lokasi || "—"}</span>
+        <span className="mt-1 flex items-center justify-between text-[9px] text-slate-500">
+          <span>{minutesAgo(vehicle.last_update)}</span>
+          {isPickup && vehicle.total_awb != null && <span className="font-semibold text-amber-700">{vehicle.total_awb} AWB</span>}
+        </span>
+      </span>
       <ChevronRight aria-hidden="true" className="h-3 w-3 text-blue-600" />
     </button></div>{phone !== undefined && <WhatsAppContact phone={phone} name={vehicle.nama_driver} compact />}</div>
   );
@@ -138,6 +153,11 @@ export function VehicleItem({ vehicle, selected, onSelect, durasi, variant, phon
           <p className="truncate font-mono text-[13px] font-semibold text-slate-800">
             {vehicle.plat_nomor || "-"}
           </p>
+          {isPickup && (
+            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">
+              PICKUP
+            </span>
+          )}
         </div>
         {/* Status badge */}
         <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold", badgeStyle)}>
@@ -158,7 +178,11 @@ export function VehicleItem({ vehicle, selected, onSelect, durasi, variant, phon
         </div>
       </div>
       <div className="mt-0.5 flex items-center justify-between gap-2 pl-[22px] pr-3">
-        {durasi ? (
+        {isPickup ? (
+          <span className="text-[11px] font-medium text-amber-700">
+            Muatan: {vehicle.total_awb ?? 0} AWB ({vehicle.total_koli ?? 0} koli)
+          </span>
+        ) : durasi ? (
           <span className="text-[11px] tabular-nums text-slate-400">{durasi}</span>
         ) : (
           <span className="text-[11px] text-slate-400" />

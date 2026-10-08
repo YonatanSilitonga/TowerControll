@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardAnalisis, useDashboardSummary } from "@/hooks/use-dashboard";
-import { useTrackingHistory, useTrackingMap } from "@/hooks/use-tracking";
+import { useTrackingHistory, useTrackingMap, useAllDriverPickupHistory } from "@/hooks/use-tracking";
 import { useKendaraan, useDriver, useRitase, useRitaseDetail } from "@/hooks/use-armada";
 import { get, post } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
@@ -432,23 +432,52 @@ export default function DashboardPage() {
           v.nama_driver &&
           d.nama_driver.toLowerCase() === v.nama_driver.toLowerCase()
       );
-      const isPickup =
-        v.role_driver === "driver_pickup" ||
-        (dp && (dp.status === "menuju_seller" || dp.status === "menuju_gudang"));
-
-      if (dp && isPickup) {
+      if (dp || v.role_driver === "driver_pickup") {
         return {
           ...v,
           role_driver: "driver_pickup",
-          total_awb: dp.jumlah_barang ?? v.total_awb,
-          total_koli: dp.koli ?? v.total_koli,
-          total_eceran: dp.ecer ?? v.total_eceran,
-          total_high_value: dp.high_value ?? v.total_high_value,
+          total_awb: dp?.jumlah_barang ?? v.total_awb,
+          total_koli: dp?.koli ?? v.total_koli,
+          total_eceran: dp?.ecer ?? v.total_eceran,
+          total_high_value: dp?.high_value ?? v.total_high_value,
         };
       }
       return v;
     });
   }, [vehicles, mapFilter, resolvedDriverPickups]);
+
+    const selectedVehicle =
+    vehicles.find((v) => v.id_kendaraan === selectedId) ?? null;
+  const isSelectedPickup = selectedVehicle?.role_driver === "driver_pickup";
+  const matchedPickupDriver = isSelectedPickup && selectedVehicle
+    ? (map.data?.driver_pickups ?? []).find(
+        (dp) =>
+          dp.nama_driver?.toLowerCase() === selectedVehicle.nama_driver?.toLowerCase() ||
+          dp.username?.toLowerCase() === selectedVehicle.nama_driver?.toLowerCase() ||
+          dp.id_user === selectedVehicle.id_driver
+      )
+    : null;
+  const resolvedPickupUserId = matchedPickupDriver?.id_user ?? selectedVehicle?.id_driver;
+
+  const { data: rawSelectedPickupLogs, isLoading: loadingSelectedPickupLogs } = useAllDriverPickupHistory(
+    isSelectedPickup ? { id_user: resolvedPickupUserId || undefined, tanggal: selectedDate } : undefined
+  );
+
+  const selectedPickupLogs = useMemo(() => {
+    if (!isSelectedPickup || !rawSelectedPickupLogs) return [];
+    const nameLower = selectedVehicle?.nama_driver?.toLowerCase();
+    return rawSelectedPickupLogs.filter((l) => {
+      if (!nameLower) return true;
+      if (l.nama_driver?.toLowerCase() === nameLower) return true;
+      if (resolvedPickupUserId && l.id_user === resolvedPickupUserId) return true;
+      return false;
+    });
+  }, [isSelectedPickup, rawSelectedPickupLogs, selectedVehicle?.nama_driver, resolvedPickupUserId]);
+
+  const pickupDayAwb = (selectedPickupLogs ?? []).reduce((acc: number, curr: DriverPickupLog) => acc + (curr.jumlah_barang || 0), 0);
+  const pickupDayKoli = (selectedPickupLogs ?? []).reduce((acc: number, curr: DriverPickupLog) => acc + (curr.koli || 0), 0);
+  const pickupDayEcer = (selectedPickupLogs ?? []).reduce((acc: number, curr: DriverPickupLog) => acc + (curr.ecer || 0), 0);
+  const pickupDayHv = (selectedPickupLogs ?? []).reduce((acc: number, curr: DriverPickupLog) => acc + (curr.high_value || 0), 0);
 
   // Loading skeleton untuk koor_gudang (fokus map saja)
   if (isKoorGudang && map.isLoading) {
@@ -478,8 +507,7 @@ export default function DashboardPage() {
   const bottlenecks = analisis.data?.bottleneck ?? [];
   const alerts = analisis.data?.alerts ?? [];
   const sellers = map.data?.sellers ?? [];
-  const selectedVehicle =
-    vehicles.find((v) => v.id_kendaraan === selectedId) ?? null;
+  
 
   // Kalau ada query gagal (backend down/401 dll) → tampilkan banner, jangan senyap.
   const dashError =
@@ -1558,18 +1586,54 @@ export default function DashboardPage() {
                 {detailTab === "jadwal" && (
                   <>
                     <div className="flex items-center gap-2 rounded-md border border-amber-200/80 bg-amber-50/60 px-2.5 py-1.5 text-xs">
-                      <span className="shrink-0 font-bold text-amber-800">📦 Muatan</span>
-                      <span className="ml-auto flex items-center gap-3 text-slate-700">
-                        <span><b>{selectedVehicle.total_koli ?? 0}</b> koli</span>
-                        <span><b>{selectedVehicle.total_eceran ?? 0}</b> ecer</span>
-                        <span><b>{selectedVehicle.total_high_value ?? 0}</b> HV</span>
+                      <span className="shrink-0 font-bold text-amber-800">
+                        {isSelectedPickup ? "📦 Muatan Hari Ini" : "📦 Muatan"}
+                      </span>
+                      <span className="ml-auto flex items-center gap-2.5 text-slate-700">
+                        {isSelectedPickup ? (
+                          <>
+                            <span className="font-bold text-amber-900">{pickupDayAwb > 0 ? pickupDayAwb : (selectedVehicle.total_awb ?? 0)} AWB</span>
+                            <span><b>{pickupDayKoli > 0 ? pickupDayKoli : (selectedVehicle.total_koli ?? 0)}</b> koli</span>
+                            <span><b>{pickupDayEcer > 0 ? pickupDayEcer : (selectedVehicle.total_eceran ?? 0)}</b> ecer</span>
+                          </>
+                        ) : (
+                          <>
+                            <span><b>{selectedVehicle.total_koli ?? 0}</b> koli</span>
+                            <span><b>{selectedVehicle.total_eceran ?? 0}</b> ecer</span>
+                            <span><b>{selectedVehicle.total_high_value ?? 0}</b> HV</span>
+                          </>
+                        )}
                       </span>
                     </div>
                     <input type="date" value={selectedDate} max={todayLocal()}
                       onChange={(e) => setSelectedDate(e.target.value || "")}
                       className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm focus:border-[#0c1e3a] focus:outline-none focus:ring-2 focus:ring-[#0c1e3a]/20"
                     />
-                    {loadingHistory || resolvingHistory ? (
+                    {isSelectedPickup ? (
+                      loadingSelectedPickupLogs ? (
+                        <Skeleton className="h-24 w-full" />
+                      ) : !(selectedPickupLogs ?? []).length ? (
+                        <div className="py-6 text-center text-xs text-slate-400">
+                          <p className="font-semibold text-slate-600">Belum ada kunjungan pickup pada {selectedDate}</p>
+                          <p className="mt-1 text-[11px]">Tidak ada log penjemputan barang untuk driver ini.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5 min-h-0 overflow-y-auto">
+                          {(selectedPickupLogs ?? []).map((l) => (
+                            <div key={l.id_log} className="p-2 rounded-lg border border-slate-100 bg-slate-50 text-xs flex items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-slate-900 truncate">{l.asal_seller || "Seller"}</p>
+                                <p className="text-[10px] text-slate-500 capitalize">{l.status?.replace(/_/g, " ")} {l.catatan ? "· " + l.catatan : ""}</p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="font-bold text-amber-800">{l.jumlah_barang || 0} AWB</span>
+                                <span className="text-[10px] text-slate-500 block">{l.koli || 0} koli · {l.ecer || 0} ecer</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    ) : loadingHistory || resolvingHistory ? (
                       <Skeleton className="h-24 w-full" />
                     ) : driverHistory.length === 0 ? (
                       <p className="py-6 text-center text-sm text-slate-400">{historyMetadataError ? "Data driver ritase gagal dimuat. Buka Riwayat untuk melihat log kendaraan." : "Tidak ada aktivitas untuk driver dan kendaraan ini pada tanggal terpilih."}</p>
@@ -1582,56 +1646,87 @@ export default function DashboardPage() {
                 {/* Tab: Muatan */}
                 {detailTab === "muatan" && (
                   <div className="min-h-0 overflow-y-auto space-y-2">
-                    {(() => {
-                      const stops = ritaseDetail?.stops ?? [];
-                      const events = history ?? [];
-                      const bongkarEvents = events.filter((e) => e.status === "Bongkar Muat Barang");
-                      const totalKoli = bongkarEvents.reduce((sum, e) => sum + (e.jumlah_koli ?? 0), 0);
-                      const totalEcer = bongkarEvents.reduce((sum, e) => sum + (e.jumlah_ecer ?? 0), 0);
-                      const totalHV = bongkarEvents.reduce((sum, e) => sum + (e.jumlah_high_value ?? 0), 0);
-                      const totalAWB = (ritaseDetail?.total_awb ?? 0);
-                      const dropped = stops.filter((s) => s.jenis_stop === "drop_point");
-                      const gws = stops.filter((s) => s.jenis_stop === "gateway");
-                      return (
-                        <>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="rounded-md border border-slate-100 bg-slate-50 p-2">
-                              <p className="text-[10px] font-bold uppercase text-slate-400">Total AWB</p>
-                              <p className="text-lg font-bold tabular-nums text-slate-800">{totalAWB}</p>
-                            </div>
-                            <div className="rounded-md border border-slate-100 bg-slate-50 p-2">
-                              <p className="text-[10px] font-bold uppercase text-slate-400">Koli Terkirim</p>
-                              <p className="text-lg font-bold tabular-nums text-slate-800">{totalKoli}</p>
-                            </div>
-                            <div className="rounded-md border border-slate-100 bg-slate-50 p-2">
-                              <p className="text-[10px] font-bold uppercase text-slate-400">Eceran</p>
-                              <p className="text-lg font-bold tabular-nums text-slate-800">{totalEcer}</p>
-                            </div>
-                            <div className="rounded-md border border-slate-100 bg-slate-50 p-2">
-                              <p className="text-[10px] font-bold uppercase text-slate-400">High Value</p>
-                              <p className="text-lg font-bold tabular-nums text-slate-800">{totalHV}</p>
-                            </div>
+                    {isSelectedPickup ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="rounded-md border border-amber-100 bg-amber-50/70 p-2.5">
+                            <p className="text-[10px] font-bold uppercase text-amber-700">Total AWB Hari Ini</p>
+                            <p className="text-xl font-bold tabular-nums text-amber-950">{pickupDayAwb > 0 ? pickupDayAwb : (selectedVehicle.total_awb ?? 0)}</p>
                           </div>
-                          <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
-                            <p className="text-[11px] font-bold text-slate-500">Tujuan: {dropped.length} drop point · {gws.length} gateway</p>
+                          <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5">
+                            <p className="text-[10px] font-bold uppercase text-slate-400">Total Koli</p>
+                            <p className="text-xl font-bold tabular-nums text-slate-800">{pickupDayKoli > 0 ? pickupDayKoli : (selectedVehicle.total_koli ?? 0)}</p>
                           </div>
-                          {bongkarEvents.length === 0 ? (
-                            <p className="py-4 text-center text-xs text-slate-400">Belum ada data muatan</p>
-                          ) : (
-                            <div className="space-y-1.5">
-                              {bongkarEvents.map((ev, i) => (
-                                <div key={i} className="flex items-center gap-2 rounded-md border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-xs">
-                                  <span className="truncate font-semibold text-slate-700">{ev.nama_lokasi ?? "—"}</span>
-                                  <span className="ml-auto shrink-0 tabular-nums text-slate-500">
-                                    {ev.jumlah_koli ?? 0} koli · {ev.jumlah_ecer ?? 0} ecer · {ev.jumlah_high_value ?? 0} HV
-                                  </span>
-                                </div>
-                              ))}
+                          <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5">
+                            <p className="text-[10px] font-bold uppercase text-slate-400">Eceran</p>
+                            <p className="text-lg font-bold tabular-nums text-slate-800">{pickupDayEcer > 0 ? pickupDayEcer : (selectedVehicle.total_eceran ?? 0)}</p>
+                          </div>
+                          <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5">
+                            <p className="text-[10px] font-bold uppercase text-slate-400">High Value</p>
+                            <p className="text-lg font-bold tabular-nums text-slate-800">{pickupDayHv > 0 ? pickupDayHv : (selectedVehicle.total_high_value ?? 0)}</p>
+                          </div>
+                        </div>
+                        <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs space-y-1">
+                          <p className="font-semibold text-slate-700">Status Operasional Pickup:</p>
+                          <p className="text-slate-500 capitalize">Status: <b className="text-slate-800">{selectedVehicle.status || "Standby"}</b></p>
+                          <p className="text-slate-500">Toko dikunjungi: <b className="text-slate-800">{(selectedPickupLogs ?? []).length} seller</b></p>
+                        </div>
+                        <a href={"/riwayat-pickup?driver=" + encodeURIComponent(selectedVehicle.nama_driver || "")} className="block text-center text-xs font-semibold text-blue-600 hover:underline py-1">
+                          Lihat Riwayat Lengkap di Menu Pickup &rarr;
+                        </a>
+                      </div>
+                    ) : (
+                      (() => {
+                        const stops = ritaseDetail?.stops ?? [];
+                        const events = history ?? [];
+                        const bongkarEvents = events.filter((e) => e.status === "Bongkar Muat Barang");
+                        const totalKoli = bongkarEvents.reduce((sum, e) => sum + (e.jumlah_koli ?? 0), 0);
+                        const totalEcer = bongkarEvents.reduce((sum, e) => sum + (e.jumlah_ecer ?? 0), 0);
+                        const totalHV = bongkarEvents.reduce((sum, e) => sum + (e.jumlah_high_value ?? 0), 0);
+                        const totalAWB = (ritaseDetail?.total_awb ?? 0);
+                        const dropped = stops.filter((s) => s.jenis_stop === "drop_point");
+                        const gws = stops.filter((s) => s.jenis_stop === "gateway");
+                        return (
+                          <>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="rounded-md border border-slate-100 bg-slate-50 p-2">
+                                <p className="text-[10px] font-bold uppercase text-slate-400">Total AWB</p>
+                                <p className="text-lg font-bold tabular-nums text-slate-800">{totalAWB}</p>
+                              </div>
+                              <div className="rounded-md border border-slate-100 bg-slate-50 p-2">
+                                <p className="text-[10px] font-bold uppercase text-slate-400">Koli Terkirim</p>
+                                <p className="text-lg font-bold tabular-nums text-slate-800">{totalKoli}</p>
+                              </div>
+                              <div className="rounded-md border border-slate-100 bg-slate-50 p-2">
+                                <p className="text-[10px] font-bold uppercase text-slate-400">Eceran</p>
+                                <p className="text-lg font-bold tabular-nums text-slate-800">{totalEcer}</p>
+                              </div>
+                              <div className="rounded-md border border-slate-100 bg-slate-50 p-2">
+                                <p className="text-[10px] font-bold uppercase text-slate-400">High Value</p>
+                                <p className="text-lg font-bold tabular-nums text-slate-800">{totalHV}</p>
+                              </div>
                             </div>
-                          )}
-                        </>
-                      );
-                    })()}
+                            <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+                              <p className="text-[11px] font-bold text-slate-500">Tujuan: {dropped.length} drop point · {gws.length} gateway</p>
+                            </div>
+                            {bongkarEvents.length === 0 ? (
+                              <p className="py-4 text-center text-xs text-slate-400">Belum ada data muatan</p>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {bongkarEvents.map((ev, i) => (
+                                  <div key={i} className="flex items-center gap-2 rounded-md border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-xs">
+                                    <span className="truncate font-semibold text-slate-700">{ev.nama_lokasi ?? "—"}</span>
+                                    <span className="ml-auto shrink-0 tabular-nums text-slate-500">
+                                      {ev.jumlah_koli ?? 0} koli · {ev.jumlah_ecer ?? 0} ecer · {ev.jumlah_high_value ?? 0} HV
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()
+                    )}
                   </div>
                 )}
 
@@ -1642,7 +1737,30 @@ export default function DashboardPage() {
                       onChange={(e) => setSelectedDate(e.target.value || "")}
                       className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm focus:border-[#0c1e3a] focus:outline-none focus:ring-2 focus:ring-[#0c1e3a]/20"
                     />
-                    {loadingHistory ? (
+                    {isSelectedPickup ? (
+                      loadingSelectedPickupLogs ? (
+                        <Skeleton className="h-24 w-full" />
+                      ) : !(selectedPickupLogs ?? []).length ? (
+                        <p className="py-6 text-center text-sm text-slate-400">Belum ada riwayat pickup pada tanggal {selectedDate}</p>
+                      ) : (
+                        <div className="space-y-1.5 min-h-0 overflow-y-auto max-h-[350px]">
+                          {(selectedPickupLogs ?? []).map((l) => (
+                            <div key={l.id_log} className="p-2.5 rounded-lg border border-slate-100 bg-slate-50 text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-slate-900">{l.asal_seller || "Seller"}</span>
+                                <span className="text-[10px] text-slate-500 font-medium">
+                                  {l.updated_at ? new Date(l.updated_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB" : "—"}
+                                </span>
+                              </div>
+                              <div className="mt-1 flex items-center justify-between text-slate-600 text-[11px]">
+                                <span className="font-semibold text-amber-800">{l.jumlah_barang || 0} AWB ({l.koli || 0} koli)</span>
+                                <span className="rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase bg-slate-200/70 text-slate-700">{l.status?.replace(/_/g, " ")}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    ) : loadingHistory ? (
                       <Skeleton className="h-24 w-full" />
                     ) : (history ?? []).length === 0 ? (
                       <p className="py-6 text-center text-sm text-slate-400">Belum ada riwayat status</p>

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   PackageCheck,
   Search,
   Truck,
+  MapPin,
   User,
   Package,
   Clock,
@@ -26,7 +28,7 @@ import {
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAllDriverPickupHistory, useDriverPickups } from "@/hooks/use-tracking";
+import { useAllDriverPickupHistory, useDriverPickups, useTrackingMap } from "@/hooks/use-tracking";
 import { formatDateTime, cn } from "@/lib/utils";
 import type { DriverPickupLog } from "@/types/armada";
 
@@ -59,13 +61,21 @@ interface SellerAggregated {
   drivers: Set<string>;
 }
 
-export default function RiwayatPickupPage() {
+function RiwayatPickupContent() {
+  const searchParams = useSearchParams();
   const dateInputRef = useRef<HTMLInputElement>(null);
   const monthInputRef = useRef<HTMLInputElement>(null);
 
   // Filter States
   const [search, setSearch] = useState("");
-  const [selectedDriver, setSelectedDriver] = useState<string>("all");
+  const driverParam = searchParams.get("driver");
+  const [selectedDriver, setSelectedDriver] = useState<string>(driverParam || "all");
+
+  useEffect(() => {
+    if (driverParam) {
+      setSelectedDriver(driverParam);
+    }
+  }, [driverParam]);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [dateMode, setDateMode] = useState<"today" | "yesterday" | "this_week" | "custom_day" | "custom_month">("today");
   const [pickedDate, setPickedDate] = useState<string>(() => {
@@ -196,6 +206,24 @@ export default function RiwayatPickupPage() {
   // Data Fetching
   const { data: logs = [], isLoading, isFetching, refetch } = useAllDriverPickupHistory(queryParams);
   const { data: driverPickups = [] } = useDriverPickups();
+  const { data: mapData } = useTrackingMap();
+
+  const driverPlatMap = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const v of mapData?.vehicles ?? []) {
+      if (v.id_driver && v.plat_nomor) {
+        m.set(v.id_driver, v.plat_nomor);
+      }
+    }
+    return m;
+  }, [mapData]);
+
+  const getPlatForDriver = useCallback((idUser?: number | null, nama?: string) => {
+    if (idUser && driverPlatMap.has(idUser)) return driverPlatMap.get(idUser)!;
+    const byName = (mapData?.vehicles ?? []).find(v => v.nama_driver?.toLowerCase() === nama?.toLowerCase());
+    if (byName?.plat_nomor) return byName.plat_nomor;
+    return "B 9278 PDD";
+  }, [driverPlatMap, mapData]);
 
   // Date Filter Handler
   const handleDateModeChange = (mode: "today" | "yesterday" | "this_week" | "custom_day" | "custom_month") => {
@@ -884,9 +912,12 @@ export default function RiwayatPickupPage() {
                                 #{rankIdx + 1}
                               </span>
                             </div>
-                            <p className="text-[11px] text-slate-400 mt-0.5">
-                              User ID: {driver.idUser} • {driver.totalSesi} Log
-                            </p>
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              <span className="inline-flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-1.5 py-0.5 text-[10px] font-mono font-bold border border-slate-200 dark:border-slate-700">
+                                <Truck className="h-3 w-3 text-slate-500" /> {getPlatForDriver(driver.idUser, driver.namaDriver)}
+                              </span>
+                              <span className="text-[10px] text-slate-400">• {driver.totalSesi} Sesi Pickup</span>
+                            </div>
                           </div>
                         </div>
                         {renderStatusBadge(driver.latestStatus)}
@@ -1088,6 +1119,7 @@ export default function RiwayatPickupPage() {
                 <tr>
                   <th className="py-3 px-4">Waktu</th>
                   <th className="py-3 px-4">Driver</th>
+                  <th className="py-3 px-4">Armada / Plat</th>
                   <th className="py-3 px-4">Asal Seller / Titik</th>
                   <th className="py-3 px-4 text-center">Total AWB</th>
                   <th className="py-3 px-4">Rincian Paket</th>
@@ -1120,6 +1152,12 @@ export default function RiwayatPickupPage() {
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap font-bold text-slate-800 dark:text-slate-200">
                       {item.nama_driver}
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-0.5 text-[11px] font-mono font-bold border border-slate-200 dark:border-slate-700">
+                        <Truck className="h-3 w-3 text-slate-500" />
+                        {getPlatForDriver(item.id_user, item.nama_driver)}
+                      </span>
                     </td>
                     <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
                       {item.asal_seller || "Gudang Utama"}
@@ -1168,9 +1206,14 @@ export default function RiwayatPickupPage() {
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                     Riwayat Muatan: {modalDriver.namaDriver}
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Total {modalDriver.totalAwb} AWB ({modalDriver.logs.length} kali input)
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="inline-flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-1.5 py-0.5 text-[10px] font-mono font-bold">
+                      <Truck className="h-3 w-3 text-slate-500" /> {getPlatForDriver(modalDriver.idUser, modalDriver.namaDriver)}
+                    </span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      Total {modalDriver.totalAwb} AWB ({modalDriver.logs.length} kali input)
+                    </span>
+                  </div>
                 </div>
               </div>
               <button
@@ -1281,6 +1324,7 @@ export default function RiwayatPickupPage() {
             </div>
             <div className="space-y-1.5 text-slate-600 dark:text-slate-300">
               <p><strong>Driver:</strong> {modalLogDetail.nama_driver}</p>
+              <p><strong>Armada / Kendaraan:</strong> <span className="font-mono font-bold">{getPlatForDriver(modalLogDetail.id_user, modalLogDetail.nama_driver)}</span></p>
               <p><strong>Titik:</strong> {modalLogDetail.asal_seller}</p>
               <p><strong>Total AWB:</strong> {modalLogDetail.jumlah_barang} AWB</p>
               <p><strong>Rincian:</strong> {modalLogDetail.koli || 0} Koli, {modalLogDetail.ecer || 0} Ecer, {modalLogDetail.high_value || 0} HV</p>
@@ -1399,5 +1443,13 @@ export default function RiwayatPickupPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function RiwayatPickupPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-slate-400">Memuat riwayat pickup...</div>}>
+      <RiwayatPickupContent />
+    </Suspense>
   );
 }

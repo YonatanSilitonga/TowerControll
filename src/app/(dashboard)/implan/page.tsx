@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Boxes,
+  ShieldCheck,
   Check,
   CheckCircle2,
   Clock,
@@ -58,6 +59,8 @@ interface QuickSellerRow {
 
 export default function ImplanPage() {
   const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
+  const isReadOnly = user?.role === "direktur" || user?.role === "koor_gudang";
   const queryClient = useQueryClient();
   const { data: mapData, isLoading: loadingMap } = useTrackingMap();
   const { data: driverPickups = [], isLoading: loadingDrivers } = useDriverPickups();
@@ -429,6 +432,16 @@ export default function ImplanPage() {
         description="Pencatatan muatan toko implan dan pembaruan jumlah barang yang diangkut oleh masing-masing Driver Pickup menuju gudang."
       />
 
+      {/* BANNER READ ONLY UNTUK DIREKSI & KOOR GUDANG */}
+      {isReadOnly && (
+        <div className="flex items-center gap-2.5 rounded-lg border border-blue-200 bg-blue-50/80 px-4 py-3 text-xs text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 shadow-2xs">
+          <ShieldCheck className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+          <div>
+            <span className="font-bold">Mode Pemantauan (Read-Only)</span>: Anda login sebagai <span className="font-semibold underline capitalize">{user?.role === "direktur" ? "Direktur" : "Koordinator Gudang"}</span>. Formulir input dan pengeditan muatan dinonaktifkan khusus untuk peran operasional & dispatcher.
+          </div>
+        </div>
+      )}
+
       {/* TAB SWITCHER UTAMA */}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
         <button
@@ -703,7 +716,7 @@ export default function ImplanPage() {
                                     [s.id_seller]: { ...rowEdit, jumlah: val },
                                   }));
                                 }}
-                                className="w-16 text-center rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs font-bold tabular-nums outline-none focus:border-[#0c1e3a] focus:ring-1"
+                                disabled={isReadOnly} className={cn("w-16 text-center rounded-lg border px-1.5 py-1 text-xs font-bold tabular-nums outline-none", isReadOnly ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed" : "border-slate-200 bg-white focus:border-[#0c1e3a] focus:ring-1")}
                                 placeholder="0"
                               />
                             </td>
@@ -721,7 +734,7 @@ export default function ImplanPage() {
                                     [s.id_seller]: { ...rowEdit, koli: val },
                                   }));
                                 }}
-                                className="w-16 text-center rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs font-bold tabular-nums outline-none focus:border-[#0c1e3a] focus:ring-1"
+                                disabled={isReadOnly} className={cn("w-16 text-center rounded-lg border px-1.5 py-1 text-xs font-bold tabular-nums outline-none", isReadOnly ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed" : "border-slate-200 bg-white focus:border-[#0c1e3a] focus:ring-1")}
                                 placeholder="0"
                               />
                             </td>
@@ -739,7 +752,7 @@ export default function ImplanPage() {
                                     [s.id_seller]: { ...rowEdit, ecer: val },
                                   }));
                                 }}
-                                className="w-16 text-center rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs font-bold tabular-nums outline-none focus:border-[#0c1e3a] focus:ring-1"
+                                disabled={isReadOnly} className={cn("w-16 text-center rounded-lg border px-1.5 py-1 text-xs font-bold tabular-nums outline-none", isReadOnly ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed" : "border-slate-200 bg-white focus:border-[#0c1e3a] focus:ring-1")}
                                 placeholder="0"
                               />
                             </td>
@@ -757,7 +770,7 @@ export default function ImplanPage() {
                                     [s.id_seller]: { ...rowEdit, high_value: val },
                                   }));
                                 }}
-                                className="w-16 text-center rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs font-bold tabular-nums outline-none focus:border-[#0c1e3a] focus:ring-1"
+                                disabled={isReadOnly} className={cn("w-16 text-center rounded-lg border px-1.5 py-1 text-xs font-bold tabular-nums outline-none", isReadOnly ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed" : "border-slate-200 bg-white focus:border-[#0c1e3a] focus:ring-1")}
                                 placeholder="0"
                               />
                             </td>
@@ -812,12 +825,13 @@ export default function ImplanPage() {
                                   }))
                                 }
                                 placeholder="Catatan driver/paket..."
-                                className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-[#0c1e3a] focus:ring-1"
+                                disabled={isReadOnly} className={cn("w-full rounded-lg border px-2 py-1 text-xs outline-none", isReadOnly ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed" : "border-slate-200 bg-white focus:border-[#0c1e3a] focus:ring-1")}
                               />
                             </td>
 
                             <td className="py-3 px-4 text-right">
                               <div className="flex items-center justify-end gap-1.5">
+                                {!isReadOnly && (
                                 <button
                                   type="button"
                                   onClick={() => handleSave(s)}
@@ -840,6 +854,7 @@ export default function ImplanPage() {
                                     </>
                                   )}
                                 </button>
+                                )}
 
                                 <button
                                   type="button"
@@ -870,6 +885,7 @@ export default function ImplanPage() {
         <div className="space-y-6">
 
           {/* ─── FORM INPUT MUATAN MULTI-SELLER DRIVER PICKUP ───────── */}
+          {!isReadOnly && (
           <Card className="border-emerald-200/80 bg-gradient-to-br from-emerald-50/50 via-white to-white shadow-sm overflow-hidden">
             {/* Datalist rekomendasi nama toko dari daftar seller implan */}
             <datalist id="registered-sellers-list">
@@ -1095,6 +1111,7 @@ export default function ImplanPage() {
               </div>
             </CardContent>
           </Card>
+          )}
           {/* ─────────────────────────────────────────────────────────── */}
 
           {/* STATS CARDS DRIVER PICKUP */}
@@ -1342,7 +1359,7 @@ export default function ImplanPage() {
                                     [d.id_user]: { ...rowEdit, jumlah: val },
                                   }));
                                 }}
-                                className="w-16 text-center rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs font-bold tabular-nums outline-none focus:border-[#0c1e3a] focus:ring-1"
+                                disabled={isReadOnly} className={cn("w-16 text-center rounded-lg border px-1.5 py-1 text-xs font-bold tabular-nums outline-none", isReadOnly ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed" : "border-slate-200 bg-white focus:border-[#0c1e3a] focus:ring-1")}
                                 placeholder="0"
                               />
                             </td>
@@ -1361,7 +1378,7 @@ export default function ImplanPage() {
                                     [d.id_user]: { ...rowEdit, koli: val },
                                   }));
                                 }}
-                                className="w-16 text-center rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs font-bold tabular-nums outline-none focus:border-[#0c1e3a] focus:ring-1"
+                                disabled={isReadOnly} className={cn("w-16 text-center rounded-lg border px-1.5 py-1 text-xs font-bold tabular-nums outline-none", isReadOnly ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed" : "border-slate-200 bg-white focus:border-[#0c1e3a] focus:ring-1")}
                                 placeholder="0"
                               />
                             </td>
@@ -1380,7 +1397,7 @@ export default function ImplanPage() {
                                     [d.id_user]: { ...rowEdit, ecer: val },
                                   }));
                                 }}
-                                className="w-16 text-center rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs font-bold tabular-nums outline-none focus:border-[#0c1e3a] focus:ring-1"
+                                disabled={isReadOnly} className={cn("w-16 text-center rounded-lg border px-1.5 py-1 text-xs font-bold tabular-nums outline-none", isReadOnly ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed" : "border-slate-200 bg-white focus:border-[#0c1e3a] focus:ring-1")}
                                 placeholder="0"
                               />
                             </td>
@@ -1399,7 +1416,7 @@ export default function ImplanPage() {
                                     [d.id_user]: { ...rowEdit, high_value: val },
                                   }));
                                 }}
-                                className="w-16 text-center rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs font-bold tabular-nums outline-none focus:border-[#0c1e3a] focus:ring-1"
+                                disabled={isReadOnly} className={cn("w-16 text-center rounded-lg border px-1.5 py-1 text-xs font-bold tabular-nums outline-none", isReadOnly ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed" : "border-slate-200 bg-white focus:border-[#0c1e3a] focus:ring-1")}
                                 placeholder="0"
                               />
                             </td>
@@ -1494,7 +1511,7 @@ export default function ImplanPage() {
                                   }))
                                 }
                                 placeholder="Toko/Seller asal..."
-                                className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-[#0c1e3a] focus:ring-1"
+                                disabled={isReadOnly} className={cn("w-full rounded-lg border px-2 py-1 text-xs outline-none", isReadOnly ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed" : "border-slate-200 bg-white focus:border-[#0c1e3a] focus:ring-1")}
                               />
                             </td>
 
@@ -1510,13 +1527,14 @@ export default function ImplanPage() {
                                   }))
                                 }
                                 placeholder="Catatan muatan..."
-                                className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-[#0c1e3a] focus:ring-1"
+                                disabled={isReadOnly} className={cn("w-full rounded-lg border px-2 py-1 text-xs outline-none", isReadOnly ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed" : "border-slate-200 bg-white focus:border-[#0c1e3a] focus:ring-1")}
                               />
                             </td>
 
                             {/* Aksi */}
                             <td className="py-3 px-4 text-right">
                               <div className="flex items-center justify-end gap-1.5">
+                                {!isReadOnly && (
                                 <button
                                   type="button"
                                   onClick={() => handleSaveDriver(d)}
@@ -1539,6 +1557,7 @@ export default function ImplanPage() {
                                     </>
                                   )}
                                 </button>
+                                )}
 
                                 <button
                                   type="button"

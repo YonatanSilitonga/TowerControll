@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { get } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   useTrackingHistory,
   useTrackingMap,
+  useAllDriverPickupHistory,
 } from "@/hooks/use-tracking";
 import { OFFLINE_MINUTES } from "@/lib/constants";
 import { cn, hasActiveSession } from "@/lib/utils";
@@ -23,7 +24,7 @@ import { VehicleItem } from "@/components/armada/vehicle-item";
 import { DashboardLogTable } from "@/components/dashboard/dashboard-log-table";
 import type { RitaseInfo } from "@/components/armada/status-timeline";
 import { InfoTip } from "@/components/ui/info-tip";
-import type { TrackingVehicle, RitaseDetail } from "@/types/armada";
+import type { TrackingVehicle, RitaseDetail, DriverPickupLog } from "@/types/armada";
 
 const LiveMap = dynamic(
   () => import("@/components/map/live-map").then((m) => m.LiveMap),
@@ -73,6 +74,7 @@ function LiveMapBody() {
   const [logOpen, setLogOpen] = useState(false);
   const [controlsContainer, setControlsContainer] = useState<HTMLDivElement | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [fleetFilter, setFleetFilter] = useState<"all" | "gateway" | "pickup">("all");
   useEffect(() => {
     const screen = window.matchMedia("(min-width: 1024px)");
     setListOpen(screen.matches);
@@ -86,7 +88,6 @@ function LiveMapBody() {
     router.replace(safeMapReturn(searchParams.get("from") ?? saved));
   };
   const { data: history, isLoading: loadingHistory } = useTrackingHistory(selectedId, selectedDate);
-
   const token = useAuthStore((state) => state.token);
   const tripIds = [...new Set((history ?? []).map((event) => event.id_ritase))];
   const tripQueries = useQueries({ queries: tripIds.map((id) => ({
@@ -111,10 +112,46 @@ function LiveMapBody() {
     if (window.innerWidth < 1024) { setListOpen(false); setLogOpen(false); }
   };
 
-  const vehicles = data?.vehicles ?? [];
+  const allVehicles = data?.vehicles ?? [];
+  const pickupCount = allVehicles.filter((v) => v.role_driver === "driver_pickup").length;
+  const gatewayCount = allVehicles.filter((v) => v.role_driver !== "driver_pickup").length;
+
+  const vehicles = allVehicles.filter((v) => {
+    if (fleetFilter === "gateway") return v.role_driver !== "driver_pickup";
+    if (fleetFilter === "pickup") return v.role_driver === "driver_pickup";
+    return true;
+  });
   const sellers = data?.sellers ?? [];
   const selectedVehicle =
     vehicles.find((v) => v.id_kendaraan === selectedId) ?? null;
+    const isPickupDriver = selectedVehicle?.role_driver === "driver_pickup";
+  const matchedPickupDriver = isPickupDriver && selectedVehicle
+    ? (data?.driver_pickups ?? []).find(
+        (dp) =>
+          dp.nama_driver?.toLowerCase() === selectedVehicle.nama_driver?.toLowerCase() ||
+          dp.username?.toLowerCase() === selectedVehicle.nama_driver?.toLowerCase() ||
+          dp.id_user === selectedVehicle.id_driver
+      )
+    : null;
+  const resolvedPickupUserId = matchedPickupDriver?.id_user ?? selectedVehicle?.id_driver;
+
+  const { data: rawPickupHistory, isLoading: loadingPickupHistory } = useAllDriverPickupHistory(
+    isPickupDriver ? { id_user: resolvedPickupUserId || undefined, tanggal: selectedDate } : undefined
+  );
+
+  const pickupHistory = useMemo(() => {
+    if (!isPickupDriver || !rawPickupHistory) return [];
+    const nameLower = selectedVehicle?.nama_driver?.toLowerCase();
+    return rawPickupHistory.filter((l) => {
+      if (!nameLower) return true;
+      if (l.nama_driver?.toLowerCase() === nameLower) return true;
+      if (resolvedPickupUserId && l.id_user === resolvedPickupUserId) return true;
+      return false;
+    });
+  }, [isPickupDriver, rawPickupHistory, selectedVehicle?.nama_driver, resolvedPickupUserId]);const totalAwbHariIni = (pickupHistory ?? []).reduce((acc: number, curr: DriverPickupLog) => acc + (curr.jumlah_barang || 0), 0);
+  const totalKoliHariIni = (pickupHistory ?? []).reduce((acc: number, curr: DriverPickupLog) => acc + (curr.koli || 0), 0);
+  const totalEcerHariIni = (pickupHistory ?? []).reduce((acc: number, curr: DriverPickupLog) => acc + (curr.ecer || 0), 0);
+  const totalHvHariIni = (pickupHistory ?? []).reduce((acc: number, curr: DriverPickupLog) => acc + (curr.high_value || 0), 0);
 
   // Definisi LIVE: GPS masih fresh (≤ ambang offline OFFLINE_MINUTES) — app benar-benar
   // mengirim posisi. Status cuma 2: LIVE (app hidup) atau Offline. Sesi login
@@ -136,7 +173,7 @@ function LiveMapBody() {
       <div className="absolute inset-0"><LiveMap fullscreen controlsContainer={controlsContainer} onFilterOpenChange={setFilterOpen} vehicles={vehicles} sellers={sellers} gudang={data?.gudang ?? []} dropPoints={data?.drop_points ?? []} initialFocus={sellerParam ? { type: "seller", id: Number(sellerParam) } : undefined} selectedVehicleId={selectedId} onSelectVehicle={handleSelectVehicle} />{isLoading && <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70 text-sm">Memuat peta...</div>}</div>
       <div className="pointer-events-none absolute left-14 right-44 top-3 z-30 flex flex-wrap items-center gap-2">
         <button type="button" onClick={goBack} className="pointer-events-auto inline-flex items-center gap-1 rounded-lg border bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm"><ArrowLeft className="h-4 w-4" />Kembali</button>
-        <div className="hidden rounded-lg border bg-white px-3 py-2 text-xs text-slate-600 shadow-sm lg:block"><b className="mr-2 text-[#0c1e3a]">Live Maps</b>{vehicles.length} armada · {liveVehicles.length} GPS online</div>
+        <div className="hidden rounded-lg border bg-white px-3 py-2 text-xs text-slate-600 shadow-sm lg:block"><b className="mr-2 text-[#0c1e3a]">Live Maps</b>{allVehicles.length} armada ({gatewayCount} Gateway · {pickupCount} Pickup) · {liveVehicles.length} GPS online</div>
       </div>
       {mapError && <div role="alert" className="absolute left-14 top-14 z-[70] rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs text-rose-700">Pembaruan peta gagal; posisi mungkin belum terkini. <button onClick={() => reloadMap()} className="underline">Coba lagi</button></div>}
       {listOpen && <aside aria-label="Daftar armada" className={cn("absolute left-3 right-3 z-30 min-h-0 lg:right-auto lg:w-[280px]", "top-20 bottom-20")}>
@@ -146,6 +183,31 @@ function LiveMapBody() {
                 <RadioTower className="h-4 w-4 text-[#0c1e3a]" />
                 Daftar Armada <InfoTip text="Posisi realtime. LIVE = GPS masih fresh" align="right" />
               <button type="button" onClick={() => setListOpen(false)} aria-label="Tutup daftar armada" className="ml-auto rounded p-1 hover:bg-slate-100"><X className="h-4 w-4" /></button></CardTitle>
+              <div className="mt-2.5 flex rounded-lg bg-slate-100 p-0.5 text-[11px] font-medium">
+                <button
+                  type="button"
+                  onClick={() => setFleetFilter("all")}
+                  className={cn("flex-1 rounded-md py-1 text-center transition-colors", fleetFilter === "all" ? "bg-white text-slate-900 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900")}
+                >
+                  Semua ({allVehicles.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFleetFilter("gateway")}
+                  className={cn("flex-1 rounded-md py-1 text-center transition-colors", fleetFilter === "gateway" ? "bg-white text-slate-900 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900")}
+                  title="Driver yang dorong muatan ke Gateway"
+                >
+                  Gateway ({gatewayCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFleetFilter("pickup")}
+                  className={cn("flex-1 rounded-md py-1 text-center transition-colors", fleetFilter === "pickup" ? "bg-white text-slate-900 shadow-sm font-bold" : "text-slate-600 hover:text-slate-900")}
+                  title="Driver pickup toko / seller"
+                >
+                  Pickup ({pickupCount})
+                </button>
+              </div>
             </CardHeader>
             <CardContent className="flex-1 min-h-0 space-y-2 overflow-y-auto overscroll-contain [scrollbar-width:thin]" tabIndex={0} aria-label="Daftar armada, gulir untuk melihat lainnya">
               {isLoading ? (

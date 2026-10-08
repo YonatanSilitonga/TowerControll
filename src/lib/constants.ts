@@ -43,12 +43,35 @@ export const ROLE_LABEL: Record<UserRole, string> = {
 
 /** Mapping role -> modul yang boleh diakses (untuk menu & guard). */
 export const ROLE_MENU: Record<UserRole, string[]> = {
-  admin: ["dashboard", "peta", "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "armada-live-map", "riwayat-pickup", "implan", "gudang", "absensi", "section-armada", "section-menu", "section-lainnya"],
-  developer: ["dashboard", "peta", "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "armada-live-map", "riwayat-pickup", "implan", "gudang", "absensi", "section-armada", "section-menu", "section-lainnya"],
-  tower_control: ["dashboard", "peta", "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "armada-live-map", "riwayat-pickup", "implan", "section-armada", "section-menu", "section-lainnya"],
-  direktur: ["dashboard", "peta", "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "armada-live-map", "riwayat-pickup", "implan", "section-armada", "section-menu", "section-lainnya"],
-  driver: ["dashboard", "armada"],
-  koor_gudang: ["peta"],
+  admin: [
+    "dashboard", "efektivitas-armada", "armada-live-map",
+    "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips",
+    "implan", "riwayat-pickup", "jadwal", "manifest-foto", "analitik", "gudang", "absensi",
+    "section-menu", "section-armada", "section-lainnya",
+  ],
+  developer: [
+    "dashboard", "efektivitas-armada", "armada-live-map",
+    "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips",
+    "implan", "riwayat-pickup", "jadwal", "manifest-foto", "analitik", "gudang", "absensi",
+    "section-menu", "section-armada", "section-lainnya",
+  ],
+  tower_control: [
+    "dashboard", "efektivitas-armada", "armada-live-map",
+    "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips",
+    "implan", "riwayat-pickup", "jadwal", "manifest-foto", "analitik", "gudang", "absensi",
+    "section-menu", "section-armada", "section-lainnya",
+  ],
+  direktur: [
+    "dashboard", "efektivitas-armada", "armada-live-map",
+    "armada", "armada-trips", "riwayat-pickup", "analitik",
+    "section-menu", "section-armada", "section-lainnya",
+  ],
+  koor_gudang: [
+    "dashboard", "armada-live-map",
+    "jadwal", "manifest-foto", "riwayat-pickup", "gudang",
+    "section-menu", "section-lainnya",
+  ],
+  driver: ["dashboard"],
   driver_pickup: ["dashboard"],
 };
 

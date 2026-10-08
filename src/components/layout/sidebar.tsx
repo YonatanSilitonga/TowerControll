@@ -110,11 +110,6 @@ export function Sidebar() {
     setOpenDropdowns((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Koor gudang fokus layar peta penuh di halaman utama (peta), menu navigasi diakses via hamburger di header
-  if (role === "koor_gudang" && pathname === "/") {
-    return null;
-  }
-
   return (
     <div className="hidden w-60 shrink-0 bg-[#0c1e3a] lg:block">
     <aside className="sticky top-0 flex h-screen w-full flex-col border-r border-[#0c1e3a] text-slate-300">
