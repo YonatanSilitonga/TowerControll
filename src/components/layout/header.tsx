@@ -24,7 +24,13 @@ export function Header() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const token = useAuthStore((s) => s.token);
-  const showRitaseTimer = user?.role === "koor_gudang" || user?.role === "admin" || user?.role === "developer" || (user?.role as string) === "koor_lapangan";
+  const showRitaseTimer =
+    user?.role === "koor_gudang" ||
+    user?.role === "admin" ||
+    user?.role === "developer" ||
+    user?.role === "tower_control" ||
+    user?.role === "direktur" ||
+    (user?.role as string) === "koor_lapangan";
 
   // State modal ganti password
   const [showChangePw, setShowChangePw] = useState(false);
