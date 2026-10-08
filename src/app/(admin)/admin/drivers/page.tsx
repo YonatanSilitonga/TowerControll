@@ -120,6 +120,7 @@ const STATUS_DOT: Record<string, string> = {
 };
 const SIM_OPTIONS = [
   { value: "A",  label: "SIM A — Mobil Pribadi / Pickup" },
+  { value: "B",  label: "SIM B — Angkutan / Truk" },
   { value: "B1", label: "SIM B1 — Truk Box & Engkel" },
   { value: "B2", label: "SIM B2 — Truk Tronton & Container" },
   { value: "C",  label: "SIM C — Motor Fleksibel" },
@@ -360,12 +361,20 @@ export default function AdminDriversPage() {
     if (!validate()) return;
     setSaving(true);
     try {
+      const payload: Partial<DriverAdmin> = {
+        nama_driver: form.nama_driver.trim(),
+        no_hp: form.no_hp.trim() || undefined,
+        no_sim: form.no_sim.trim() ? form.no_sim.trim() : undefined,
+        jenis_sim: form.jenis_sim || undefined,
+        jabatan: form.jabatan?.trim() || undefined,
+        status_driver: form.status_driver as "aktif" | "nonaktif",
+      };
       if (editing) {
-        await adminDriver.update(editing.id_driver, form as Partial<DriverAdmin>);
+        await adminDriver.update(editing.id_driver, payload);
         swal.success("Driver Diperbarui", `Data ${form.nama_driver} berhasil disimpan.`);
       } else {
         // 1. Buat driver
-        const res = await adminDriver.create(form as Partial<DriverAdmin>);
+        const res = await adminDriver.create(payload);
         const driverId = (res as any)?.id_driver;
 
         // 2. Kalau toggle aktif → buat akun user sekaligus
@@ -612,20 +621,16 @@ export default function AdminDriversPage() {
             </div>
           </FieldWrapper>
 
-          {/* ── Lisensi (create only) ── */}
-          {!editing && (
-            <>
-              <div className="sm:col-span-2"><SectionDivider label="Lisensi (hanya saat tambah baru)" /></div>
-              <FieldWrapper label="No SIM" required error={formErrors.no_sim} hint="Nomor SIM resmi yang diterbitkan Satlantas">
-                <Input value={form.no_sim} onChange={(e) => setField("no_sim", e.target.value)}
-                  placeholder="Nomor Lisensi SIM"
-                  className={cn("h-11 rounded-lg text-sm", formErrors.no_sim && "border-rose-400 bg-rose-50/50 dark:bg-rose-500/5")} />
-              </FieldWrapper>
-              <FieldWrapper label="Jenis SIM" required error={formErrors.jenis_sim} hint="Pastikan sesuai kelas kendaraan yang dikemudikan">
-                <CustomSelect value={form.jenis_sim} onChange={(v) => setField("jenis_sim", v)} options={SIM_OPTIONS} hasError={!!formErrors.jenis_sim} />
-              </FieldWrapper>
-            </>
-          )}
+          {/* ── Lisensi ── */}
+          <div className="sm:col-span-2"><SectionDivider label={editing ? "Lisensi Driver" : "Lisensi (Wajib untuk driver baru)"} /></div>
+          <FieldWrapper label="No SIM" required={!editing} error={formErrors.no_sim} hint={editing ? "Nomor SIM resmi (opsional jika belum ada)" : "Nomor SIM resmi yang diterbitkan Satlantas"}>
+            <Input value={form.no_sim} onChange={(e) => setField("no_sim", e.target.value)}
+              placeholder="Nomor Lisensi SIM"
+              className={cn("h-11 rounded-lg text-sm", formErrors.no_sim && "border-rose-400 bg-rose-50/50 dark:bg-rose-500/5")} />
+          </FieldWrapper>
+          <FieldWrapper label="Jenis SIM" required={!editing} error={formErrors.jenis_sim} hint="Pastikan sesuai kelas kendaraan yang dikemudikan">
+            <CustomSelect value={form.jenis_sim} onChange={(v) => setField("jenis_sim", v)} options={SIM_OPTIONS} hasError={!!formErrors.jenis_sim} />
+          </FieldWrapper>
 
           {/* ── Status ── */}
           <div className="sm:col-span-2"><SectionDivider label="Status Operasional" /></div>

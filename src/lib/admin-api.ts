@@ -88,6 +88,13 @@ export const adminDriver = {
     catch { return getStorage("drivers", defaultDrivers); }
   },
   create: async (data: Partial<DriverAdmin>) => {
+    const payload = {
+      ...data,
+      no_sim: data.no_sim && data.no_sim.trim() ? data.no_sim.trim() : null,
+      no_hp: data.no_hp && data.no_hp.trim() ? data.no_hp.trim() : null,
+      jabatan: data.jabatan && data.jabatan.trim() ? data.jabatan.trim() : null,
+      jenis_sim: data.jenis_sim || null,
+    };
     if (isMock) {
       const list = getStorage("drivers", defaultDrivers);
       const newObj: DriverAdmin = {
@@ -101,16 +108,23 @@ export const adminDriver = {
       setStorage("drivers", [newObj, ...list]);
       return { id_driver: newObj.id_driver };
     }
-    return await adminFetch<{ id_driver: number }>("/admin/drivers", { method: "POST", body: JSON.stringify(data) });
+    return await adminFetch<{ id_driver: number }>("/admin/drivers", { method: "POST", body: JSON.stringify(payload) });
   },
   update: async (id: number, data: Partial<DriverAdmin>) => {
+    const payload = {
+      ...data,
+      no_sim: data.no_sim && data.no_sim.trim() ? data.no_sim.trim() : null,
+      no_hp: data.no_hp && data.no_hp.trim() ? data.no_hp.trim() : null,
+      jabatan: data.jabatan && data.jabatan.trim() ? data.jabatan.trim() : null,
+      jenis_sim: data.jenis_sim || null,
+    };
     if (isMock) {
       const list = getStorage("drivers", defaultDrivers);
       const updated = list.map((item) => item.id_driver === id ? { ...item, ...data } : item);
       setStorage("drivers", updated);
       return { success: true };
     }
-    return await adminFetch<any>(`/admin/drivers/${id}`, { method: "PUT", body: JSON.stringify(data) });
+    return await adminFetch<any>(`/admin/drivers/${id}`, { method: "PUT", body: JSON.stringify(payload) });
   },
   delete: async (id: number) => {
     if (isMock) {
@@ -480,5 +494,69 @@ export const adminRitase = {
       return { success: true };
     }
     return await adminFetch<any>(`/admin/ritase/${id}`, { method: "DELETE" });
+  },
+};
+
+
+// ── Gudang ──
+export type GudangAdmin = {
+  id_gudang: number;
+  nama_gudang: string;
+  alamat?: string;
+  kota?: string;
+  latitude?: number;
+  longitude?: number;
+  status: "aktif" | "nonaktif";
+  created_at?: string;
+};
+
+const defaultGudang: GudangAdmin[] = [
+  { id_gudang: 1, nama_gudang: "Gudang Outgoing Cikupa", alamat: "Kawasan Industri Cikupa Mas", kota: "Tangerang", status: "aktif", latitude: -6.238, longitude: 106.532 },
+  { id_gudang: 2, nama_gudang: "Gudang Incoming Balaraja", alamat: "Jl. Raya Serang Km. 24", kota: "Tangerang", status: "aktif", latitude: -6.215, longitude: 106.455 },
+];
+
+export const adminGudang = {
+  list: async (): Promise<GudangAdmin[]> => {
+    if (isMock) return getStorage("gudang", defaultGudang);
+    try {
+      return await adminFetch<GudangAdmin[]>("/admin/gudang");
+    } catch {
+      return getStorage("gudang", defaultGudang);
+    }
+  },
+  create: async (data: Partial<GudangAdmin>) => {
+    const list = getStorage("gudang", defaultGudang);
+    const newObj: GudangAdmin = {
+      id_gudang: Date.now(),
+      nama_gudang: data.nama_gudang || "Gudang Baru",
+      alamat: data.alamat || "",
+      kota: data.kota || "Tangerang",
+      latitude: data.latitude ?? -6.2,
+      longitude: data.longitude ?? 106.5,
+      status: data.status || "aktif",
+    };
+    if (isMock) {
+      setStorage("gudang", [newObj, ...list]);
+      return { id_gudang: newObj.id_gudang };
+    }
+    return await adminFetch<{ id_gudang: number }>("/admin/gudang", { method: "POST", body: JSON.stringify(data) });
+  },
+  update: async (id: number, data: Partial<GudangAdmin>) => {
+    if (isMock) {
+      const list = getStorage("gudang", defaultGudang);
+      const updated = list.map((item) => item.id_gudang === id ? { ...item, ...data } : item);
+      setStorage("gudang", updated);
+      return { success: true };
+    }
+    return await adminFetch<any>(`/admin/gudang/${id}`, { method: "PUT", body: JSON.stringify(data) });
+  },
+  delete: async (id: number) => {
+    if (isMock) {
+      const list = getStorage("gudang", defaultGudang);
+      const updated = list.map((item) => item.id_gudang === id ? { ...item, status: "nonaktif" as const } : item);
+      setStorage("gudang", updated);
+      return { success: true };
+    }
+    return await adminFetch<any>(`/admin/gudang/${id}`, { method: "DELETE" });
   },
 };
