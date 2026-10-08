@@ -88,6 +88,13 @@ export const adminDriver = {
     catch { return getStorage("drivers", defaultDrivers); }
   },
   create: async (data: Partial<DriverAdmin>) => {
+    const payload = {
+      ...data,
+      no_sim: data.no_sim && data.no_sim.trim() ? data.no_sim.trim() : null,
+      no_hp: data.no_hp && data.no_hp.trim() ? data.no_hp.trim() : null,
+      jabatan: data.jabatan && data.jabatan.trim() ? data.jabatan.trim() : null,
+      jenis_sim: data.jenis_sim || null,
+    };
     if (isMock) {
       const list = getStorage("drivers", defaultDrivers);
       const newObj: DriverAdmin = {
@@ -101,16 +108,23 @@ export const adminDriver = {
       setStorage("drivers", [newObj, ...list]);
       return { id_driver: newObj.id_driver };
     }
-    return await adminFetch<{ id_driver: number }>("/admin/drivers", { method: "POST", body: JSON.stringify(data) });
+    return await adminFetch<{ id_driver: number }>("/admin/drivers", { method: "POST", body: JSON.stringify(payload) });
   },
   update: async (id: number, data: Partial<DriverAdmin>) => {
+    const payload = {
+      ...data,
+      no_sim: data.no_sim && data.no_sim.trim() ? data.no_sim.trim() : null,
+      no_hp: data.no_hp && data.no_hp.trim() ? data.no_hp.trim() : null,
+      jabatan: data.jabatan && data.jabatan.trim() ? data.jabatan.trim() : null,
+      jenis_sim: data.jenis_sim || null,
+    };
     if (isMock) {
       const list = getStorage("drivers", defaultDrivers);
       const updated = list.map((item) => item.id_driver === id ? { ...item, ...data } : item);
       setStorage("drivers", updated);
       return { success: true };
     }
-    return await adminFetch<any>(`/admin/drivers/${id}`, { method: "PUT", body: JSON.stringify(data) });
+    return await adminFetch<any>(`/admin/drivers/${id}`, { method: "PUT", body: JSON.stringify(payload) });
   },
   delete: async (id: number) => {
     if (isMock) {
