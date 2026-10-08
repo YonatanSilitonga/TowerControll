@@ -42,9 +42,9 @@ export interface NavItem {
 
 const NAV: NavItem[] = [
   { label: "Menu Utama", href: "", icon: LayoutDashboard, key: "section-menu", isSection: true },
-  { label: "Peta", href: "/", icon: MapPin, key: "peta" },
-  { label: "Dashboard", href: "/analitik/efektivitas-armada", icon: BarChart3, key: "efektivitas-armada" },
+  { label: "Beranda", href: "/", icon: LayoutDashboard, key: "dashboard" },
   { label: "Live Maps", href: "/armada/live-map", icon: MapPin, key: "armada-live-map" },
+  { label: "Efektivitas Armada", href: "/analitik/efektivitas-armada", icon: TrendingUp, key: "efektivitas-armada" },
   { label: "Armada", href: "", icon: Truck, key: "section-armada", isSection: true },
   { label: "Ringkasan Armada", href: "/armada", icon: Truck, key: "armada" },
   { label: "Kendaraan", href: "/armada/vehicles", icon: Car, key: "armada-vehicles" },
