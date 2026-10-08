@@ -150,6 +150,7 @@ function FieldWrapper({
 /* ─────────── ROLE CONFIG ─────────── */
 const ROLE_OPTIONS = [
   { value: "admin",         label: "Admin",         color: "bg-amber-500" },
+  { value: "developer",     label: "Developer",     color: "bg-indigo-500" },
   { value: "direktur",      label: "Direktur",       color: "bg-purple-500" },
   { value: "tower_control", label: "Tower Control",   color: "bg-blue-500" },
   { value: "driver",        label: "Driver",          color: "bg-emerald-500" },
@@ -157,6 +158,7 @@ const ROLE_OPTIONS = [
 
 const ROLE_COLORS: Record<string, string> = {
   admin:         "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
+  developer:     "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400",
   direktur:      "bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400",
   tower_control: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400",
   driver:        "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",

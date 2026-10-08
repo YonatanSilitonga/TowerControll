@@ -42,7 +42,7 @@ export interface NavItem {
 
 const NAV: NavItem[] = [
   { label: "Menu Utama", href: "", icon: LayoutDashboard, key: "section-menu", isSection: true },
-  { label: "Beranda", href: "/", icon: LayoutDashboard, key: "dashboard" },
+  { label: "Peta", href: "/", icon: MapPin, key: "peta" },
   { label: "Dashboard", href: "/analitik/efektivitas-armada", icon: BarChart3, key: "efektivitas-armada" },
   { label: "Live Maps", href: "/armada/live-map", icon: MapPin, key: "armada-live-map" },
   { label: "Armada", href: "", icon: Truck, key: "section-armada", isSection: true },
@@ -63,6 +63,8 @@ const NAV: NavItem[] = [
 
 export const ADMIN_NAV: NavItem[] = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard, key: "admin-dashboard" },
+  { label: "Peta", href: "/", icon: MapPin, key: "admin-peta" },
+  { label: "Live Maps", href: "/armada/live-map", icon: MapPin, key: "admin-live-map" },
   { label: "Driver", href: "/admin/drivers", icon: Users, key: "admin-drivers" },
   { label: "Kendaraan", href: "/admin/vehicles", icon: Car, key: "admin-vehicles" },
   { label: "Seller", href: "/admin/sellers", icon: Store, key: "admin-sellers" },

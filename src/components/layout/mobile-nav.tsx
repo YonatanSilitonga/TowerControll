@@ -43,7 +43,7 @@ export function MobileNav() {
       </button>
 
       {open && (
-        <div className={cn("fixed inset-0 z-50", !isKoorGudang && "lg:hidden")}>
+        <div className={cn("fixed inset-0 z-[9999]", !isKoorGudang && "lg:hidden")}>
           {/* Overlay */}
           <div
             className="absolute inset-0 bg-black/40"

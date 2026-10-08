@@ -277,14 +277,23 @@ export default function AdminDriversPage() {
     const q = search.toLowerCase();
     return [row.nama_driver, row.no_hp, row.jenis_sim].some((v) => String(v ?? "").toLowerCase().includes(q));
   });
-  if (sortKey) {
-    processed = [...processed].sort((a, b) => {
-      const va = (a as any)[sortKey] ?? ""; const vb = (b as any)[sortKey] ?? "";
+
+  processed = [...processed].sort((a, b) => {
+    if (sortKey) {
+      const va = (a as any)[sortKey] ?? "";
+      const vb = (b as any)[sortKey] ?? "";
       if (va < vb) return sortOrder === "asc" ? -1 : 1;
       if (va > vb) return sortOrder === "asc" ? 1 : -1;
       return 0;
-    });
-  }
+    }
+    // Default sorting: status aktif di atas, nonaktif di bawah
+    const statusOrderA = (a.status_driver ?? "").toLowerCase() === "aktif" ? 0 : 1;
+    const statusOrderB = (b.status_driver ?? "").toLowerCase() === "aktif" ? 0 : 1;
+    if (statusOrderA !== statusOrderB) {
+      return statusOrderA - statusOrderB;
+    }
+    return (a.nama_driver || "").localeCompare(b.nama_driver || "");
+  });
   const handleSort = (key: string) => {
     if (sortKey === key) setSortOrder((p) => p === "asc" ? "desc" : "asc");
     else { setSortKey(key); setSortOrder("asc"); }

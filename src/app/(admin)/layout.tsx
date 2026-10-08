@@ -45,7 +45,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       const after = useAuthStore.getState();
       if (!after.token) { router.replace("/admin/login"); return; }
-      if (after.user && after.user.role !== "admin") {
+      if (after.user && after.user.role !== "admin" && after.user.role !== "developer") {
         after.clear();
         router.replace("/admin/login");
       }

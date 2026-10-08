@@ -27,9 +27,9 @@ export default function AdminLoginPage() {
     try {
       await login(username, password);
       const after = useAuthStore.getState();
-      if (after.user?.role !== "admin") {
+      if (after.user?.role !== "admin" && after.user?.role !== "developer") {
         after.clear();
-        setError("Akun ini bukan akun admin.");
+        setError("Akun ini bukan akun admin atau developer.");
         setLoading(false);
         return;
       }

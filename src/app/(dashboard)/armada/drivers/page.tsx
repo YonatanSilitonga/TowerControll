@@ -2,7 +2,7 @@
 
 import { WhatsAppContact } from "@/components/armada/whatsapp-contact";
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { LocateFixed, MapPin, Phone } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,6 +65,16 @@ export default function DriversPage() {
     if (dr.nama_driver && dr.no_hp) phones[dr.nama_driver.toLowerCase()] = dr.no_hp;
   }
 
+  // Urutkan driver aktif di atas, nonaktif di bawah
+  const sortedDrivers = useMemo(() => {
+    return [...(data ?? [])].sort((a, b) => {
+      const aActive = (a.status_driver ?? "").toLowerCase() === "aktif" ? 0 : 1;
+      const bActive = (b.status_driver ?? "").toLowerCase() === "aktif" ? 0 : 1;
+      if (aActive !== bActive) return aActive - bActive;
+      return (a.nama_driver || "").localeCompare(b.nama_driver || "");
+    });
+  }, [data]);
+
   return (
     <div>
       <PageHeader
@@ -79,7 +89,7 @@ export default function DriversPage() {
         <div className="min-w-0 overflow-hidden">
           <DataTable<DriverArmada>
             loading={isLoading}
-            rows={data ?? []}
+            rows={sortedDrivers}
             rowKey={(d) => String(d.id_driver)}
             tableLayout="fixed"
             searchPlaceholder="Cari nama / no HP driver..."

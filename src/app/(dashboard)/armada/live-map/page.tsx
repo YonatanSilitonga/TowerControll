@@ -161,7 +161,8 @@ function LiveMapBody() {
                   {liveVehicles.map((v) => (
                     <VehicleItem
                       key={v.id_kendaraan}
-                      vehicle={v} phone={drivers?.find((driver) => driver.id_driver === v.id_driver)?.no_hp ?? null}
+                      vehicle={v}
+                      phone={drivers?.find((driver) => driver.id_driver === v.id_driver)?.no_hp ?? null}
                       selected={selectedId === v.id_kendaraan}
                       onSelect={() => handleSelectVehicle(v.id_kendaraan)}
                     />
@@ -174,7 +175,8 @@ function LiveMapBody() {
                       {inactiveVehicles.map((v) => (
                         <VehicleItem
                           key={v.id_kendaraan}
-                          vehicle={v} phone={drivers?.find((driver) => driver.id_driver === v.id_driver)?.no_hp ?? null}
+                          vehicle={v}
+                          phone={drivers?.find((driver) => driver.id_driver === v.id_driver)?.no_hp ?? null}
                           selected={selectedId === v.id_kendaraan}
                           onSelect={() => handleSelectVehicle(v.id_kendaraan)}
                         />
@@ -189,7 +191,8 @@ function LiveMapBody() {
                       {offlineVehicles.map((v) => (
                         <VehicleItem
                           key={v.id_kendaraan}
-                          vehicle={v} phone={drivers?.find((driver) => driver.id_driver === v.id_driver)?.no_hp ?? null}
+                          vehicle={v}
+                          phone={drivers?.find((driver) => driver.id_driver === v.id_driver)?.no_hp ?? null}
                           selected={selectedId === v.id_kendaraan}
                           onSelect={() => handleSelectVehicle(v.id_kendaraan)}
                         />

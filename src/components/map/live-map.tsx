@@ -300,18 +300,22 @@ function FitRoutes({
 function FocusSelected({
   vehicles,
   selectedVehicleId,
+  initialFocus,
 }: {
   vehicles: TrackingVehicle[];
   selectedVehicleId: number | null;
+  initialFocus?: { type: string; id: number; ts?: number };
 }) {
   const map = useMap();
   useEffect(() => {
-    const v = vehicles.find((x) => x.id_kendaraan === selectedVehicleId);
-    if (!v) return;
+    const targetId = (initialFocus?.type === "truck" ? initialFocus.id : null) ?? selectedVehicleId;
+    if (!targetId) return;
+    const v = vehicles.find((x) => x.id_kendaraan === targetId);
+    if (!v || !v.latitude || !v.longitude) return;
     // Zoom 14 = perbesaran detail truk (lebih deket dari skala kota).
     map.setView([v.latitude, v.longitude], 14, { animate: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedVehicleId]);
+  }, [selectedVehicleId, initialFocus]);
   return null;
 }
 
@@ -328,7 +332,7 @@ interface LiveMapProps {
   /** No HP per nama driver (lowercase) — buat tombol "Telpon Driver" di popup truk. */
   phones?: Record<string, string>;
   /** Fokus POI saat map dibuka (mis. dari tabel armada: `{ type: "seller", id }`). */
-  initialFocus?: { type: string; id: number };
+  initialFocus?: { type: string; id: number; ts?: number };
   selectedVehicleId: number | null;
   onSelectVehicle: (id: number | null) => void;
   /** Mode mini map (panel kecil): search & legenda dikecilin biar proporsional. */
@@ -369,7 +373,10 @@ function VehicleMarker({
     else markerRef.current?.closePopup();
   }, [selected, hidePopup]);
 
-  const isLive = !v.offline && hasActiveSession(v.last_login);
+  const isLive =
+    v.role_driver === "driver_pickup"
+      ? !v.offline || hasActiveSession(v.last_login) || (Date.now() - lastT < 2 * 3600 * 1000)
+      : !v.offline && hasActiveSession(v.last_login);
   const awbCount = v.total_awb ?? v.total_koli ?? 0;
   const truckIcon = getTruckIcon(selected, v.role_driver, isLive, awbCount);
 
@@ -388,39 +395,84 @@ function VehicleMarker({
         },
       }}
     >
-      {!hidePopup && <Popup maxWidth={340} minWidth={200} className="vehicle-compact-popup [&_.leaflet-popup-content]:!m-4 [&_.leaflet-popup-content-wrapper]:!rounded-2xl [&_.leaflet-popup-close-button]:!right-2 [&_.leaflet-popup-close-button]:!top-2 [&_.leaflet-popup-close-button]:!h-8 [&_.leaflet-popup-close-button]:!w-8">
-        <div className="w-[304px] max-w-[calc(100vw-80px)] space-y-3 text-xs leading-snug text-slate-700 [&_p]:!m-0">
-          <div className="flex items-start gap-3 pr-7">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><Truck className="h-6 w-6" aria-hidden="true" /></div>
-            <div className="min-w-0 flex-1 space-y-1">
-              <div className="break-words text-base font-bold tracking-tight text-[#0c1e3a]">{v.plat_nomor || "—"}</div>
-              <p className="break-words text-xs text-slate-600">{v.nama_driver || "Driver belum tersedia"}</p>
+      {!hidePopup && (
+        <Popup maxWidth={340} minWidth={200} className="vehicle-compact-popup [&_.leaflet-popup-content]:!m-4 [&_.leaflet-popup-content-wrapper]:!rounded-2xl [&_.leaflet-popup-close-button]:!right-2 [&_.leaflet-popup-close-button]:!top-2 [&_.leaflet-popup-close-button]:!h-8 [&_.leaflet-popup-close-button]:!w-8">
+          <div className="w-[304px] max-w-[calc(100vw-80px)] space-y-3 text-xs leading-snug text-slate-700 [&_p]:!m-0">
+            <div className="flex items-start gap-3 pr-7">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <Truck className="h-6 w-6" aria-hidden="true" />
+              </div>
+              <div className="min-w-0 flex-1 space-y-1">
+                <div className="break-words text-base font-bold tracking-tight text-[#0c1e3a]">{v.plat_nomor || "—"}</div>
+                <p className="break-words text-xs text-slate-600">{v.nama_driver || "Driver belum tersedia"}</p>
+              </div>
             </div>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            {(kode || v.kode_ritase) && <span className="min-w-0 break-all font-mono text-[10px] text-slate-500">{kode || v.kode_ritase}</span>}
-            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold", v.offline || stale ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700")}><i className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />{!hasActiveSession(v.last_login) ? "Logout" : v.offline ? "Offline" : displayTrackingStatus(v.status, v.kecepatan, v.last_update)}</span>
-          </div>
-          <div className="space-y-2">
-            <div className="grid grid-cols-3 divide-x divide-slate-200 rounded-xl border border-slate-100 bg-slate-50/70 py-3 [&>div]:min-w-0 [&>div]:px-2.5 [&>div>p]:min-h-[28px] [&>div>div]:leading-snug">
-              <div><Gauge className="mb-1.5 h-4 w-4 text-blue-600" aria-hidden="true" /><p className="text-[10px] text-slate-500">Kecepatan</p><div className="mt-1 break-words font-semibold text-[#0c1e3a]">{!stale && !v.offline && hasActiveSession(v.last_login) ? (v.kecepatan ?? 0) + " km/h" : "—"}</div></div>
-              <div><MapPin className="mb-1.5 h-4 w-4 text-emerald-600" aria-hidden="true" /><p className="text-[10px] text-slate-500">Update GPS</p><div className="mt-1 break-words font-semibold text-[#0c1e3a]">{minutesAgo(v.last_update)}</div></div>
-              <div><Clock className="mb-1.5 h-4 w-4 text-blue-600" aria-hidden="true" /><p className="text-[10px] text-slate-500">App dibuka</p><div className="mt-1 break-words font-semibold text-[#0c1e3a]">{v.last_open ? minutesAgo(v.last_open) : "—"}</div></div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {(kode || v.kode_ritase) && (
+                <span className="min-w-0 break-all font-mono text-[10px] text-slate-500">{kode || v.kode_ritase}</span>
+              )}
+              <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold", v.offline || stale ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700")}>
+                <i className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
+                {!hasActiveSession(v.last_login) ? "Logout" : v.offline ? "Offline" : displayTrackingStatus(v.status, v.kecepatan, v.last_update)}
+              </span>
             </div>
-            {v.session_online !== false && ((v.total_koli ?? 0) > 0 || (v.total_eceran ?? 0) > 0 || (v.total_high_value ?? 0) > 0) && <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-800">📦 {[(v.total_koli ?? 0) > 0 ? v.total_koli + " koli" : null, (v.total_eceran ?? 0) > 0 ? v.total_eceran + " ecer" : null, (v.total_high_value ?? 0) > 0 ? v.total_high_value + " HV" : null].filter(Boolean).join(" · ")}</div>}
-          </div>
-          {isCompleted ? <div className="border-t border-slate-100 pt-3 text-emerald-700">Rute selesai</div> : eta && !v.offline && hasActiveSession(v.last_login) && <div className="flex items-start gap-2.5 border-t border-slate-100 pt-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600"><MapPin className="h-4 w-4" aria-hidden="true" /></div>
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="text-[10px] text-slate-500">Tujuan berikutnya</div>
-              <p className="break-words text-xs font-semibold leading-snug text-[#0c1e3a]">{eta.label}</p>
-              <div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-slate-500"><span>{eta.km}</span><span>· ±{fmtDuration(eta.durationSeconds)}</span></div>
-              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600"><Clock className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" /><span>Estimasi tiba</span><span className="font-semibold text-[#0c1e3a]">{fmtArrival(eta.durationSeconds)} WIB</span></div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-3 divide-x divide-slate-200 rounded-xl border border-slate-100 bg-slate-50/70 py-3 [&>div]:min-w-0 [&>div]:px-2.5 [&>div>p]:min-h-[28px] [&>div>div]:leading-snug">
+                <div>
+                  <Gauge className="mb-1.5 h-4 w-4 text-blue-600" aria-hidden="true" />
+                  <p className="text-[10px] text-slate-500">Kecepatan</p>
+                  <div className="mt-1 break-words font-semibold text-[#0c1e3a]">{!stale && !v.offline && hasActiveSession(v.last_login) ? (v.kecepatan ?? 0) + " km/h" : "—"}</div>
+                </div>
+                <div>
+                  <MapPin className="mb-1.5 h-4 w-4 text-emerald-600" aria-hidden="true" />
+                  <p className="text-[10px] text-slate-500">Update GPS</p>
+                  <div className="mt-1 break-words font-semibold text-[#0c1e3a]">{minutesAgo(v.last_update)}</div>
+                </div>
+                <div>
+                  <Clock className="mb-1.5 h-4 w-4 text-blue-600" aria-hidden="true" />
+                  <p className="text-[10px] text-slate-500">App dibuka</p>
+                  <div className="mt-1 break-words font-semibold text-[#0c1e3a]">{v.last_open ? minutesAgo(v.last_open) : "—"}</div>
+                </div>
+              </div>
+
+              {v.session_online !== false && ((v.total_koli ?? 0) > 0 || (v.total_eceran ?? 0) > 0 || (v.total_high_value ?? 0) > 0) && (
+                <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-800">
+                  📦 {[(v.total_koli ?? 0) > 0 ? v.total_koli + " koli" : null, (v.total_eceran ?? 0) > 0 ? v.total_eceran + " ecer" : null, (v.total_high_value ?? 0) > 0 ? v.total_high_value + " HV" : null].filter(Boolean).join(" · ")}
+                </div>
+              )}
             </div>
-          </div>}
-          {phone && <div className="[&>a]:w-full [&>a]:min-h-11 [&>a]:border [&>a]:border-emerald-600 [&>a]:bg-emerald-600 [&>a]:!text-white [&>a:hover]:bg-emerald-700"><WhatsAppContact phone={phone} name={v.nama_driver} /></div>}
-        </div>
-      </Popup>}
+
+            {isCompleted ? (
+              <div className="border-t border-slate-100 pt-3 text-emerald-700">Rute selesai</div>
+            ) : eta && !v.offline && hasActiveSession(v.last_login) ? (
+              <div className="flex items-start gap-2.5 border-t border-slate-100 pt-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                  <MapPin className="h-4 w-4" aria-hidden="true" />
+                </div>
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="text-[10px] text-slate-500">Tujuan berikutnya</div>
+                  <p className="break-words text-xs font-semibold leading-snug text-[#0c1e3a]">{eta.label}</p>
+                  <div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-slate-500">
+                    <span>{eta.km}</span>
+                    <span>· ±{fmtDuration(eta.durationSeconds)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600">
+                    <Clock className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+                    <span>Estimasi tiba</span>
+                    <span className="font-semibold text-[#0c1e3a]">{fmtArrival(eta.durationSeconds)} WIB</span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {phone && (
+              <div className="[&>a]:w-full [&>a]:min-h-11 [&>a]:border [&>a]:border-emerald-600 [&>a]:bg-emerald-600 [&>a]:!text-white [&>a:hover]:bg-emerald-700">
+                <WhatsAppContact phone={phone} name={v.nama_driver} />
+              </div>
+            )}
+          </div>
+        </Popup>
+      )}
     </Marker>
   );
 }
@@ -704,8 +756,10 @@ function useActiveRoute(
   const stops = rit?.stops ?? [];
   const events = rit?.events ?? [];
 
+  const isPickup = vehicle?.role_driver === "driver_pickup";
+
   const next = useMemo(() => {
-    if (!vehicle || !hasActiveSession(vehicle.last_login) || vehicle.offline) return null;
+    if (!vehicle || !hasActiveSession(vehicle.last_login) || vehicle.offline || isPickup) return null;
     const points = stops.map((s) => resolveStopPoint(s, sellers, dropList, gudangList));
     const found = findNextStop(stops, points, events);
     if (found) return found;
@@ -743,14 +797,14 @@ function useActiveRoute(
     }
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vehicle, rit, stops, events, sellers, dropList, gudangList]);
+  }, [vehicle, rit, stops, events, sellers, dropList, gudangList, isPickup]);
 
   const [route, setRoute] = useState<RouteResult | null>(null);
   const lastKeyRef = useRef("");
   const lastPosRef = useRef<[number, number] | null>(null);
 
   useEffect(() => {
-    if (!vehicle || !hasActiveSession(vehicle.last_login) || !next) {
+    if (!vehicle || !hasActiveSession(vehicle.last_login) || !next || isPickup) {
       setRoute(null);
       lastKeyRef.current = "";
       lastPosRef.current = null;
@@ -780,10 +834,11 @@ function useActiveRoute(
     return () => {
       cancelled = true;
     };
-  }, [vehicle?.id_kendaraan, vehicle?.id_ritase, vehicle?.latitude, vehicle?.longitude, vehicle?.last_login, next?.stop.id_stop, next?.point.lat, next?.point.lng]);
+  }, [vehicle?.id_kendaraan, vehicle?.id_ritase, vehicle?.latitude, vehicle?.longitude, vehicle?.last_login, next?.stop.id_stop, next?.point.lat, next?.point.lng, isPickup]);
 
   // Detect trip completed: last event = "Selesai" atau ritase status = "completed"
   const isCompleted = useMemo(() => {
+    if (isPickup) return false;
     if (rit?.status === "completed") return true;
     if (events.length === 0) return false;
     const sorted = [...events].sort(
@@ -791,9 +846,9 @@ function useActiveRoute(
     );
     const last = (sorted[sorted.length - 1]?.status || "").toLowerCase();
     return last.includes("selesai") || last.includes("done") || last.includes("completed");
-  }, [events, rit?.status]);
+  }, [events, rit?.status, isPickup]);
 
-  return { next, route, kode: rit?.kode_ritase ?? null, isCompleted };
+  return { next, route, kode: isPickup ? null : (rit?.kode_ritase ?? null), isCompleted };
 }
 
 const typeLabel = (t: string) =>
@@ -871,21 +926,18 @@ function LiveMapView({
   // Rute yang digambar saat seller/gateway diklik (dari Outgoing & DC).
 
 
-  // Hanya tampilkan kendaraan yang AKTIF (online & sesi driver aktif atau ada update GPS fresh).
-  // Kendaraan yang offline explicit / driver logout dihilangkan dari peta.
+  // Hanya tampilkan kendaraan yang AKTIF (online, sesi driver aktif, driver pickup, GPS hari ini, atau sedang dipilih).
   const activeVehicles = useMemo(() => {
     return vehicles.filter((v) => {
       if (!v.latitude || !v.longitude) return false;
-      if (v.offline) return false;
-      if (hasActiveSession(v.last_login)) return true;
-      // Fallback untuk driver pickup / armada dengan GPS fresh (< 30 menit)
-      const t = new Date(v.last_update).getTime();
-      if (!Number.isNaN(t) && Date.now() - t < 30 * 60 * 1000) {
-        return true;
-      }
+      // 1. Selalu tampilkan kendaraan yang sedang dipilih oleh user
+      if (v.id_kendaraan === selectedVehicleId) return true;
+      // 2. Semua driver (pickup maupun reguler): HANYA tampil jika session aktif
+      if (v.session_online === true) return true;
+      // Driver yang sudah logout tidak ditampilkan di peta
       return false;
     });
-  }, [vehicles]);
+  }, [vehicles, selectedVehicleId]);
 
   // Rute LIVE armada terpilih: dari posisi truk → stop berikutnya (ritase aktif).
   const selectedVehicle =
@@ -901,12 +953,22 @@ function LiveMapView({
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const [focus, setFocus] = useState<{ lat: number; lng: number; ts: number } | null>(null);
 
+  // Track last handled initialFocus to avoid re-triggering loop
+  const lastHandledFocusRef = useRef<string | null>(null);
+
   // Fokus dinamis (dari sidebar/tabel/pencarian) — aktifkan layer & buka popup
   useEffect(() => {
-    if (!initialFocus) return;
-    const { type, id } = initialFocus;
+    if (!initialFocus) {
+      lastHandledFocusRef.current = null;
+      return;
+    }
+    const { type, id, ts: initialTs } = initialFocus;
+    const focusTargetKey = `${type}:${id}:${initialTs ?? ""}`;
+    if (lastHandledFocusRef.current === focusTargetKey) return;
+    lastHandledFocusRef.current = focusTargetKey;
+
     if (type === "truck") {
-      setShow((s) => ({ ...s, trucks: true }));
+      setShow((s) => (s.trucks ? s : { ...s, trucks: true }));
       onSelectVehicle(id);
       return;
     }
@@ -922,9 +984,9 @@ function LiveMapView({
     const ts = Date.now();
     setFocusKey(`${type}:${id}:${ts}`);
     setFocus({ lat: found.latitude, lng: found.longitude, ts });
-    if (type === "seller") setShow((s) => ({ ...s, sellers: true }));
-    else if (type === "drop") setShow((s) => ({ ...s, drop: true }));
-    else if (type === "gudang") setShow((s) => ({ ...s, gudang: true }));
+    if (type === "seller") setShow((s) => (s.sellers ? s : { ...s, sellers: true }));
+    else if (type === "drop") setShow((s) => (s.drop ? s : { ...s, drop: true }));
+    else if (type === "gudang") setShow((s) => (s.gudang ? s : { ...s, gudang: true }));
   }, [initialFocus, sellers, dropList, gudangList, onSelectVehicle]);
 
   const searchItems = useMemo(() => {
@@ -1106,7 +1168,7 @@ function LiveMapView({
         <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />
         <MapAutoResize />
         <FitBounds vehicles={activeVehicles} sellers={sellers} gudang={gudangList} dropPoints={dropList} />
-        <FocusSelected vehicles={activeVehicles} selectedVehicleId={selectedVehicleId} />
+        <FocusSelected vehicles={vehicles} selectedVehicleId={selectedVehicleId} initialFocus={initialFocus} />
 
         {/* Gudang (Outgoing biru / DC ungu) — dinamis, bisa difilter */}
         {show.gudang &&
@@ -1256,7 +1318,7 @@ function LiveMapView({
               isCompleted={
                 selectedVehicleId === v.id_kendaraan
                   ? v.role_driver === "driver_pickup"
-                    ? v.status === "Selesai"
+                    ? false
                     : activeRoute.isCompleted
                   : false
               }

@@ -111,3 +111,43 @@
   margin: 10px 12px;
   line-height: 1.45;
 }
+
+/* Animasi Kedip Merah-Kuning untuk Peringatan Ritase Kritis (<= 60 menit) */
+@keyframes alertBlinkYellowRed {
+  0%, 100% {
+    background-color: #dc2626; /* red-600 */
+    border-color: #f59e0b;     /* amber-500 */
+    color: #ffffff;
+    box-shadow: 0 0 14px rgba(220, 38, 38, 0.7);
+  }
+  50% {
+    background-color: #f59e0b; /* amber-500 */
+    border-color: #dc2626;     /* red-600 */
+    color: #ffffff;
+    box-shadow: 0 0 18px rgba(245, 158, 11, 0.8);
+  }
+}
+
+.animate-alert-blink {
+  animation: alertBlinkYellowRed 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Animasi Pulse Kuning/Amber untuk Peringatan Ritase Awal (<= 90 menit) */
+@keyframes alertWarningPulse {
+  0%, 100% {
+    background-color: #fffbeb; /* amber-50 */
+    border-color: #f59e0b;     /* amber-500 */
+    color: #92400e;            /* amber-800 */
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+  }
+  50% {
+    background-color: #fef3c7; /* amber-100 */
+    border-color: #d97706;     /* amber-600 */
+    color: #78350f;            /* amber-900 */
+    box-shadow: 0 0 16px rgba(245, 158, 11, 0.65);
+  }
+}
+
+.animate-warning-pulse {
+  animation: alertWarningPulse 1.6s ease-in-out infinite;
+}

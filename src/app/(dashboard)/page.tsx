@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   Boxes,
@@ -47,9 +47,9 @@ import type { RitaseInfo } from "@/components/armada/status-timeline";
 import { WhatsAppContact } from "@/components/armada/whatsapp-contact";
 import { VehicleItem } from "@/components/armada/vehicle-item";
 import { InfoTip } from "@/components/ui/info-tip";
-import { cn, formatNumber } from "@/lib/utils";
+import { cn, formatNumber, hasActiveSession } from "@/lib/utils";
 import { statusLabel } from "@/lib/constants";
-import type { TrackingCheckpoint, TrackingVehicle, RitaseDetail } from "@/types/armada";
+import type { TrackingCheckpoint, TrackingVehicle, RitaseDetail, DriverPickupLog } from "@/types/armada";
 
 const LiveMap = dynamic(
   () => import("@/components/map/live-map").then((m) => m.LiveMap),
@@ -177,7 +177,7 @@ export default function DashboardPage() {
   const isKoorGudang = role === "koor_gudang";
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [implanQ, setImplanQ] = useState("");
-  const [implanTab, setImplanTab] = useState<"menunggu" | "menuju_seller" | "diambil">("menunggu");
+  const [implanTab, setImplanTab] = useState<"menunggu" | "diambil" | "menuju_seller" | "reguler">("menunggu");
   const [focusTarget, setFocusTarget] = useState<{ type: string; id: number } | null>(null);
 
   // Jam WIB live (update tiap detik).
@@ -246,6 +246,84 @@ export default function DashboardPage() {
     [idsKey, token, selectedDate]
   );
   const histories = useQueries({ queries: historyQueries });
+
+  // Query seluruh riwayat pickup hari ini untuk menghitung ritase/sesi pickup terbaru secara akurat di Web
+  const pickupHistoryQuery = useQuery({
+    queryKey: ["pickupHistoryToday", todayLocal()],
+    queryFn: () =>
+      get<DriverPickupLog[]>("/armada/pickup/history", {
+        token,
+        query: { tanggal: todayLocal() },
+      }),
+    enabled: !!token,
+    refetchInterval: 10_000,
+  });
+
+  // Hitung jumlah AWB / muatan per driver pickup mulai dari sesi pickup terbaru (cutoff saat selesai / mulai pickup baru)
+  const resolvedDriverPickups = useMemo(() => {
+    const dps = map.data?.driver_pickups ?? [];
+    if (!pickupHistoryQuery.data || pickupHistoryQuery.data.length === 0) return dps;
+
+    // Kelompokkan log per id_user (terurut DESC dari backend)
+    const logsByUser = new Map<number, DriverPickupLog[]>();
+    for (const log of pickupHistoryQuery.data) {
+      if (log.id_user == null) continue;
+      const list = logsByUser.get(log.id_user) ?? [];
+      list.push(log);
+      logsByUser.set(log.id_user, list);
+    }
+
+    return dps.map((dp) => {
+      const uLogs = logsByUser.get(dp.id_user);
+      if (!uLogs || uLogs.length === 0) return dp;
+
+      // Jika log terakhir berstatus 'selesai', berarti ritase selesai dan belum mulai lagi
+      const latestLog = uLogs[0];
+      const latestStatus = (latestLog.status || "").toLowerCase();
+      if (latestStatus === "selesai") {
+        return {
+          ...dp,
+          jumlah_barang: 0,
+          koli: 0,
+          ecer: 0,
+          high_value: 0,
+        };
+      }
+
+      let sumAwb = 0;
+      let sumKoli = 0;
+      let sumEcer = 0;
+      let sumHv = 0;
+
+      for (const l of uLogs) {
+        const st = (l.status || "").toLowerCase();
+        const cat = (l.catatan || "").toLowerCase();
+        const asal = (l.asal_seller || "").toLowerCase();
+
+        // Titik cutoff: log 'selesai' sebelumnya atau log 'mulai pickup' (berangkat dari gudang)
+        if (
+          st === "selesai" ||
+          cat.includes("berangkat dari gudang") ||
+          (st === "menuju_seller" && asal === "gudang")
+        ) {
+          break;
+        }
+
+        sumAwb += l.jumlah_barang || 0;
+        sumKoli += l.koli || 0;
+        sumEcer += l.ecer || 0;
+        sumHv += l.high_value || 0;
+      }
+
+      return {
+        ...dp,
+        jumlah_barang: sumAwb,
+        koli: sumKoli,
+        ecer: sumEcer,
+        high_value: sumHv,
+      };
+    });
+  }, [map.data?.driver_pickups, pickupHistoryQuery.data]);
 
   // Definisi "Aktif/LIVE": GPS masih fresh — field `offline` dari backend
   // adalah sumber kebenaran (computed di SQL berdasarkan TRACKING_OFFLINE_MIN = 3 mnt).
@@ -348,11 +426,17 @@ export default function DashboardPage() {
   const mapVehicles = useMemo(() => {
     if (mapFilter === "warehouse") return [];
     return vehicles.map((v) => {
-      const dp = (map.data?.driver_pickups ?? []).find((d) => 
-        (d.nama_driver && v.nama_driver && d.nama_driver.toLowerCase() === v.nama_driver.toLowerCase()) ||
-        (d.id_user === v.id_driver)
+      const dp = (resolvedDriverPickups ?? []).find(
+        (d) =>
+          d.nama_driver &&
+          v.nama_driver &&
+          d.nama_driver.toLowerCase() === v.nama_driver.toLowerCase()
       );
-      if (dp && (dp.jumlah_barang ?? 0) > 0) {
+      const isPickup =
+        v.role_driver === "driver_pickup" ||
+        (dp && (dp.status === "menuju_seller" || dp.status === "menuju_gudang"));
+
+      if (dp && isPickup) {
         return {
           ...v,
           role_driver: "driver_pickup",
@@ -364,7 +448,7 @@ export default function DashboardPage() {
       }
       return v;
     });
-  }, [vehicles, mapFilter, map.data?.driver_pickups]);
+  }, [vehicles, mapFilter, resolvedDriverPickups]);
 
   // Loading skeleton untuk koor_gudang (fokus map saja)
   if (isKoorGudang && map.isLoading) {
@@ -493,18 +577,11 @@ export default function DashboardPage() {
         ((s.jumlah_barang ?? 0) > 0 || (s.koli ?? 0) > 0 || (s.ecer ?? 0) > 0 || (s.high_value ?? 0) > 0)
     );
 
-    const driverPickups = map.data?.driver_pickups ?? [];
+    const driverPickups = resolvedDriverPickups;
     const driverPickupsMenujuGudang = driverPickups.filter((d) => d.status === "menuju_gudang");
     const driverPickupsMenujuSeller = driverPickups.filter((d) => d.status === "menuju_seller");
-    const activeDriverPickups = driverPickups.filter((d) => d.status === "menuju_gudang" || d.status === "menuju_seller" || (d.jumlah_barang ?? 0) > 0);
-    const displayedDrivers = driverPickups.filter((d) => {
-      if (!ql) return true;
-      return (
-        d.nama_driver.toLowerCase().includes(ql) ||
-        d.username.toLowerCase().includes(ql) ||
-        (d.asal_seller || "").toLowerCase().includes(ql)
-      );
-    });
+    const regularDrivers = vehicles.filter((v) => v.role_driver !== "driver_pickup" && v.session_online === true);
+
     const displayedMenujuGudangDrivers = driverPickupsMenujuGudang.filter((d) => {
       if (!ql) return true;
       return (
@@ -521,6 +598,15 @@ export default function DashboardPage() {
         (d.asal_seller || "").toLowerCase().includes(ql)
       );
     });
+    const displayedRegularDrivers = regularDrivers.filter((v) => {
+      if (!ql) return true;
+      return (
+        (v.nama_driver || "").toLowerCase().includes(ql) ||
+        (v.plat_nomor || "").toLowerCase().includes(ql) ||
+        (v.nama_lokasi || "").toLowerCase().includes(ql) ||
+        (v.kode_ritase || "").toLowerCase().includes(ql)
+      );
+    });
 
     const totalAwbWaiting = waitingSellers.reduce((acc, s) => acc + (s.jumlah_barang ?? 0), 0);
     const totalKoliWaiting = waitingSellers.reduce((acc, s) => acc + (s.koli ?? 0), 0);
@@ -532,6 +618,10 @@ export default function DashboardPage() {
 
     const totalAwbMenujuSeller = driverPickupsMenujuSeller.reduce((acc, d) => acc + (d.jumlah_barang ?? 0), 0);
     const totalKoliMenujuSeller = driverPickupsMenujuSeller.reduce((acc, d) => acc + (d.koli ?? 0), 0);
+
+    const totalAwbReguler = regularDrivers.reduce((acc, v) => acc + (v.total_awb ?? 0), 0);
+    const totalKoliReguler = regularDrivers.reduce((acc, v) => acc + (v.total_koli ?? 0), 0);
+    const totalHvReguler = regularDrivers.reduce((acc, v) => acc + (v.total_high_value ?? 0), 0);
 
     const displayedSellers = waitingSellers.filter((s) => {
       if (!ql) return true;
@@ -555,12 +645,12 @@ export default function DashboardPage() {
             phones={phones}
             initialFocus={focusTarget ?? undefined}
             selectedVehicleId={selectedId}
-            onSelectVehicle={(id) => setSelectedId(id)}
+            onSelectVehicle={setSelectedId}
           />
 
           {/* FLOATING TRIGGER SAAT PANEL KANAN DIPERKECIL */}
           {!rightPanelOpen && (
-            <div className="absolute top-3 left-14 z-[1000] flex flex-wrap items-center gap-2">
+            <div className="absolute top-3 left-14 z-20 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -599,23 +689,46 @@ export default function DashboardPage() {
                 <Truck className="h-3.5 w-3.5" />
                 <span>Menuju Gudang ({driverPickupsMenujuGudang.length})</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setImplanTab("reguler");
+                  setRightPanelOpen(true);
+                }}
+                className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-lg border border-white/10 hover:bg-blue-700 active:scale-95 transition-all"
+                title="Buka daftar driver reguler"
+              >
+                <Truck className="h-3.5 w-3.5" />
+                <span>Reguler ({regularDrivers.length})</span>
+              </button>
             </div>
           )}
         </div>
 
-        {/* SIDEBAR KANAN: 2 INFORMASI UTAMA KOORDINATOR GUDANG */}
+        {/* SIDEBAR KANAN: KOORDINATOR GUDANG */}
         {rightPanelOpen && (
-          <aside className="relative flex h-full w-full max-w-[390px] shrink-0 flex-col gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm transition-all duration-300">
+          <aside className="relative flex h-full w-full max-w-[400px] shrink-0 flex-col gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm transition-all duration-300">
             {/* Header sidebar kanan */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
               <div className="flex items-center gap-2">
                 <div
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-lg text-white shadow-xs shrink-0",
-                    implanTab === "menunggu" ? "bg-amber-500" : implanTab === "menuju_seller" ? "bg-amber-600" : "bg-emerald-600"
+                    implanTab === "menunggu"
+                      ? "bg-amber-500"
+                      : implanTab === "menuju_seller"
+                      ? "bg-amber-600"
+                      : implanTab === "diambil"
+                      ? "bg-emerald-600"
+                      : "bg-blue-600"
                   )}
                 >
-                  {implanTab === "diambil" ? <Truck className="h-3.5 w-3.5 text-white" /> : <Store className="h-3.5 w-3.5 text-white" />}
+                  {implanTab === "menunggu" ? (
+                    <Store className="h-3.5 w-3.5 text-white" />
+                  ) : (
+                    <Truck className="h-3.5 w-3.5 text-white" />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 leading-tight">
@@ -623,15 +736,19 @@ export default function DashboardPage() {
                       ? "Implan Perlu Dijemput"
                       : implanTab === "menuju_seller"
                       ? "Driver Menuju Seller"
-                      : "Driver Pickup Menuju Gudang"}
+                      : implanTab === "diambil"
+                      ? "Driver Pickup Menuju Gudang"
+                      : "Driver Reguler (Antar / Ambil)"}
                   </h2>
                   <p className="text-[10px] text-slate-400 font-medium mt-0.5 leading-tight">
                     {implanTab === "menunggu" ? (
                       <span>{waitingSellers.length} menunggu · <b className="text-amber-600">{totalAwbWaiting} AWB</b></span>
                     ) : implanTab === "menuju_seller" ? (
                       <span>{driverPickupsMenujuSeller.length} driver · <b className="text-amber-700">{totalAwbMenujuSeller} AWB</b></span>
-                    ) : (
+                    ) : implanTab === "diambil" ? (
                       <span>{driverPickupsMenujuGudang.length} driver · <b className="text-emerald-700">{totalAwbDriver} AWB</b></span>
+                    ) : (
+                      <span>{regularDrivers.length} armada · <b className="text-blue-700">{totalKoliReguler} Koli</b></span>
                     )}
                   </p>
                 </div>
@@ -650,8 +767,8 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Tab Filter (3 Fokus Utama Fadel) */}
-            <div className="grid grid-cols-3 gap-1 border-b border-slate-100 pb-2">
+            {/* Tab Filter (4 Pilihan: Perlu Jemput, Menuju Gudang, Menuju Seller, Driver Reguler) */}
+            <div className="grid grid-cols-4 gap-1 border-b border-slate-100 pb-2">
               {/* Tab 1: Perlu Jemput */}
               <button
                 type="button"
@@ -664,9 +781,9 @@ export default function DashboardPage() {
                 )}
               >
                 <Store className="h-3.5 w-3.5 shrink-0" />
-                <span className="text-[9px] font-bold leading-tight text-center whitespace-nowrap">Perlu Jemput</span>
+                <span className="text-[8.5px] font-bold leading-tight text-center whitespace-nowrap">Jemput</span>
                 <span className={cn(
-                  "text-[11px] font-black leading-tight tabular-nums",
+                  "text-[10px] font-black leading-tight tabular-nums",
                   implanTab === "menunggu" ? "text-white" : "text-slate-700"
                 )}>{waitingSellers.length}</span>
               </button>
@@ -683,9 +800,9 @@ export default function DashboardPage() {
                 )}
               >
                 <Truck className="h-3.5 w-3.5 shrink-0" />
-                <span className="text-[9px] font-bold leading-tight text-center whitespace-nowrap">Menuju Gudang</span>
+                <span className="text-[8.5px] font-bold leading-tight text-center whitespace-nowrap">Ke Gudang</span>
                 <span className={cn(
-                  "text-[11px] font-black leading-tight tabular-nums",
+                  "text-[10px] font-black leading-tight tabular-nums",
                   implanTab === "diambil" ? "text-white" : "text-slate-700"
                 )}>{driverPickupsMenujuGudang.length}</span>
               </button>
@@ -702,15 +819,34 @@ export default function DashboardPage() {
                 )}
               >
                 <Store className="h-3.5 w-3.5 shrink-0" />
-                <span className="text-[9px] font-bold leading-tight text-center whitespace-nowrap">Menuju Seller</span>
+                <span className="text-[8.5px] font-bold leading-tight text-center whitespace-nowrap">Ke Seller</span>
                 <span className={cn(
-                  "text-[11px] font-black leading-tight tabular-nums",
+                  "text-[10px] font-black leading-tight tabular-nums",
                   implanTab === "menuju_seller" ? "text-white" : "text-slate-700"
                 )}>{driverPickupsMenujuSeller.length}</span>
               </button>
+
+              {/* Tab 4: Driver Reguler */}
+              <button
+                type="button"
+                onClick={() => setImplanTab("reguler")}
+                className={cn(
+                  "flex flex-col items-center justify-center rounded-lg py-2 px-1 transition-all gap-0.5",
+                  implanTab === "reguler"
+                    ? "bg-blue-600 text-white shadow-xs"
+                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                )}
+              >
+                <Truck className="h-3.5 w-3.5 shrink-0" />
+                <span className="text-[8.5px] font-bold leading-tight text-center whitespace-nowrap">Reguler</span>
+                <span className={cn(
+                  "text-[10px] font-black leading-tight tabular-nums",
+                  implanTab === "reguler" ? "text-white" : "text-slate-700"
+                )}>{regularDrivers.length}</span>
+              </button>
             </div>
 
-            {/* Summary Banner Muatan - compact for mobile */}
+            {/* Summary Banner Muatan */}
             {implanTab === "menunggu" && (
               <div className="rounded-lg bg-amber-50 border border-amber-200/70 px-3 py-2 text-[11px] text-amber-900 flex items-center justify-between gap-2">
                 <span className="font-semibold flex items-center gap-1 shrink-0">
@@ -744,6 +880,17 @@ export default function DashboardPage() {
                 </span>
               </div>
             )}
+            {implanTab === "reguler" && (
+              <div className="rounded-lg bg-blue-50 border border-blue-200/70 px-3 py-2 text-[11px] text-blue-900 flex items-center justify-between gap-2">
+                <span className="font-semibold flex items-center gap-1 shrink-0">
+                  <Truck className="h-3 w-3 text-blue-600" />
+                  Total:
+                </span>
+                <span className="font-extrabold text-blue-700 tabular-nums text-right">
+                  {totalAwbReguler} AWB · {totalKoliReguler} Koli · {totalHvReguler} HV
+                </span>
+              </div>
+            )}
 
             {/* Pencarian */}
             <div className="relative">
@@ -751,7 +898,13 @@ export default function DashboardPage() {
               <input
                 value={implanQ}
                 onChange={(e) => setImplanQ(e.target.value)}
-                placeholder={implanTab === "menunggu" ? "Cari toko implan, kota, PIC..." : "Cari nama driver pickup, asal..."}
+                placeholder={
+                  implanTab === "menunggu"
+                    ? "Cari toko implan, kota, PIC..."
+                    : implanTab === "reguler"
+                    ? "Cari driver, plat nopol, lokasi..."
+                    : "Cari nama driver pickup, asal..."
+                }
                 className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50/60 pl-8 pr-3 text-xs outline-none focus:border-[#0c1e3a] focus:bg-white focus:ring-2 focus:ring-[#0c1e3a]/15 transition-all"
               />
             </div>
@@ -775,8 +928,8 @@ export default function DashboardPage() {
                   <div className="space-y-2">
                     {displayedMenujuGudangDrivers.map((d) => {
                       const targetVeh = vehicles.find((v) => 
-                        (v.nama_driver && d.nama_driver && v.nama_driver.toLowerCase() === d.nama_driver.toLowerCase()) ||
-                        (v.id_driver && v.id_driver === d.id_user)
+                        (v.nama_driver && d.nama_driver && v.nama_driver.trim().toLowerCase() === d.nama_driver.trim().toLowerCase()) ||
+                        (v.id_driver && d.id_user && v.id_driver === d.id_user)
                       );
                       const isSelected = !!(targetVeh && selectedId === targetVeh.id_kendaraan);
 
@@ -786,10 +939,10 @@ export default function DashboardPage() {
                           onClick={() => {
                             if (targetVeh) {
                               setSelectedId(targetVeh.id_kendaraan);
-                              setFocusTarget({ type: "truck", id: targetVeh.id_kendaraan });
+                              setFocusTarget({ type: "truck", id: targetVeh.id_kendaraan, ts: Date.now() } as any);
                             } else if (d.asal_seller) {
                               const sellerMatch = sellers.find((s) => s.nama_seller.toLowerCase().includes((d.asal_seller || "").toLowerCase()));
-                              if (sellerMatch) setFocusTarget({ type: "seller", id: sellerMatch.id_seller });
+                              if (sellerMatch) setFocusTarget({ type: "seller", id: sellerMatch.id_seller, ts: Date.now() } as any);
                             }
                           }}
                           className={cn(
@@ -866,8 +1019,8 @@ export default function DashboardPage() {
                   <div className="space-y-2">
                     {displayedMenujuSellerDrivers.map((d) => {
                       const targetVeh = vehicles.find((v) => 
-                        (v.nama_driver && d.nama_driver && v.nama_driver.toLowerCase() === d.nama_driver.toLowerCase()) ||
-                        (v.id_driver && v.id_driver === d.id_user)
+                        (v.nama_driver && d.nama_driver && v.nama_driver.trim().toLowerCase() === d.nama_driver.trim().toLowerCase()) ||
+                        (v.id_driver && d.id_user && v.id_driver === d.id_user)
                       );
                       const isSelected = !!(targetVeh && selectedId === targetVeh.id_kendaraan);
 
@@ -877,10 +1030,10 @@ export default function DashboardPage() {
                           onClick={() => {
                             if (targetVeh) {
                               setSelectedId(targetVeh.id_kendaraan);
-                              setFocusTarget({ type: "truck", id: targetVeh.id_kendaraan });
+                              setFocusTarget({ type: "truck", id: targetVeh.id_kendaraan, ts: Date.now() } as any);
                             } else if (d.asal_seller) {
                               const sellerMatch = sellers.find((s) => s.nama_seller.toLowerCase().includes((d.asal_seller || "").toLowerCase()));
-                              if (sellerMatch) setFocusTarget({ type: "seller", id: sellerMatch.id_seller });
+                              if (sellerMatch) setFocusTarget({ type: "seller", id: sellerMatch.id_seller, ts: Date.now() } as any);
                             }
                           }}
                           className={cn(
@@ -938,6 +1091,106 @@ export default function DashboardPage() {
                           )}
                           {d.catatan && (
                             <p className="mt-1 text-[10px] text-slate-500 italic">&quot;{d.catatan}&quot;</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )
+              ) : implanTab === "reguler" ? (
+                /* TAB DRIVER REGULER: armada reguler */
+                displayedRegularDrivers.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400">
+                    <Truck className="mx-auto mb-2 h-7 w-7 text-slate-300" />
+                    <p className="text-xs font-semibold text-slate-600">
+                      {ql ? "Tidak ada driver yang cocok" : "Belum ada armada reguler"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {displayedRegularDrivers.map((v, idx) => {
+                      const isSelected = selectedId === v.id_kendaraan;
+                      const live = isOnline(v);
+                      const isSessionActive =
+                        v.session_online !== undefined && v.session_online !== null
+                          ? v.session_online
+                          : hasActiveSession(v.last_login);
+                      const loggedOut = !isSessionActive;
+                      const phone = v.nama_driver ? phones[v.nama_driver.toLowerCase()] : undefined;
+
+                      return (
+                        <div
+                          key={`reg-${v.id_kendaraan}-${v.id_driver || idx}`}
+                          onClick={() => {
+                            setSelectedId(v.id_kendaraan);
+                            setFocusTarget({ type: "truck", id: v.id_kendaraan });
+                          }}
+                          className={cn(
+                            "rounded-xl border p-3 text-xs shadow-xs transition-all cursor-pointer hover:shadow-md hover:scale-[1.01]",
+                            isSelected
+                              ? "border-blue-500 bg-blue-100/60 ring-2 ring-blue-500/30"
+                              : "border-slate-200 bg-white hover:border-blue-300"
+                          )}
+                          title="Klik untuk melihat posisi armada di peta"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-slate-900 capitalize truncate">{v.nama_driver || "Tanpa Driver"}</span>
+                                {v.plat_nomor && (
+                                  <span className="rounded bg-slate-800 text-white px-1.5 py-0.5 text-[9px] font-bold tracking-wide">
+                                    🚚 {v.plat_nomor}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                <span
+                                  className={cn(
+                                    "rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                                    loggedOut
+                                      ? "bg-slate-200 text-slate-600"
+                                      : live
+                                      ? "bg-emerald-600 text-white"
+                                      : "bg-amber-100 text-amber-800"
+                                  )}
+                                >
+                                  {loggedOut ? "Logout" : live ? "LIVE" : "Standby"}
+                                </span>
+                                {phone && (
+                                  <a
+                                    href={`tel:${phone.replace(/[^+\d]/g, "")}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:underline"
+                                  >
+                                    <Phone className="h-3 w-3" /> {phone}
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <div className="rounded-lg px-2 py-1 text-center shadow-2xs min-w-[38px] border bg-slate-100 text-slate-700 border-slate-200/70">
+                                <span className="block text-[12px] leading-tight font-extrabold">{v.total_koli ?? 0}</span>
+                                <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-75">Koli</span>
+                              </div>
+                              <div className="rounded-lg px-2 py-1 text-center shadow-2xs min-w-[38px] border bg-slate-100 text-slate-700 border-slate-200/70">
+                                <span className="block text-[12px] leading-tight font-extrabold">{v.total_eceran ?? 0}</span>
+                                <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-75">Ecer</span>
+                              </div>
+                              <div className="rounded-lg px-2 py-1 text-center shadow-2xs min-w-[38px] border bg-slate-100 text-slate-700 border-slate-200/70">
+                                <span className="block text-[12px] leading-tight font-extrabold">{v.total_high_value ?? 0}</span>
+                                <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-75">HV</span>
+                              </div>
+                            </div>
+                          </div>
+                          {v.nama_lokasi && (
+                            <p className="mt-1.5 rounded bg-slate-50 px-2 py-1 text-[10px] text-slate-700 border border-slate-200 font-medium truncate">
+                              📍 <b>{v.nama_lokasi}</b>
+                            </p>
+                          )}
+                          {v.status_ritase && (
+                            <p className="mt-1 text-[10px] text-slate-500">
+                              Ritase: <span className="font-semibold text-slate-700">{v.status_ritase}</span> {v.kode_ritase ? `(${v.kode_ritase})` : ""}
+                            </p>
                           )}
                         </div>
                       );

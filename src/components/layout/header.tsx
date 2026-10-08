@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound, LogOut, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,46 +16,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ROLE_LABEL, USE_MOCK } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth-store";
-import { useRealtimeStore } from "@/stores/realtime-store";
 import { changePasswordRequest } from "@/lib/auth";
 import { MobileNav } from "@/components/layout/mobile-nav";
-
-/** Badge kecil status koneksi realtime (SSE). Hanya muncul saat connected/reconnecting. */
-function RealtimeBadge() {
-  const status = useRealtimeStore((s) => s.status);
-  if (status === "disconnected") return null;
-  const cfg =
-    status === "connected"
-      ? { label: "LIVE", dot: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" }
-      : { label: "MENGHUBUNGKAN", dot: "bg-amber-500 animate-pulse", text: "text-amber-700", bg: "bg-amber-50 border-amber-200" };
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cfg.bg} ${cfg.text}`}
-      title="Koneksi data realtime (push server)"
-    >
-      <i className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
-      <span className="sm:hidden">{status === "connected" ? "LIVE" : "Koneksi…"}</span><span className="hidden sm:inline">{cfg.label}</span>
-    </span>
-  );
-}
+import { HeaderRitaseTimer } from "@/components/layout/header-ritase-timer";
 
 export function Header() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const token = useAuthStore((s) => s.token);
-
-  // Jam WIB live
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  const formattedDate = useMemo(() =>
-    new Intl.DateTimeFormat("id-ID", { weekday: "long", day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Jakarta" }).format(now)
-  , [now]);
-  const formattedTime = useMemo(() =>
-    new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Jakarta" }).format(now)
-  , [now]);
+  const showRitaseTimer = user?.role === "koor_gudang" || user?.role === "admin" || user?.role === "developer" || (user?.role as string) === "koor_lapangan";
 
   // State modal ganti password
   const [showChangePw, setShowChangePw] = useState(false);
@@ -106,31 +75,29 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex min-h-[64px] flex-wrap items-center justify-between gap-y-1 py-2 sm:h-[72px] sm:flex-nowrap sm:py-0 border-b border-slate-200 bg-white px-3 sm:px-6 dark:bg-background">
-      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-3 sm:px-5 dark:bg-background">
+      {/* KIRI: Hamburger + Jam/Ritase */}
+      <div className="flex items-center gap-2 min-w-0 flex-1">
         <MobileNav />
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2.5">
-          <span className="whitespace-nowrap text-sm sm:text-[15px] font-bold tracking-tight text-[#0c1e3a]">
-            Tower Control
+        {USE_MOCK && (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 shrink-0">
+            Mock
           </span>
-          {USE_MOCK && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
-              Mock
-            </span>
-          )}
-          <RealtimeBadge />
-        </div>
+        )}
+        {/* Jam & Ritase Timer menggantikan label Tower Control */}
+        {showRitaseTimer ? (
+          <HeaderRitaseTimer />
+        ) : (
+          <span className="text-[13px] font-bold tracking-tight text-[#0c1e3a] truncate">Tower Control</span>
+        )}
       </div>
 
-      <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-4">
-        <div className="hidden flex-col items-end leading-tight sm:flex">
-          <span className="text-[11px] text-slate-500">{formattedDate}</span>
-          <span className="text-sm font-semibold tabular-nums text-slate-700">{formattedTime} WIB</span>
-        </div>
+      {/* KANAN: Avatar & dropdown */}
+      <div className="flex items-center gap-2 shrink-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button aria-label="Buka menu akun" className="flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline focus-visible:outline-blue-600">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0c1e3a] text-sm font-bold text-amber-400">
+            <button aria-label="Buka menu akun" className="flex items-center gap-2 rounded-full outline-none focus-visible:outline focus-visible:outline-blue-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0c1e3a] text-sm font-bold text-amber-400">
                 {user?.name?.charAt(0) ?? "A"}
               </div>
             </button>

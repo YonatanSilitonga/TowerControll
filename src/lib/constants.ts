@@ -33,6 +33,7 @@ export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 export const ROLE_LABEL: Record<UserRole, string> = {
   admin: "Admin",
+  developer: "Developer",
   tower_control: "Tower Control",
   direktur: "Direktur",
   driver: "Driver",
@@ -42,16 +43,17 @@ export const ROLE_LABEL: Record<UserRole, string> = {
 
 /** Mapping role -> modul yang boleh diakses (untuk menu & guard). */
 export const ROLE_MENU: Record<UserRole, string[]> = {
-  admin: ["dashboard", "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "armada-live-map", "riwayat-pickup", "implan", "gudang", "absensi", "section-armada", "section-menu", "section-lainnya"],
-  tower_control: ["dashboard", "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "armada-live-map", "riwayat-pickup", "implan", "section-armada", "section-menu", "section-lainnya"],
-  direktur: ["dashboard", "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "armada-live-map", "riwayat-pickup", "implan", "section-armada", "section-menu", "section-lainnya"],
+  admin: ["dashboard", "peta", "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "armada-live-map", "riwayat-pickup", "implan", "gudang", "absensi", "section-armada", "section-menu", "section-lainnya"],
+  developer: ["dashboard", "peta", "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "armada-live-map", "riwayat-pickup", "implan", "gudang", "absensi", "section-armada", "section-menu", "section-lainnya"],
+  tower_control: ["dashboard", "peta", "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "armada-live-map", "riwayat-pickup", "implan", "section-armada", "section-menu", "section-lainnya"],
+  direktur: ["dashboard", "peta", "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips", "jadwal", "manifest-foto", "analitik", "efektivitas-armada", "armada-live-map", "riwayat-pickup", "implan", "section-armada", "section-menu", "section-lainnya"],
   driver: ["dashboard", "armada"],
   koor_gudang: ["peta"],
   driver_pickup: ["dashboard"],
 };
 
-/** Role yang boleh masuk dashboard WEB (admin, direktur, tower_control & koor_gudang). Driver = mobile. */
-export const ALLOWED_WEB_ROLES: UserRole[] = ["admin", "direktur", "tower_control", "koor_gudang"];
+/** Role yang boleh masuk dashboard WEB (admin, developer, direktur, tower_control & koor_gudang). Driver = mobile. */
+export const ALLOWED_WEB_ROLES: UserRole[] = ["admin", "developer", "direktur", "tower_control", "koor_gudang"];
 
 export const DELIVERY_STATUS_LABEL: Record<string, string> = {
   in_transit: "IN TRANSIT",

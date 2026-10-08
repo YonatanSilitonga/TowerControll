@@ -13,6 +13,7 @@ import {
   Boxes,
   FileSpreadsheet,
   X,
+  ChevronLeft,
   ChevronRight,
   Store,
   LayoutGrid,
@@ -60,15 +61,20 @@ interface SellerAggregated {
 
 export default function RiwayatPickupPage() {
   const dateInputRef = useRef<HTMLInputElement>(null);
+  const monthInputRef = useRef<HTMLInputElement>(null);
 
   // Filter States
   const [search, setSearch] = useState("");
   const [selectedDriver, setSelectedDriver] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [dateMode, setDateMode] = useState<"today" | "yesterday" | "custom">("today");
+  const [dateMode, setDateMode] = useState<"today" | "yesterday" | "this_week" | "custom_day" | "custom_month">("today");
   const [pickedDate, setPickedDate] = useState<string>(() => {
     const today = new Date();
     return today.toISOString().split("T")[0];
+  });
+  const [pickedMonth, setPickedMonth] = useState<string>(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   });
 
   // Tampilan Mode: 'analytics' (Driver Cards) vs 'raw' (Audit Logs)
@@ -78,34 +84,99 @@ export default function RiwayatPickupPage() {
   const [modalDriver, setModalDriver] = useState<DriverAggregated | null>(null);
   const [modalLogDetail, setModalLogDetail] = useState<DriverPickupLog | null>(null);
 
-  // Tanggal aktif yang dipakai query
-  const activeDate = useMemo(() => {
+  // Rentang tanggal aktif yang dipakai query
+  const activeDateRange = useMemo<{
+    startDate: string;
+    endDate: string;
+    label: string;
+  }>(() => {
     const now = new Date();
+
     if (dateMode === "today") {
-      return now.toISOString().split("T")[0];
+      const todayStr = now.toISOString().split("T")[0];
+      return {
+        startDate: todayStr,
+        endDate: todayStr,
+        label: `Hari Ini (${todayStr})`,
+      };
     }
+
     if (dateMode === "yesterday") {
       const yest = new Date(now);
       yest.setDate(yest.getDate() - 1);
-      return yest.toISOString().split("T")[0];
+      const yestStr = yest.toISOString().split("T")[0];
+      return {
+        startDate: yestStr,
+        endDate: yestStr,
+        label: `Kemarin (${yestStr})`,
+      };
     }
-    return pickedDate;
-  }, [dateMode, pickedDate]);
+
+    if (dateMode === "this_week") {
+      const currentDay = now.getDay();
+      const diffToMonday = (currentDay === 0 ? -6 : 1) - currentDay;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() + diffToMonday);
+
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+
+      const monStr = monday.toISOString().split("T")[0];
+      const sunStr = sunday.toISOString().split("T")[0];
+      return {
+        startDate: monStr,
+        endDate: sunStr,
+        label: `Minggu Ini (${monStr} s/d ${sunStr})`,
+      };
+    }
+
+    if (dateMode === "custom_day") {
+      return {
+        startDate: pickedDate,
+        endDate: pickedDate,
+        label: `Tanggal: ${pickedDate}`,
+      };
+    }
+
+    if (dateMode === "custom_month") {
+      const parts = pickedMonth.split("-");
+      const year = parseInt(parts[0], 10) || now.getFullYear();
+      const monthIndex = (parseInt(parts[1], 10) || now.getMonth() + 1) - 1;
+
+      const firstDay = new Date(year, monthIndex, 1);
+      const lastDay = new Date(year, monthIndex + 1, 0);
+
+      const startMonthStr = firstDay.toISOString().split("T")[0];
+      const endMonthStr = lastDay.toISOString().split("T")[0];
+      const monthName = firstDay.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+
+      return {
+        startDate: startMonthStr,
+        endDate: endMonthStr,
+        label: `Bulan ${monthName}`,
+      };
+    }
+
+    const todayStr = now.toISOString().split("T")[0];
+    return {
+      startDate: todayStr,
+      endDate: todayStr,
+      label: todayStr,
+    };
+  }, [dateMode, pickedDate, pickedMonth]);
 
   // Query parameters
   const queryParams = useMemo(() => {
     const params: {
       start_date?: string;
       end_date?: string;
-      tanggal?: string;
       id_user?: number;
       status?: string;
       limit?: number;
     } = {
-      tanggal: activeDate,
-      start_date: activeDate,
-      end_date: activeDate,
-      limit: 2000,
+      start_date: activeDateRange.startDate,
+      end_date: activeDateRange.endDate,
+      limit: 5000,
     };
 
     if (selectedDriver !== "all") {
@@ -120,14 +191,14 @@ export default function RiwayatPickupPage() {
     }
 
     return params;
-  }, [activeDate, selectedDriver, selectedStatus]);
+  }, [activeDateRange, selectedDriver, selectedStatus]);
 
   // Data Fetching
   const { data: logs = [], isLoading, isFetching, refetch } = useAllDriverPickupHistory(queryParams);
   const { data: driverPickups = [] } = useDriverPickups();
 
   // Date Filter Handler
-  const handleDateModeChange = (mode: "today" | "yesterday" | "custom") => {
+  const handleDateModeChange = (mode: "today" | "yesterday" | "this_week" | "custom_day" | "custom_month") => {
     setDateMode(mode);
     const now = new Date();
     if (mode === "today") {
@@ -137,6 +208,35 @@ export default function RiwayatPickupPage() {
       yest.setDate(yest.getDate() - 1);
       setPickedDate(yest.toISOString().split("T")[0]);
     }
+  };
+
+  // Month & Year Picker Modal State
+  const [showMonthModal, setShowMonthModal] = useState(false);
+  const [monthPickerYear, setMonthPickerYear] = useState<number>(() => {
+    const today = new Date();
+    return today.getFullYear();
+  });
+
+  const MONTH_NAMES = [
+    { num: "01", short: "Jan", full: "Januari" },
+    { num: "02", short: "Feb", full: "Februari" },
+    { num: "03", short: "Mar", full: "Maret" },
+    { num: "04", short: "Apr", full: "April" },
+    { num: "05", short: "Mei", full: "Mei" },
+    { num: "06", short: "Jun", full: "Juni" },
+    { num: "07", short: "Jul", full: "Juli" },
+    { num: "08", short: "Ags", full: "Agustus" },
+    { num: "09", short: "Sep", full: "September" },
+    { num: "10", short: "Okt", full: "Oktober" },
+    { num: "11", short: "Nov", full: "November" },
+    { num: "12", short: "Des", full: "Desember" },
+  ];
+
+  const handleSelectMonth = (monthNum: string) => {
+    const formatted = `${monthPickerYear}-${monthNum}`;
+    setPickedMonth(formatted);
+    setDateMode("custom_month");
+    setShowMonthModal(false);
   };
 
   const handleOpenDatePicker = () => {
@@ -149,6 +249,17 @@ export default function RiwayatPickupPage() {
       }
     }
   };
+
+  const monthDisplayLabel = useMemo(() => {
+    const parts = pickedMonth.split("-");
+    const year = parseInt(parts[0], 10);
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    if (!isNaN(year) && !isNaN(monthIndex)) {
+      const d = new Date(year, monthIndex, 1);
+      return d.toLocaleDateString("id-ID", { month: "short", year: "numeric" });
+    }
+    return "Pilih Bulan";
+  }, [pickedMonth]);
 
   /* ─────────────────────────────────────────────────────────────────────────
    * OLAH DATA ANALITIK
@@ -263,7 +374,13 @@ export default function RiwayatPickupPage() {
       (a, b) => b.totalAwb - a.totalAwb || b.pickupCount - a.pickupCount
     );
 
+    const activeDriversCount = driverMap.size;
+    const totalSellersCount = sellerMap.size;
+    const avgAwbPerSeller = totalSellersCount > 0 ? grandAwb / totalSellersCount : 0;
+    const avgAwbPerDriver = activeDriversCount > 0 ? grandAwb / activeDriversCount : 0;
     const topSeller = sortedSellers.length > 0 ? sortedSellers[0] : null;
+    const topSellerContributionPct =
+      topSeller && grandAwb > 0 ? (topSeller.totalAwb / grandAwb) * 100 : 0;
 
     return {
       driverSummaryList: sortedDrivers,
@@ -275,9 +392,12 @@ export default function RiwayatPickupPage() {
         totalEcer: grandEcer,
         totalHv: grandHv,
         totalTripSelesai: grandSelesaiTrip,
-        activeDriversCount: driverMap.size,
-        totalSellersCount: sellerMap.size,
+        activeDriversCount,
+        totalSellersCount,
+        avgAwbPerSeller,
+        avgAwbPerDriver,
         topSeller,
+        topSellerContributionPct,
       },
     };
   }, [logs]);
@@ -293,7 +413,7 @@ export default function RiwayatPickupPage() {
     });
   }, [driverSummaryList, search]);
 
-  // Export to CSV
+  // Export to CSV helper
   const handleExportCSV = useCallback(() => {
     if (logs.length === 0) return;
 
@@ -334,11 +454,11 @@ export default function RiwayatPickupPage() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `riwayat_pickup_${activeDate}.csv`);
+    link.setAttribute("download", `riwayat_pickup_${activeDateRange.startDate}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }, [logs, activeDate]);
+  }, [logs, activeDateRange.startDate]);
 
   // Helper render status badge yang rapi & subtil
   const renderStatusBadge = (status: string) => {
@@ -391,116 +511,18 @@ export default function RiwayatPickupPage() {
               <RefreshCw className={cn("h-3.5 w-3.5", isFetching && "animate-spin text-slate-500")} />
               <span>{isFetching ? "Menyinkronkan..." : "Segarkan"}</span>
             </button>
-            <button
-              onClick={handleExportCSV}
-              disabled={logs.length === 0}
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 transition-all shadow-sm disabled:opacity-50"
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5" />
-              <span>Ekspor CSV ({logs.length})</span>
-            </button>
           </div>
         }
       />
 
-      {/* ── Executive Metric Cards (Clean Logistics Palette) ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Card 1: Total Volume AWB Terpickup */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-2">
-              <Boxes className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                Total AWB Terpickup ({activeDate})
-              </span>
-            </div>
-            <span className="text-xs font-semibold text-slate-400">
-              {overallMetrics.totalLogs} Log Tercatat
-            </span>
-          </div>
-
-          <div className="mt-4 flex items-baseline gap-3">
-            <span className="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-              {isLoading ? <Skeleton className="h-10 w-28" /> : overallMetrics.totalAwb.toLocaleString("id-ID")}
-            </span>
-            <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">Paket AWB</span>
-          </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-2 text-xs pt-3 border-t border-slate-100 dark:border-slate-800">
-            <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-              <span className="text-[11px] text-slate-400 block">Koli (Karung)</span>
-              <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                {overallMetrics.totalKoli}
-              </span>
-            </div>
-            <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-              <span className="text-[11px] text-slate-400 block">Eceran</span>
-              <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                {overallMetrics.totalEcer}
-              </span>
-            </div>
-            <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-              <span className="text-[11px] text-slate-400 block">High Value</span>
-              <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                {overallMetrics.totalHv}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 2: Seller Kontributor Terbesar */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <Store className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                  Seller Kontributor Terbesar
-                </span>
-              </div>
-              <span className="text-xs font-semibold text-slate-400">
-                {overallMetrics.totalSellersCount} Toko Dikunjungi
-              </span>
-            </div>
-
-            {isLoading ? (
-              <div className="mt-4 space-y-2">
-                <Skeleton className="h-8 w-40" />
-                <Skeleton className="h-4 w-28" />
-              </div>
-            ) : overallMetrics.topSeller ? (
-              <div className="mt-4">
-                <div className="text-2xl font-bold text-slate-900 dark:text-white truncate">
-                  {overallMetrics.topSeller.namaSeller}
-                </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    {overallMetrics.topSeller.totalAwb.toLocaleString("id-ID")} AWB
-                  </span>
-                  <span className="text-xs text-slate-400">• {overallMetrics.topSeller.pickupCount}x Pengambilan</span>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-4 text-xs text-slate-400">Belum ada transaksi pickup pada tanggal ini.</div>
-            )}
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-            <span>{overallMetrics.activeDriversCount} Driver Aktif di Lapangan</span>
-            <span>{overallMetrics.totalTripSelesai} Trip Tiba di Gudang</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Filters & Controls Toolbar ── */}
+      {/* ── 1. Top Date Filter Toolbar (Hari Ini, Kemarin, Minggu Ini, Pilih Tanggal, Pilih Bulan) ── */}
       <Card className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-        <CardContent className="p-4 space-y-3.5">
-          {/* Row 1: Simple Date Filters (Hari Ini, Kemarin, Pilih Tanggal) */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+        <CardContent className="p-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5 text-slate-500" />
-                Filter Tanggal:
+                Periode:
               </span>
 
               {/* Tombol Hari Ini */}
@@ -529,7 +551,20 @@ export default function RiwayatPickupPage() {
                 Kemarin
               </button>
 
-              {/* Tombol Pilih Tanggal (Langsung muncul pop up kalender) */}
+              {/* Tombol Minggu Ini */}
+              <button
+                onClick={() => handleDateModeChange("this_week")}
+                className={cn(
+                  "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                  dateMode === "this_week"
+                    ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                )}
+              >
+                Minggu Ini
+              </button>
+
+              {/* Tombol Pilih Tanggal (Pop-up Langsung) */}
               <div className="relative inline-flex items-center">
                 <input
                   ref={dateInputRef}
@@ -538,7 +573,7 @@ export default function RiwayatPickupPage() {
                   onChange={(e) => {
                     if (e.target.value) {
                       setPickedDate(e.target.value);
-                      setDateMode("custom");
+                      setDateMode("custom_day");
                     }
                   }}
                   className="sr-only absolute pointer-events-none opacity-0 w-0 h-0"
@@ -550,26 +585,194 @@ export default function RiwayatPickupPage() {
                   onClick={handleOpenDatePicker}
                   className={cn(
                     "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5",
-                    dateMode === "custom"
+                    dateMode === "custom_day"
                       ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm"
                       : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                   )}
-                  title="Klik untuk membuka kalender"
+                  title="Klik untuk memilih tanggal spesifik"
                 >
-                  <Calendar className="h-3.5 w-3.5 text-slate-500 group-hover:text-slate-700" />
-                  <span>{dateMode === "custom" ? `Pilih Tanggal: ${pickedDate}` : "Pilih Tanggal"}</span>
+                  <Calendar className="h-3.5 w-3.5 text-slate-500" />
+                  <span>{dateMode === "custom_day" ? `Tanggal: ${pickedDate}` : "Pilih Tanggal"}</span>
                 </button>
               </div>
+
+              {/* Tombol Pilih Bulan (Pop-up Modal Langsung) */}
+              <button
+                type="button"
+                onClick={() => {
+                  const parts = pickedMonth.split("-");
+                  const y = parseInt(parts[0], 10);
+                  if (!isNaN(y)) setMonthPickerYear(y);
+                  setShowMonthModal(true);
+                }}
+                className={cn(
+                  "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5",
+                  dateMode === "custom_month"
+                    ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                )}
+                title="Klik untuk memilih bulan spesifik"
+              >
+                <Calendar className="h-3.5 w-3.5 text-slate-500" />
+                <span>{dateMode === "custom_month" ? `Bulan: ${monthDisplayLabel}` : "Pilih Bulan"}</span>
+              </button>
             </div>
 
-            {/* Tanggal Aktif Badge */}
+            {/* Tanggal Aktif Indicator */}
             <div className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
               <Clock className="h-3.5 w-3.5 text-slate-500" />
-              <span>Tanggal: <strong className="text-slate-900 dark:text-white font-semibold">{activeDate}</strong></span>
+              <span>Periode Aktif: <strong className="text-slate-900 dark:text-white font-semibold">{activeDateRange.label}</strong></span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── 2. Executive Metric Cards (4-Column Layout) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Volume AWB Terpickup */}
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Boxes className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                  Total AWB Terpickup
+                </span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-400">
+                {overallMetrics.totalLogs} Log
+              </span>
+            </div>
+
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                {isLoading ? <Skeleton className="h-8 w-24" /> : overallMetrics.totalAwb.toLocaleString("id-ID")}
+              </span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Paket AWB</span>
             </div>
           </div>
 
-          {/* Row 2: Search & Mode Switcher */}
+          <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+            <span>{overallMetrics.totalKoli} Koli • {overallMetrics.totalEcer} Ecer</span>
+            {overallMetrics.totalHv > 0 && (
+              <span className="font-semibold text-amber-600 dark:text-amber-400">{overallMetrics.totalHv} HV</span>
+            )}
+          </div>
+        </div>
+
+        {/* Card 2: Rata-rata AWB per Seller */}
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Store className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                  Rata-rata / Toko Seller
+                </span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-400">
+                {overallMetrics.totalSellersCount} Toko
+              </span>
+            </div>
+
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                {isLoading ? (
+                  <Skeleton className="h-8 w-24" />
+                ) : (
+                  overallMetrics.avgAwbPerSeller.toLocaleString("id-ID", { maximumFractionDigits: 1 })
+                )}
+              </span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">AWB / Toko</span>
+            </div>
+          </div>
+
+          <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
+            <span>Dari {overallMetrics.totalSellersCount} titik seller yang dikunjungi</span>
+          </div>
+        </div>
+
+        {/* Card 3: Rata-rata AWB per Driver */}
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Truck className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                  Rata-rata / Driver
+                </span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-400">
+                {overallMetrics.activeDriversCount} Driver
+              </span>
+            </div>
+
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                {isLoading ? (
+                  <Skeleton className="h-8 w-24" />
+                ) : (
+                  overallMetrics.avgAwbPerDriver.toLocaleString("id-ID", { maximumFractionDigits: 1 })
+                )}
+              </span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">AWB / Driver</span>
+            </div>
+          </div>
+
+          <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+            <span>{overallMetrics.activeDriversCount} Driver bertugas</span>
+            <span>{overallMetrics.totalTripSelesai} Trip selesai</span>
+          </div>
+        </div>
+
+        {/* Card 4: Top Kontributor Seller */}
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                  Top Seller
+                </span>
+              </div>
+              {overallMetrics.topSeller && (
+                <span className="text-[11px] font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                  {overallMetrics.topSellerContributionPct.toFixed(1)}% Vol
+                </span>
+              )}
+            </div>
+
+            {isLoading ? (
+              <div className="mt-3 space-y-1.5">
+                <Skeleton className="h-6 w-36" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ) : overallMetrics.topSeller ? (
+              <div className="mt-3">
+                <div className="text-base font-bold text-slate-900 dark:text-white truncate" title={overallMetrics.topSeller.namaSeller}>
+                  {overallMetrics.topSeller.namaSeller}
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  <strong className="text-slate-900 dark:text-white font-semibold">
+                    {overallMetrics.topSeller.totalAwb.toLocaleString("id-ID")}
+                  </strong>{" "}
+                  AWB ({overallMetrics.topSeller.pickupCount}x pickup)
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 text-xs text-slate-400 italic">Belum ada data</div>
+            )}
+          </div>
+
+          <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
+            <span>Kontributor volume terbesar hari ini</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 3. Search & View Mode Controls Toolbar ── */}
+      <Card className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+        <CardContent className="p-3.5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex-1 min-w-[240px] relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -649,7 +852,7 @@ export default function RiwayatPickupPage() {
                 Tidak Ada Transaksi Pickup
               </h3>
               <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                Tidak ada data aktivitas pickup pada tanggal {activeDate}.
+                Tidak ada data aktivitas pickup pada periode {activeDateRange.label}.
               </p>
             </div>
           ) : (
@@ -789,7 +992,7 @@ export default function RiwayatPickupPage() {
 
             {sellerRankingList.length === 0 ? (
               <div className="p-6 text-center text-xs text-slate-400">
-                Belum ada data toko seller spesifik pada tanggal {activeDate}.
+                Belum ada data toko seller spesifik pada periode {activeDateRange.label}.
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -798,45 +1001,66 @@ export default function RiwayatPickupPage() {
                     <tr>
                       <th className="py-3 px-4">No</th>
                       <th className="py-3 px-4">Nama Seller</th>
-                      <th className="py-3 px-4 text-center">Total Volume AWB</th>
+                      <th className="py-3 px-4 text-center">Total Volume</th>
+                      <th className="py-3 px-4">% Kontribusi</th>
                       <th className="py-3 px-4">Rincian Muatan</th>
                       <th className="py-3 px-4">Frekuensi Pickup</th>
                       <th className="py-3 px-4">Driver yang Menangani</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                    {sellerRankingList.slice(0, 10).map((seller, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
-                        <td className="py-3 px-4 font-semibold text-slate-400">
-                          #{idx + 1}
-                        </td>
-                        <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-200">
-                          {seller.namaSeller}
-                        </td>
-                        <td className="py-3 px-4 text-center font-bold text-slate-900 dark:text-white">
-                          {seller.totalAwb} AWB
-                        </td>
-                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
-                          {seller.totalKoli} Koli • {seller.totalEcer} Ecer{" "}
-                          {seller.totalHv > 0 && `• ${seller.totalHv} HV`}
-                        </td>
-                        <td className="py-3 px-4 text-slate-700 dark:text-slate-300 font-medium">
-                          {seller.pickupCount} Kali
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex flex-wrap gap-1">
-                            {Array.from(seller.drivers).map((dr, dIdx) => (
-                              <span
-                                key={dIdx}
-                                className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-medium border border-slate-200 dark:border-slate-700"
-                              >
-                                {dr}
+                    {sellerRankingList.slice(0, 10).map((seller, idx) => {
+                      const sharePct =
+                        overallMetrics.totalAwb > 0
+                          ? (seller.totalAwb / overallMetrics.totalAwb) * 100
+                          : 0;
+
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                          <td className="py-3 px-4 font-semibold text-slate-400">
+                            #{idx + 1}
+                          </td>
+                          <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-200">
+                            {seller.namaSeller}
+                          </td>
+                          <td className="py-3 px-4 text-center font-bold text-slate-900 dark:text-white">
+                            {seller.totalAwb.toLocaleString("id-ID")} AWB
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2 min-w-[110px]">
+                              <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-slate-900 dark:bg-slate-100 rounded-full transition-all duration-300"
+                                  style={{ width: `${Math.min(sharePct, 100)}%` }}
+                                />
+                              </div>
+                              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 w-10 text-right">
+                                {sharePct.toFixed(1)}%
                               </span>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
+                            {seller.totalKoli} Koli • {seller.totalEcer} Ecer{" "}
+                            {seller.totalHv > 0 && `• ${seller.totalHv} HV`}
+                          </td>
+                          <td className="py-3 px-4 text-slate-700 dark:text-slate-300 font-medium">
+                            {seller.pickupCount} Kali
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex flex-wrap gap-1">
+                              {Array.from(seller.drivers).map((dr, dIdx) => (
+                                <span
+                                  key={dIdx}
+                                  className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-medium border border-slate-200 dark:border-slate-700"
+                                >
+                                  {dr}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1068,6 +1292,105 @@ export default function RiwayatPickupPage() {
               <button
                 onClick={() => setModalLogDetail(null)}
                 className="px-4 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Month & Year Picker Modal Pop-up ── */}
+      {showMonthModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={() => setShowMonthModal(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Modal with Year Switcher */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Pilih Bulan & Tahun</h3>
+              </div>
+              <button
+                onClick={() => setShowMonthModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Year Navigator */}
+            <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setMonthPickerYear((y) => y - 1)}
+                className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition-all flex items-center justify-center"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-sm font-extrabold text-slate-900 dark:text-white">
+                {monthPickerYear}
+              </span>
+              <button
+                type="button"
+                onClick={() => setMonthPickerYear((y) => y + 1)}
+                className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition-all flex items-center justify-center"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* 12 Months Grid */}
+            <div className="grid grid-cols-3 gap-2">
+              {MONTH_NAMES.map((m) => {
+                const isSelected =
+                  dateMode === "custom_month" &&
+                  pickedMonth === `${monthPickerYear}-${m.num}`;
+
+                return (
+                  <button
+                    key={m.num}
+                    type="button"
+                    onClick={() => handleSelectMonth(m.num)}
+                    className={cn(
+                      "py-2.5 px-2 rounded-xl text-xs font-semibold transition-all border text-center flex flex-col items-center justify-center gap-0.5",
+                      isSelected
+                        ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border-slate-900 dark:border-slate-100 shadow-sm"
+                        : "bg-slate-50/70 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
+                    )}
+                  >
+                    <span className="font-bold text-xs">{m.short}</span>
+                    <span className={cn("text-[10px]", isSelected ? "text-slate-300 dark:text-slate-600" : "text-slate-400")}>
+                      {m.full}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Quick Actions Footer */}
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  setMonthPickerYear(now.getFullYear());
+                  const curMonthNum = String(now.getMonth() + 1).padStart(2, "0");
+                  handleSelectMonth(curMonthNum);
+                }}
+                className="font-bold text-slate-700 dark:text-slate-300 hover:underline"
+              >
+                Bulan Sekarang
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowMonthModal(false)}
+                className="px-3.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
               >
                 Tutup
               </button>

@@ -32,7 +32,7 @@ export function useTrackingMap() {
       return data;
     },
     enabled: !!token,
-    staleTime: 15_000,
+    staleTime: 0,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     // Polling 5s SELALU aktif — jaring pengaman (lihat use-dashboard.ts).
@@ -47,7 +47,7 @@ export function useDriverPickups() {
     queryKey: ["driver-pickups"],
     queryFn: () => get<DriverPickupItem[]>("/armada/pickup/drivers", { token }),
     enabled: !!token,
-    staleTime: 5_000,
+    staleTime: 0,
     refetchInterval: LIVE_MAP_POLL_INTERVAL,
     refetchOnWindowFocus: false,
   });
@@ -58,7 +58,7 @@ export function useDriverPickupHistory(idUser: number | null) {
   const token = useAuthStore(tokenSelector);
   return useQuery({
     queryKey: ["driver-pickup-history", idUser],
-    queryFn: () => get<DriverPickupLog[]>('/armada/pickup/' + idUser + '/history', { token }),
+    queryFn: () => get<DriverPickupLog[]>(`/armada/pickup/${idUser}/history`, { token }),
     enabled: !!token && !!idUser,
     staleTime: 15_000,
   });
