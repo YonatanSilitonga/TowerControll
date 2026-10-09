@@ -19,6 +19,10 @@ function resolveCoord(
   lookup?: LocationLookup
 ): [number, number] | null {
   if (!lookup) return null;
+  if (stop.id_implant != null) {
+    const c = lookup.get("implant_" + stop.id_implant);
+    if (c) return c;
+  }
   if (stop.id_seller != null) {
     const c = lookup.get("seller_" + stop.id_seller);
     if (c) return c;
@@ -39,6 +43,7 @@ function stopColor(jenis: string): string {
   switch ((jenis ?? "").toLowerCase()) {
     case "gudang": return "#0c1e3a";
     case "seller": return "#10b981";
+    case "implant": return "#f59e0b";
     case "gateway":
     case "drop_point": return "#f97316";
     default: return "#64748b";

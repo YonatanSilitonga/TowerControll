@@ -18,6 +18,13 @@ export const swal = {
       text,
     }),
 
+  warning: (title: string, text?: string) =>
+    Swal.fire({
+      icon: "warning",
+      title,
+      text,
+    }),
+
   info: (title: string, text?: string) =>
     Swal.fire({
       icon: "info",

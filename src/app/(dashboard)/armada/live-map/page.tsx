@@ -122,6 +122,7 @@ function LiveMapBody() {
     return true;
   });
   const sellers = data?.sellers ?? [];
+  const implants = data?.implants ?? [];
   const selectedVehicle =
     vehicles.find((v) => v.id_kendaraan === selectedId) ?? null;
     const isPickupDriver = selectedVehicle?.role_driver === "driver_pickup";
@@ -170,7 +171,7 @@ function LiveMapBody() {
 
   return (
     <div className="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-slate-100">
-      <div className="absolute inset-0"><LiveMap fullscreen controlsContainer={controlsContainer} onFilterOpenChange={setFilterOpen} vehicles={vehicles} sellers={sellers} gudang={data?.gudang ?? []} dropPoints={data?.drop_points ?? []} initialFocus={sellerParam ? { type: "seller", id: Number(sellerParam) } : undefined} selectedVehicleId={selectedId} onSelectVehicle={handleSelectVehicle} />{isLoading && <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70 text-sm">Memuat peta...</div>}</div>
+      <div className="absolute inset-0"><LiveMap fullscreen controlsContainer={controlsContainer} onFilterOpenChange={setFilterOpen} vehicles={vehicles} sellers={sellers} implants={implants} gudang={data?.gudang ?? []} dropPoints={data?.drop_points ?? []} initialFocus={sellerParam ? { type: "seller", id: Number(sellerParam) } : undefined} selectedVehicleId={selectedId} onSelectVehicle={handleSelectVehicle} />{isLoading && <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70 text-sm">Memuat peta...</div>}</div>
       <div className="pointer-events-none absolute left-14 right-44 top-3 z-30 flex flex-wrap items-center gap-2">
         <button type="button" onClick={goBack} className="pointer-events-auto inline-flex items-center gap-1 rounded-lg border bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm"><ArrowLeft className="h-4 w-4" />Kembali</button>
         <div className="hidden rounded-lg border bg-white px-3 py-2 text-xs text-slate-600 shadow-sm lg:block"><b className="mr-2 text-[#0c1e3a]">Live Maps</b>{allVehicles.length} armada ({gatewayCount} Gateway · {pickupCount} Pickup) · {liveVehicles.length} GPS online</div>

@@ -586,6 +586,8 @@ export default function DashboardPage() {
 
   // Filter peta
     const mapSellers = mapFilter === "trucks" || mapFilter === "warehouse" ? [] : sellers;
+  const implants = map.data?.implants ?? [];
+  const mapImplants = mapFilter === "trucks" || mapFilter === "warehouse" ? [] : implants;
   const mapGudang = mapFilter === "trucks" || mapFilter === "seller" ? [] : (map.data?.gudang ?? []);
   const mapDrop = mapFilter === "trucks" || mapFilter === "seller" ? [] : (map.data?.drop_points ?? []);
 
@@ -597,9 +599,9 @@ export default function DashboardPage() {
   if (isKoorGudang) {
     const ql = implanQ.trim().toLowerCase();
 
-    // Data implan & driver pickup
-    const allSellers = sellers;
-    const waitingSellers = allSellers.filter(
+    // Data implan & driver pickup (sumber: master implant)
+    const allImplants = implants;
+    const waitingSellers = allImplants.filter(
       (s) =>
         (s.status_pickup === "menunggu" || !s.status_pickup) &&
         ((s.jumlah_barang ?? 0) > 0 || (s.koli ?? 0) > 0 || (s.ecer ?? 0) > 0 || (s.high_value ?? 0) > 0)
@@ -654,10 +656,10 @@ export default function DashboardPage() {
     const displayedSellers = waitingSellers.filter((s) => {
       if (!ql) return true;
       return (
-        s.nama_seller.toLowerCase().includes(ql) ||
-        (s.kode_seller ?? "").toLowerCase().includes(ql) ||
+        s.nama_implant.toLowerCase().includes(ql) ||
+        (s.kode_implant ?? "").toLowerCase().includes(ql) ||
         (s.kota ?? "").toLowerCase().includes(ql) ||
-        (s.pic ?? "").toLowerCase().includes(ql)
+        (s.kapten ?? "").toLowerCase().includes(ql)
       );
     });
 
@@ -668,6 +670,7 @@ export default function DashboardPage() {
           <LiveMap
             vehicles={mapVehicles}
             sellers={sellers}
+            implants={mapImplants}
             gudang={map.data?.gudang ?? []}
             dropPoints={map.data?.drop_points ?? []}
             phones={phones}
@@ -969,8 +972,12 @@ export default function DashboardPage() {
                               setSelectedId(targetVeh.id_kendaraan);
                               setFocusTarget({ type: "truck", id: targetVeh.id_kendaraan, ts: Date.now() } as any);
                             } else if (d.asal_seller) {
-                              const sellerMatch = sellers.find((s) => s.nama_seller.toLowerCase().includes((d.asal_seller || "").toLowerCase()));
-                              if (sellerMatch) setFocusTarget({ type: "seller", id: sellerMatch.id_seller, ts: Date.now() } as any);
+                              const implantMatch = implants.find((s) => s.nama_implant.toLowerCase().includes((d.asal_seller || "").toLowerCase()));
+                              if (implantMatch) setFocusTarget({ type: "implant", id: implantMatch.id_implant });
+                              else {
+                                const sellerMatch = sellers.find((s) => s.nama_seller.toLowerCase().includes((d.asal_seller || "").toLowerCase()));
+                                if (sellerMatch) setFocusTarget({ type: "seller", id: sellerMatch.id_seller });
+                              }
                             }
                           }}
                           className={cn(
@@ -1060,8 +1067,12 @@ export default function DashboardPage() {
                               setSelectedId(targetVeh.id_kendaraan);
                               setFocusTarget({ type: "truck", id: targetVeh.id_kendaraan, ts: Date.now() } as any);
                             } else if (d.asal_seller) {
-                              const sellerMatch = sellers.find((s) => s.nama_seller.toLowerCase().includes((d.asal_seller || "").toLowerCase()));
-                              if (sellerMatch) setFocusTarget({ type: "seller", id: sellerMatch.id_seller, ts: Date.now() } as any);
+                              const implantMatch = implants.find((s) => s.nama_implant.toLowerCase().includes((d.asal_seller || "").toLowerCase()));
+                              if (implantMatch) setFocusTarget({ type: "implant", id: implantMatch.id_implant });
+                              else {
+                                const sellerMatch = sellers.find((s) => s.nama_seller.toLowerCase().includes((d.asal_seller || "").toLowerCase()));
+                                if (sellerMatch) setFocusTarget({ type: "seller", id: sellerMatch.id_seller });
+                              }
                             }
                           }}
                           className={cn(
@@ -1243,18 +1254,18 @@ export default function DashboardPage() {
 
                   return (
                     <div
-                      key={s.id_seller}
-                      onClick={() => setFocusTarget({ type: "seller", id: s.id_seller })}
+                      key={s.id_implant}
+                      onClick={() => setFocusTarget({ type: "implant", id: s.id_implant })}
                       className="rounded-xl border border-slate-200 p-3 transition-all text-xs bg-white hover:border-slate-300 shadow-xs cursor-pointer hover:bg-slate-50/80"
                     >
                       {/* Top Bar: Nama & AWB Badge */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-slate-900 truncate flex items-center gap-1.5">
-                            <span className="truncate">{s.nama_seller}</span>
-                            {s.kode_seller && (
+                            <span className="truncate">{s.nama_implant}</span>
+                            {s.kode_implant && (
                               <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[9px] font-medium text-slate-500 shrink-0">
-                                {s.kode_seller}
+                                {s.kode_implant}
                               </span>
                             )}
                           </p>
@@ -1317,7 +1328,7 @@ export default function DashboardPage() {
 
                       {/* PIC & Kontak Telepon */}
                       <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                        <span className="text-slate-600 font-medium">PIC: {s.pic || "-"}</span>
+                        <span className="text-slate-600 font-medium">Kapten: {s.kapten || "-"}</span>
                         {s.no_hp && (
                           <a
                             href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`}
@@ -1404,6 +1415,7 @@ export default function DashboardPage() {
               <LiveMap
                 vehicles={mapVehicles}
                 sellers={mapSellers}
+                implants={mapImplants}
                 gudang={mapGudang}
                 dropPoints={mapDrop}
                 phones={phones}

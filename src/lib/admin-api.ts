@@ -277,6 +277,48 @@ export const adminSeller = {
   },
 };
 
+// ── Implant (master lokasi implant, terpisah dari seller; PIC = kapten) ──
+export type ImplantAdmin = {
+  id_implant: number;
+  kode_implant: string;
+  nama_implant: string;
+  alamat?: string;
+  kota?: string;
+  area?: string;
+  no_hp?: string;
+  jam_mulai_pickup?: string;
+  jam_selesai_pickup?: string;
+  forecast_harian?: number;
+  status: "aktif" | "nonaktif";
+  latitude?: number;
+  longitude?: number;
+  jarak_tempuh_km?: number;
+  jarak_dc_km?: number;
+  jumlah_manpower?: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export const adminImplant = {
+  list: async (): Promise<ImplantAdmin[]> => {
+    try { return await adminFetch<ImplantAdmin[]>("/admin/implants"); }
+    catch { return []; }
+  },
+  get: async (id: number): Promise<ImplantAdmin> => {
+    return await adminFetch<ImplantAdmin>(`/admin/implants/${id}`);
+  },
+  create: async (data: Partial<ImplantAdmin>) => {
+    const generatedKode = data.kode_implant || `IMP-${Date.now().toString().slice(-6)}`;
+    return await adminFetch<{ id_implant: number }>("/admin/implants", { method: "POST", body: JSON.stringify({ ...data, kode_implant: generatedKode }) });
+  },
+  update: async (id: number, data: Partial<ImplantAdmin>) => {
+    return await adminFetch<any>(`/admin/implants/${id}`, { method: "PUT", body: JSON.stringify(data) });
+  },
+  delete: async (id: number) => {
+    return await adminFetch<any>(`/admin/implants/${id}`, { method: "DELETE" });
+  },
+};
+
 // ── DropPoint ──
 export type DropPointAdmin = {
   id_drop_point: number;
@@ -418,6 +460,65 @@ export const adminUser = {
       return { success: true };
     }
     return await adminFetch<any>(`/admin/users/${id}`, { method: "DELETE" });
+  },
+};
+
+// ── Kapten (profil kapten implant + akun login) ──
+export type KaptenSellerRef = {
+  id_seller: number;
+  kode_seller?: string;
+  nama_seller: string;
+};
+
+export type KaptenImplantRef = {
+  id_implant: number;
+  kode_implant?: string;
+  nama_implant: string;
+  peran?: string;
+};
+
+export type KaptenAdmin = {
+  id_kapten: number;
+  id_user?: number | null;
+  username?: string;
+  nama: string;
+  no_hp?: string;
+  status: "aktif" | "nonaktif";
+  sellers?: KaptenSellerRef[];
+  implants?: KaptenImplantRef[];
+  created_at?: string;
+  created_by?: number;
+  created_by_name?: string;
+  updated_at?: string;
+  updated_by?: number;
+  updated_by_name?: string;
+};
+
+export type KaptenCreated = {
+  id_kapten: number;
+  id_user: number;
+  username: string;
+  password_awal: string;
+  seller_count: number;
+  implant_count?: number;
+};
+
+export const adminKapten = {
+  list: async (): Promise<KaptenAdmin[]> => {
+    try { return await adminFetch<KaptenAdmin[]>("/admin/kapten"); }
+    catch { return []; }
+  },
+  get: async (id: number): Promise<KaptenAdmin> => {
+    return await adminFetch<KaptenAdmin>(`/admin/kapten/${id}`);
+  },
+  create: async (data: { nama: string; no_hp?: string; status?: string; username?: string; password?: string; seller_ids?: number[]; implant_ids?: number[]; implant_peran?: Record<number, string> }): Promise<KaptenCreated> => {
+    return await adminFetch<KaptenCreated>("/admin/kapten", { method: "POST", body: JSON.stringify(data) });
+  },
+  update: async (id: number, data: { nama: string; no_hp?: string; status?: string; seller_ids?: number[]; implant_ids?: number[]; implant_peran?: Record<number, string> }) => {
+    return await adminFetch<any>(`/admin/kapten/${id}`, { method: "PUT", body: JSON.stringify(data) });
+  },
+  delete: async (id: number) => {
+    return await adminFetch<any>(`/admin/kapten/${id}`, { method: "DELETE" });
   },
 };
 

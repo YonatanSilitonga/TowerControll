@@ -71,6 +71,7 @@ export interface AdminRitaseStop {
   urutan: number;
   jenis_stop: string;
   id_seller?: number | null;
+  id_implant?: number | null;
   id_drop_point?: number | null;
   id_gudang?: number | null;
   keterangan?: string | null;
@@ -182,7 +183,8 @@ export interface SellerLocation {
 
 export interface ImplanBarangLog {
   id_log: number;
-  id_seller: number;
+  id_seller?: number | null;
+  id_implant?: number | null;
   tanggal: string;
   jumlah_barang: number;
   koli?: number;
@@ -193,6 +195,30 @@ export interface ImplanBarangLog {
   created_by?: string;
   created_at: string;
   updated_at: string;
+}
+
+/** Lokasi implant untuk peta (PIC = nama kapten penanggung jawab). */
+export interface ImplantLocation {
+  id_implant: number;
+  kode_implant?: string;
+  nama_implant: string;
+  alamat: string;
+  kota: string;
+  kapten?: string;
+  no_hp?: string;
+  latitude: number;
+  longitude: number;
+  jarak_tempuh_km?: number | null;
+  jarak_dc_km?: number | null;
+  total_koli?: number | null;
+  total_ecer?: number | null;
+  total_high_value?: number | null;
+  jumlah_barang?: number | null;
+  koli?: number | null;
+  ecer?: number | null;
+  high_value?: number | null;
+  status_pickup?: string | null;
+  catatan_pickup?: string | null;
 }
 
 export interface DriverPickupItem {
@@ -230,6 +256,7 @@ export interface DriverPickupLog {
 export interface TrackingMap {
   vehicles: TrackingVehicle[];
   sellers: SellerLocation[];
+  implants?: ImplantLocation[];
   /** Posisi gudang (Outgoing/Incoming=DC) — dinamis dari backend. */
   gudang?: GudangPoint[];
   /** Posisi drop point (Gateway JKT/SEG) — dinamis dari backend. */
@@ -339,13 +366,15 @@ export interface RitaseStop {
   id_stop: number;
   id_ritase: number;
   urutan: number;
-  jenis_stop: string; // gudang | seller | drop_point
+  jenis_stop: string; // gudang | seller | implant | drop_point
   id_gudang?: number | null;
   nama_gudang?: string | null;
   tipe_gudang?: string | null;
   id_seller?: number | null;
+  id_implant?: number | null;
   id_drop_point?: number | null;
   nama_seller?: string | null;
+  nama_implant?: string | null;
   nama_drop_point?: string | null;
   keterangan?: string | null;
   latitude?: number | null;
@@ -405,6 +434,10 @@ export interface ManifestPhotoItem {
   ecer_hv_jkt: number;
   ecer_hv_seg: number;
   ecer_hv_btn: number;
+  /** Opsi A: HV gabungan 1 field (alias baru dari backend, fallback jumlah legacy). */
+  koli_hv?: number;
+  hv_awb?: number;
+  ecer_hv?: number;
   /** Total computed fields */
   total_koli: number;
   total_ecer: number;
@@ -470,6 +503,10 @@ export interface RiwayatPenjemputan {
   ecer_hv_jkt?: number;
   ecer_hv_seg?: number;
   ecer_hv_btn?: number;
+  /** Opsi A: HV gabungan (alias baru, fallback jumlah legacy). */
+  koli_hv?: number;
+  hv_awb?: number;
+  ecer_hv?: number;
   foto_penjemputan_url: string;
   catatan: string;
   created_at: string;

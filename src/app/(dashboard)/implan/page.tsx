@@ -29,7 +29,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import type { DriverPickupItem, DriverPickupLog, ImplanBarangLog, SellerLocation } from "@/types/armada";
+import type { DriverPickupItem, DriverPickupLog, ImplanBarangLog, ImplantLocation } from "@/types/armada";
 
 interface RowEditState {
   jumlah: string;
@@ -80,11 +80,11 @@ export default function ImplanPage() {
   const [savedSuccessId, setSavedSuccessId] = useState<number | null>(null);
 
   // Modal Riwayat Implan
-  const [activeHistorySeller, setActiveHistorySeller] = useState<SellerLocation | null>(null);
+  const [activeHistoryImplant, setActiveHistoryImplant] = useState<ImplantLocation | null>(null);
   const [historyLogs, setHistoryLogs] = useState<ImplanBarangLog[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  const sellers = mapData?.sellers ?? [];
+  const implants = mapData?.implants ?? [];
 
   // Summary Metrics Implan
   const summary = useMemo(() => {
@@ -96,7 +96,7 @@ export default function ImplanPage() {
     let countDiambil = 0;
     let countBelumInput = 0;
 
-    sellers.forEach((s) => {
+    implants.forEach((s) => {
       const jml = s.jumlah_barang ?? 0;
       const koli = s.koli ?? 0;
       const hv = s.high_value ?? 0;
@@ -115,7 +115,7 @@ export default function ImplanPage() {
     });
 
     return {
-      totalSellers: sellers.length,
+      totalImplants: implants.length,
       countMenunggu,
       totalAwbMenunggu,
       totalKoliMenunggu,
@@ -124,18 +124,18 @@ export default function ImplanPage() {
       totalAwbDiambil,
       countBelumInput,
     };
-  }, [sellers]);
+  }, [implants]);
 
-  // Filtered sellers
-  const filteredSellers = useMemo(() => {
+  // Filtered implants
+  const filteredImplants = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return sellers.filter((s) => {
+    return implants.filter((s) => {
       if (q) {
-        const matchName = s.nama_seller.toLowerCase().includes(q);
-        const matchCode = (s.kode_seller || "").toLowerCase().includes(q);
+        const matchName = s.nama_implant.toLowerCase().includes(q);
+        const matchCode = (s.kode_implant || "").toLowerCase().includes(q);
         const matchKota = (s.kota || "").toLowerCase().includes(q);
-        const matchPic = (s.pic || "").toLowerCase().includes(q);
-        if (!matchName && !matchCode && !matchKota && !matchPic) return false;
+        const matchKapten = (s.kapten || "").toLowerCase().includes(q);
+        if (!matchName && !matchCode && !matchKota && !matchKapten) return false;
       }
 
       if (filterStatus === "menunggu") {
@@ -149,25 +149,25 @@ export default function ImplanPage() {
       }
       return true;
     });
-  }, [sellers, search, filterStatus]);
+  }, [implants, search, filterStatus]);
 
   // Simpan baris Implan
-  const handleSave = async (seller: SellerLocation) => {
-    const current = editValues[seller.id_seller] ?? {
-      jumlah: seller.jumlah_barang != null ? String(seller.jumlah_barang) : "0",
-      koli: seller.koli != null ? String(seller.koli) : "0",
-      ecer: seller.ecer != null ? String(seller.ecer) : "0",
-      high_value: seller.high_value != null ? String(seller.high_value) : "0",
-      status: seller.status_pickup || "menunggu",
-      catatan: seller.catatan_pickup || "",
+  const handleSave = async (implant: ImplantLocation) => {
+    const current = editValues[implant.id_implant] ?? {
+      jumlah: implant.jumlah_barang != null ? String(implant.jumlah_barang) : "0",
+      koli: implant.koli != null ? String(implant.koli) : "0",
+      ecer: implant.ecer != null ? String(implant.ecer) : "0",
+      high_value: implant.high_value != null ? String(implant.high_value) : "0",
+      status: implant.status_pickup || "menunggu",
+      catatan: implant.catatan_pickup || "",
     };
 
-    setSavingId(seller.id_seller);
+    setSavingId(implant.id_implant);
     try {
       await post(
-        "/armada/implan/barang",
+        "/armada/implant/barang",
         {
-          id_seller: seller.id_seller,
+          id_implant: implant.id_implant,
           jumlah_barang: parseInt(current.jumlah, 10) || 0,
           koli: parseInt(current.koli, 10) || 0,
           ecer: parseInt(current.ecer, 10) || 0,
@@ -178,7 +178,7 @@ export default function ImplanPage() {
         { token }
       );
 
-      setSavedSuccessId(seller.id_seller);
+      setSavedSuccessId(implant.id_implant);
       setTimeout(() => setSavedSuccessId(null), 2500);
       queryClient.invalidateQueries({ queryKey: ["tracking-map"] });
     } catch (err) {
@@ -190,11 +190,11 @@ export default function ImplanPage() {
   };
 
   // Buka Modal Riwayat Implan
-  const openHistory = async (seller: SellerLocation) => {
-    setActiveHistorySeller(seller);
+  const openHistory = async (implant: ImplantLocation) => {
+    setActiveHistoryImplant(implant);
     setLoadingHistory(true);
     try {
-      const logs = await get<ImplanBarangLog[]>(`/armada/implan/${seller.id_seller}/history`, { token });
+      const logs = await get<ImplanBarangLog[]>(`/armada/implant/${implant.id_implant}/history`, { token });
       setHistoryLogs(logs || []);
     } catch (err) {
       console.error("Gagal ambil riwayat implan:", err);
@@ -505,7 +505,7 @@ export default function ImplanPage() {
                   </div>
                 </div>
                 <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-2xl font-black text-slate-900">{summary.totalSellers}</span>
+                  <span className="text-2xl font-black text-slate-900">{summary.totalImplants}</span>
                   <span className="text-xs text-slate-500">toko</span>
                 </div>
               </CardContent>
@@ -598,7 +598,7 @@ export default function ImplanPage() {
                       filterStatus === "all" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-900"
                     )}
                   >
-                    Semua ({sellers.length})
+                    Semua ({implants.length})
                   </button>
                   <button
                     type="button"
@@ -631,7 +631,7 @@ export default function ImplanPage() {
                     <Skeleton key={i} className="h-12 w-full rounded-lg" />
                   ))}
                 </div>
-              ) : filteredSellers.length === 0 ? (
+              ) : filteredImplants.length === 0 ? (
                 <div className="py-16 text-center text-slate-400">
                   <Package className="mx-auto mb-2 h-8 w-8 text-slate-300" />
                   <p className="text-sm font-medium">Tidak ada data implan yang cocok dengan filter</p>
@@ -653,8 +653,8 @@ export default function ImplanPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {filteredSellers.map((s) => {
-                        const rowEdit = editValues[s.id_seller] ?? {
+                      {filteredImplants.map((s) => {
+                        const rowEdit = editValues[s.id_implant] ?? {
                           jumlah: s.jumlah_barang != null ? String(s.jumlah_barang) : "0",
                           koli: s.koli != null ? String(s.koli) : "0",
                           ecer: s.ecer != null ? String(s.ecer) : "0",
@@ -663,11 +663,11 @@ export default function ImplanPage() {
                           catatan: s.catatan_pickup || "",
                         };
 
-                        const isSaving = savingId === s.id_seller;
-                        const isSuccess = savedSuccessId === s.id_seller;
+                        const isSaving = savingId === s.id_implant;
+                        const isSuccess = savedSuccessId === s.id_implant;
 
                         return (
-                          <tr key={s.id_seller} className="hover:bg-slate-50/70 transition-colors">
+                          <tr key={s.id_implant} className="hover:bg-slate-50/70 transition-colors">
                             <td className="py-3 px-4">
                               <div className="flex items-start gap-2">
                                 <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 font-bold text-xs mt-0.5">
@@ -675,10 +675,10 @@ export default function ImplanPage() {
                                 </div>
                                 <div>
                                   <p className="font-bold text-slate-900 flex items-center gap-1.5">
-                                    {s.nama_seller}
-                                    {s.kode_seller && (
+                                    {s.nama_implant}
+                                    {s.kode_implant && (
                                       <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[9px] font-medium text-slate-500">
-                                        {s.kode_seller}
+                                        {s.kode_implant}
                                       </span>
                                     )}
                                   </p>
@@ -692,7 +692,7 @@ export default function ImplanPage() {
                             </td>
 
                             <td className="py-3 px-4">
-                              <p className="font-medium text-slate-700">{s.pic || "-"}</p>
+                              <p className="font-medium text-slate-700">{s.kapten ? `Kapten: ${s.kapten}` : "-"}</p>
                               {s.no_hp && (
                                 <a
                                   href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`}
@@ -713,7 +713,7 @@ export default function ImplanPage() {
                                   const val = e.target.value.replace(/[^0-9]/g, "");
                                   setEditValues((prev) => ({
                                     ...prev,
-                                    [s.id_seller]: { ...rowEdit, jumlah: val },
+                                    [s.id_implant]: { ...rowEdit, jumlah: val },
                                   }));
                                 }}
                                 disabled={isReadOnly} className={cn("w-16 text-center rounded-lg border px-1.5 py-1 text-xs font-bold tabular-nums outline-none", isReadOnly ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed" : "border-slate-200 bg-white focus:border-[#0c1e3a] focus:ring-1")}
@@ -731,7 +731,7 @@ export default function ImplanPage() {
                                   const val = e.target.value.replace(/[^0-9]/g, "");
                                   setEditValues((prev) => ({
                                     ...prev,
-                                    [s.id_seller]: { ...rowEdit, koli: val },
+                                    [s.id_implant]: { ...rowEdit, koli: val },
                                   }));
                                 }}
                                 disabled={isReadOnly} className={cn("w-16 text-center rounded-lg border px-1.5 py-1 text-xs font-bold tabular-nums outline-none", isReadOnly ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed" : "border-slate-200 bg-white focus:border-[#0c1e3a] focus:ring-1")}
@@ -749,7 +749,7 @@ export default function ImplanPage() {
                                   const val = e.target.value.replace(/[^0-9]/g, "");
                                   setEditValues((prev) => ({
                                     ...prev,
-                                    [s.id_seller]: { ...rowEdit, ecer: val },
+                                    [s.id_implant]: { ...rowEdit, ecer: val },
                                   }));
                                 }}
                                 disabled={isReadOnly} className={cn("w-16 text-center rounded-lg border px-1.5 py-1 text-xs font-bold tabular-nums outline-none", isReadOnly ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed" : "border-slate-200 bg-white focus:border-[#0c1e3a] focus:ring-1")}
@@ -767,7 +767,7 @@ export default function ImplanPage() {
                                   const val = e.target.value.replace(/[^0-9]/g, "");
                                   setEditValues((prev) => ({
                                     ...prev,
-                                    [s.id_seller]: { ...rowEdit, high_value: val },
+                                    [s.id_implant]: { ...rowEdit, high_value: val },
                                   }));
                                 }}
                                 disabled={isReadOnly} className={cn("w-16 text-center rounded-lg border px-1.5 py-1 text-xs font-bold tabular-nums outline-none", isReadOnly ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed" : "border-slate-200 bg-white focus:border-[#0c1e3a] focus:ring-1")}
@@ -782,7 +782,7 @@ export default function ImplanPage() {
                                   onClick={() =>
                                     setEditValues((prev) => ({
                                       ...prev,
-                                      [s.id_seller]: { ...rowEdit, status: "menunggu" },
+                                      [s.id_implant]: { ...rowEdit, status: "menunggu" },
                                     }))
                                   }
                                   className={cn(
@@ -799,7 +799,7 @@ export default function ImplanPage() {
                                   onClick={() =>
                                     setEditValues((prev) => ({
                                       ...prev,
-                                      [s.id_seller]: { ...rowEdit, status: "sudah_diambil" },
+                                      [s.id_implant]: { ...rowEdit, status: "sudah_diambil" },
                                     }))
                                   }
                                   className={cn(
@@ -821,7 +821,7 @@ export default function ImplanPage() {
                                 onChange={(e) =>
                                   setEditValues((prev) => ({
                                     ...prev,
-                                    [s.id_seller]: { ...rowEdit, catatan: e.target.value },
+                                    [s.id_implant]: { ...rowEdit, catatan: e.target.value },
                                   }))
                                 }
                                 placeholder="Catatan driver/paket..."
@@ -888,10 +888,10 @@ export default function ImplanPage() {
           {!isReadOnly && (
           <Card className="border-emerald-200/80 bg-gradient-to-br from-emerald-50/50 via-white to-white shadow-sm overflow-hidden">
             {/* Datalist rekomendasi nama toko dari daftar seller implan */}
-            <datalist id="registered-sellers-list">
-              {sellers.map((s) => (
-                <option key={s.id_seller} value={s.nama_seller}>
-                  {s.kode_seller ? `[${s.kode_seller}] ` : ""}{s.nama_seller} {s.kota ? `(${s.kota})` : ""}
+            <datalist id="registered-implants-list">
+              {implants.map((s) => (
+                <option key={s.id_implant} value={s.nama_implant}>
+                  {s.kode_implant ? `[${s.kode_implant}] ` : ""}{s.nama_implant} {s.kota ? `(${s.kota})` : ""}
                 </option>
               ))}
             </datalist>
@@ -1010,7 +1010,7 @@ export default function ImplanPage() {
                       <div className="flex-1 min-w-[200px]">
                         <input
                           type="text"
-                          list="registered-sellers-list"
+                          list="registered-implants-list"
                           value={row.sellerName}
                           onChange={(e) => handleSellerRowChange(row.id, "sellerName", e.target.value)}
                           placeholder="Nama toko / seller..."
@@ -1582,20 +1582,20 @@ export default function ImplanPage() {
       )}
 
       {/* MODAL RIWAYAT IMPLAN */}
-      {activeHistorySeller && (
+      {activeHistoryImplant && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
           <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                   <History className="h-4 w-4 text-sky-600" />
-                  Riwayat Muatan: {activeHistorySeller.nama_seller}
+                  Riwayat Muatan: {activeHistoryImplant.nama_implant}
                 </h3>
-                <p className="text-[11px] text-slate-400">{activeHistorySeller.alamat}</p>
+                <p className="text-[11px] text-slate-400">{activeHistoryImplant.alamat}</p>
               </div>
               <button
                 type="button"
-                onClick={() => setActiveHistorySeller(null)}
+                onClick={() => setActiveHistoryImplant(null)}
                 className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
               >
                 <X className="h-4 w-4" />
@@ -1650,7 +1650,7 @@ export default function ImplanPage() {
             <div className="mt-4 border-t border-slate-100 pt-3 text-right">
               <button
                 type="button"
-                onClick={() => setActiveHistorySeller(null)}
+                onClick={() => setActiveHistoryImplant(null)}
                 className="rounded-lg bg-slate-100 px-4 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200"
               >
                 Tutup

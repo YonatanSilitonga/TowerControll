@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  Building2,
   Calendar,
   Camera,
   Car,
@@ -68,6 +69,8 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Driver", href: "/admin/drivers", icon: Users, key: "admin-drivers" },
   { label: "Kendaraan", href: "/admin/vehicles", icon: Car, key: "admin-vehicles" },
   { label: "Seller", href: "/admin/sellers", icon: Store, key: "admin-sellers" },
+  { label: "Implant", href: "/admin/implants", icon: Building2, key: "admin-implants" },
+  { label: "Kapten", href: "/admin/kapten", icon: Users, key: "admin-kapten" },
   { label: "Gateway", href: "/admin/drop-points", icon: MapPin, key: "admin-drop-points" },
   { label: "Users & Role", href: "/admin/users", icon: Users, key: "admin-users" },
 ];

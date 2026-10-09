@@ -52,12 +52,15 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useTrackingMap } from "@/hooks/use-tracking";
 
 export default function JadwalPage() {
-  // ── Koordinat asli dari tracking map (seller/gudang/drop_point) ──
+  // ── Koordinat asli dari tracking map (seller/implant/gudang/drop_point) ──
   const trackingMap = useTrackingMap();
   const locationLookup = useMemo(() => {
     const lk = new Map();
     for (const s of trackingMap.data?.sellers ?? []) {
       lk.set("seller_" + s.id_seller, [s.latitude, s.longitude]);
+    }
+    for (const s of trackingMap.data?.implants ?? []) {
+      lk.set("implant_" + s.id_implant, [s.latitude, s.longitude]);
     }
     for (const g of trackingMap.data?.gudang ?? []) {
       lk.set("gudang_" + g.id_gudang, [g.latitude, g.longitude]);
@@ -67,7 +70,7 @@ export default function JadwalPage() {
     }
     return lk;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackingMap.data?.sellers, trackingMap.data?.gudang, trackingMap.data?.drop_points]);
+  }, [trackingMap.data?.sellers, trackingMap.data?.implants, trackingMap.data?.gudang, trackingMap.data?.drop_points]);
 
   const { data: contactDrivers } = useDriver();
   const currentUser = useAuthStore((s) => s.user);
@@ -147,8 +150,14 @@ export default function JadwalPage() {
     return () => document.removeEventListener("keydown", onKey);
   }, [selectedFoto]);
 
-  const errMsg = (e: unknown) =>
-    e instanceof ApiError ? e.message : "Terjadi kesalahan. Coba lagi.";
+  const errMsg = (e: unknown) => {
+    const raw = e instanceof ApiError ? e.message : "Terjadi kesalahan. Coba lagi.";
+    // Jangan bocorkan detail SQL mentah ke user (mis. ERROR: ... SQLSTATE 23503).
+    if (/ERROR:|SQLSTATE|violates foreign key|input_kapten/i.test(raw)) {
+      return "Ritase tidak bisa dihapus karena masih ada data kapten / penjemputan yang terhubung. Batalkan penautan terlebih dahulu.";
+    }
+    return raw;
+  };
 
   // Fetch Master Data Options (Drivers, Vehicles, Sellers, Drop Points, Gudangs)
   const { data: masterOptions } = useAdminMasterOptions();
@@ -296,6 +305,12 @@ useEffect(() => {
             if (!validS && masterOptions.sellers.length > 0) {
               s.id_lokasi = masterOptions.sellers[0].id_seller;
               s.nama_lokasi = masterOptions.sellers[0].nama_seller;
+            }
+          } else if (s.jenis_stop === "implant") {
+            const validI = masterOptions.implants.find((sel) => sel.id_implant === s.id_lokasi);
+            if (!validI && masterOptions.implants.length > 0) {
+              s.id_lokasi = masterOptions.implants[0].id_implant;
+              s.nama_lokasi = masterOptions.implants[0].nama_implant;
             }
           } else {
             const validDp = masterOptions.drop_points.find((dp) => dp.id_drop_point === s.id_lokasi);
@@ -528,6 +543,10 @@ const askCancelGenerate = async () => {
       const g = masterOptions?.gudangs[0];
       stop.id_lokasi = g?.id_gudang ?? 1;
       stop.nama_lokasi = g?.nama_gudang ?? "Gudang Outgoing";
+    } else if (newJenis === "implant") {
+      const s = masterOptions?.implants[0];
+      stop.id_lokasi = s?.id_implant ?? 1;
+      stop.nama_lokasi = s?.nama_implant ?? "Implant 1";
     } else if (newJenis === "seller") {
       const s = masterOptions?.sellers[0];
       stop.id_lokasi = s?.id_seller ?? 1;
@@ -554,6 +573,9 @@ const askCancelGenerate = async () => {
     if (stop.jenis_stop === "gudang") {
       const item = masterOptions?.gudangs.find((g) => g.id_gudang === idLokasi);
       stop.nama_lokasi = item?.nama_gudang ?? `Gudang #${idLokasi}`;
+    } else if (stop.jenis_stop === "implant") {
+      const item = masterOptions?.implants.find((s) => s.id_implant === idLokasi);
+      stop.nama_lokasi = item?.nama_implant ?? `Implant #${idLokasi}`;
     } else if (stop.jenis_stop === "seller") {
       const item = masterOptions?.sellers.find((s) => s.id_seller === idLokasi);
       stop.nama_lokasi = item?.nama_seller ?? `Seller #${idLokasi}`;
@@ -619,7 +641,13 @@ const askCancelGenerate = async () => {
         swal.success("Berhasil!", `Ritase ${kode} berhasil dihapus`);
       },
       onError: (e) => {
-        swal.error("Gagal menghapus ritase", errMsg(e));
+        // 400 = validasi bisnis (Opsi A: ada input kapten terhubung) -> warning ramah.
+        // 500/lainnya -> error generik, tanpa bocoran SQL.
+        if (e instanceof ApiError && e.status === 400) {
+          swal.warning("Tidak bisa menghapus ritase", errMsg(e));
+        } else {
+          swal.error("Gagal menghapus ritase", errMsg(e));
+        }
       },
     });
   };
@@ -640,13 +668,15 @@ const askCancelGenerate = async () => {
     const reindexedStops = (editingRitase.stops ?? []).map((s, idx) => ({
       ...s,
       urutan: idx + 1,
-      // Wajib: backend baca id_lokasi per stop (gudang→id_gudang, seller→id_seller, else→id_drop_point).
+      // Wajib: backend baca id_lokasi per stop (gudang→id_gudang, seller→id_seller, implant→id_implant, else→id_drop_point).
       id_lokasi:
         s.jenis_stop === "gudang"
           ? s.id_gudang
           : s.jenis_stop === "seller"
             ? s.id_seller
-            : s.id_drop_point,
+            : s.jenis_stop === "implant"
+              ? s.id_implant
+              : s.id_drop_point,
     }));
 
     const isBerjalan = editingRitase.status === "berjalan";
@@ -739,7 +769,9 @@ const askCancelGenerate = async () => {
           ? s.id_gudang
           : s.jenis_stop === "seller"
             ? s.id_seller
-            : s.id_drop_point,
+            : s.jenis_stop === "implant"
+              ? s.id_implant
+              : s.id_drop_point,
     }));
 
     const driverName = masterOptions?.drivers.find((d) => d.id_driver === newRitase.id_driver)?.nama_driver ?? "Driver";
@@ -875,6 +907,7 @@ const askCancelGenerate = async () => {
     const resolve = (currentStop: AdminRitaseStop): AdminRitaseStop => {
       let updatedName = "";
       let idSeller: number | undefined;
+      let idImplant: number | undefined;
       let idGudang: number | undefined;
       let idDropPoint: number | undefined;
 
@@ -884,6 +917,12 @@ const askCancelGenerate = async () => {
           (s) => s.id_seller === selectedId,
         );
         updatedName = found?.nama_seller ?? `Seller #${selectedId}`;
+      } else if (currentStop.jenis_stop === "implant") {
+        idImplant = selectedId;
+        const found = masterOptions?.implants.find(
+          (s) => s.id_implant === selectedId,
+        );
+        updatedName = found?.nama_implant ?? `Implant #${selectedId}`;
       } else if (currentStop.jenis_stop === "gudang") {
         idGudang = selectedId;
         const found = masterOptions?.gudangs.find(
@@ -901,6 +940,7 @@ const askCancelGenerate = async () => {
       return {
         ...currentStop,
         id_seller: idSeller,
+        id_implant: idImplant,
         id_gudang: idGudang,
         id_drop_point: idDropPoint,
         nama_lokasi: updatedName,
@@ -942,6 +982,7 @@ const askCancelGenerate = async () => {
         s.jenis_stop !== t.jenis_stop ||
         s.id_gudang !== t.id_gudang ||
         s.id_seller !== t.id_seller ||
+        s.id_implant !== t.id_implant ||
         s.id_drop_point !== t.id_drop_point ||
         s.nama_lokasi !== t.nama_lokasi
       );
@@ -1657,6 +1698,7 @@ const askCancelGenerate = async () => {
                                       >
                                         <option value="gudang">GUDANG</option>
                                         <option value="seller">SELLER</option>
+                                        <option value="implant">IMPLANT</option>
                                         <option value="drop_point">
                                           GATEWAY
                                         </option>
@@ -1737,8 +1779,18 @@ const askCancelGenerate = async () => {
                                             {s.nama_seller}
                                           </option>
                                         ))}
+                                      {stop.jenis_stop === "implant" &&
+                                        masterOptions?.implants.map((s) => (
+                                          <option
+                                            key={s.id_implant}
+                                            value={s.id_implant}
+                                          >
+                                            {s.nama_implant}
+                                          </option>
+                                        ))}
                                       {stop.jenis_stop !== "gudang" &&
                                         stop.jenis_stop !== "seller" &&
+                                        stop.jenis_stop !== "implant" &&
                                         masterOptions?.drop_points.map((dp) => (
                                           <option
                                             key={dp.id_drop_point}
@@ -2107,6 +2159,15 @@ const askCancelGenerate = async () => {
                               masterOptions.sellers[0].id_seller,
                             );
                           } else if (
+                            newType === "implant" &&
+                            masterOptions?.implants[0]
+                          ) {
+                            handleSelectLocationOption(
+                              false,
+                              idx,
+                              masterOptions.implants[0].id_implant,
+                            );
+                          } else if (
                             newType === "gudang" &&
                             masterOptions?.gudangs[0]
                           ) {
@@ -2130,6 +2191,7 @@ const askCancelGenerate = async () => {
                       >
                         <option value="gudang">Gudang</option>
                         <option value="seller">Seller / Toko</option>
+                        <option value="implant">Implant</option>
                         <option value="gateway">Gateway</option>
                       </select>
 
@@ -2156,6 +2218,19 @@ const askCancelGenerate = async () => {
                             id: s.id_seller,
                             label: s.nama_seller,
                             sub: s.kode_seller,
+                          }))}
+                        />
+                      ) : stop.jenis_stop === "implant" ? (
+                        <SearchSelect
+                          value={stop.id_implant}
+                          onChange={(id) =>
+                            handleSelectLocationOption(false, idx, id)
+                          }
+                          placeholder="Pilih implant..."
+                          options={(masterOptions?.implants ?? []).map((s) => ({
+                            id: s.id_implant,
+                            label: s.nama_implant,
+                            sub: s.kode_implant,
                           }))}
                         />
                       ) : stop.jenis_stop === "gudang" ? (
@@ -2447,6 +2522,15 @@ const askCancelGenerate = async () => {
                               masterOptions.sellers[0].id_seller,
                             );
                           } else if (
+                            newType === "implant" &&
+                            masterOptions?.implants[0]
+                          ) {
+                            handleSelectLocationOption(
+                              true,
+                              idx,
+                              masterOptions.implants[0].id_implant,
+                            );
+                          } else if (
                             newType === "gudang" &&
                             masterOptions?.gudangs[0]
                           ) {
@@ -2470,6 +2554,7 @@ const askCancelGenerate = async () => {
                       >
                         <option value="gudang">Gudang</option>
                         <option value="seller">Seller / Toko</option>
+                        <option value="implant">Implant</option>
                         <option value="gateway">Gateway</option>
                       </select>
 
@@ -2496,6 +2581,19 @@ const askCancelGenerate = async () => {
                             id: s.id_seller,
                             label: s.nama_seller,
                             sub: s.kode_seller,
+                          }))}
+                        />
+                      ) : stop.jenis_stop === "implant" ? (
+                        <SearchSelect
+                          value={stop.id_implant}
+                          onChange={(id) =>
+                            handleSelectLocationOption(true, idx, id)
+                          }
+                          placeholder="Pilih implant..."
+                          options={(masterOptions?.implants ?? []).map((s) => ({
+                            id: s.id_implant,
+                            label: s.nama_implant,
+                            sub: s.kode_implant,
                           }))}
                         />
                       ) : stop.jenis_stop === "gudang" ? (

@@ -12,6 +12,7 @@ import type {
   DropPointPoi,
   GudangPoint,
   ImplanBarangLog,
+  ImplantLocation,
   RitaseEvent,
   RitaseStop,
   SellerLocation,
@@ -222,11 +223,13 @@ function playPopAnimation(marker: L.Marker | null) {
 function FitBounds({
   vehicles,
   sellers,
+  implants = [],
   gudang,
   dropPoints,
 }: {
   vehicles: TrackingVehicle[];
   sellers: SellerLocation[];
+  implants?: ImplantLocation[];
   gudang: GudangPoint[];
   dropPoints: DropPointPoi[];
 }) {
@@ -238,11 +241,12 @@ function FitBounds({
       ...dropPoints.map((p) => [p.latitude, p.longitude] as [number, number]),
       ...vehicles.map((v) => [v.latitude, v.longitude] as [number, number]),
       ...sellers.map((s) => [s.latitude, s.longitude] as [number, number]),
+      ...(implants ?? []).map((s) => [s.latitude, s.longitude] as [number, number]),
     ];
     return coords;
-  }, [vehicles, sellers, gudang, dropPoints]);
+  }, [vehicles, sellers, implants, gudang, dropPoints]);
 
-  // FitBounds cuma sekali (atau saat SET marker berubah: gudang/dp/truk/seller masuk-keluar).
+  // FitBounds cuma sekali (atau saat SET marker berubah: gudang/dp/truk/seller/implant masuk-keluar).
   // JANGAN ikut posisi — kalau ikut posisi, tiap poll 10 detik view user ke-reset terus.
   const key = useMemo(() => {
     const ids = [
@@ -250,9 +254,10 @@ function FitBounds({
       ...dropPoints.map((p) => `d:${p.id_drop_point}`),
       ...vehicles.map((v) => `v:${v.id_kendaraan}`),
       ...sellers.map((s) => `s:${s.id_seller}`),
+      ...(implants ?? []).map((s) => `i:${s.id_implant}`),
     ];
     return ids.sort().join(",");
-  }, [vehicles, sellers, gudang, dropPoints]);
+  }, [vehicles, sellers, implants, gudang, dropPoints]);
 
   const fit = () => {
     if (points.length === 0) return;
@@ -325,6 +330,8 @@ interface LiveMapProps {
   onFilterOpenChange?: (open: boolean) => void;
   vehicles: TrackingVehicle[];
   sellers: SellerLocation[];
+  /** Lokasi implant (master terpisah dari seller). Opsional biar pemanggil lama tetap kompilasi. */
+  implants?: ImplantLocation[];
   /** Posisi gudang (Outgoing/DC) dari backend. Opsional — fallback konstanta. */
   gudang?: GudangPoint[];
   /** Posisi drop point (Gateway JKT/SEG) dari backend. */
@@ -870,7 +877,7 @@ function useActiveRoute(
 }
 
 const typeLabel = (t: string) =>
-  ({ truck: "Truk", seller: "Seller", gudang: "Gudang", drop: "Gateway" }[t] ?? t);
+  ({ truck: "Truk", seller: "Seller", implant: "Implant", gudang: "Gudang", drop: "Gateway" }[t] ?? t);
 
 
 const typeColor = (t: string) =>
@@ -878,6 +885,8 @@ const typeColor = (t: string) =>
     ? "bg-slate-100 text-slate-600"
     : t === "seller"
       ? "bg-emerald-100 text-emerald-700"
+      : t === "implant"
+      ? "bg-amber-100 text-amber-700"
       : t === "gudang"
         ? "bg-sky-100 text-sky-700"
         : "bg-orange-100 text-orange-700";
@@ -885,6 +894,7 @@ const typeColor = (t: string) =>
 function LiveMapView({
   vehicles,
   sellers,
+  implants = [],
   gudang,
   dropPoints,
   phones,
@@ -903,7 +913,7 @@ function LiveMapView({
   // jadi ramping biar gampang dipakai & gak nutup peta.
   const [isSmall, setIsSmall] = useState(false);
 
-  const [show, setShow] = useState({ trucks: true, sellers: true, gudang: true, drop: true });
+  const [show, setShow] = useState({ trucks: true, sellers: true, implants: true, gudang: true, drop: true });
   const toggleLayer = (k: keyof typeof show) =>
     setShow((s) => ({ ...s, [k]: !s[k] }));
 
@@ -989,7 +999,9 @@ function LiveMapView({
     const found =
       type === "seller"
         ? sellers.find((s) => s.id_seller === id)
-        : type === "drop"
+        : type === "implant"
+          ? (implants ?? []).find((s) => s.id_implant === id)
+          : type === "drop"
           ? dropList.find((p) => p.id_drop_point === id)
           : type === "gudang"
             ? gudangList.find((g) => g.id_gudang === id)
@@ -998,10 +1010,11 @@ function LiveMapView({
     const ts = Date.now();
     setFocusKey(`${type}:${id}:${ts}`);
     setFocus({ lat: found.latitude, lng: found.longitude, ts });
-    if (type === "seller") setShow((s) => (s.sellers ? s : { ...s, sellers: true }));
-    else if (type === "drop") setShow((s) => (s.drop ? s : { ...s, drop: true }));
-    else if (type === "gudang") setShow((s) => (s.gudang ? s : { ...s, gudang: true }));
-  }, [initialFocus, sellers, dropList, gudangList, onSelectVehicle]);
+    if (type === "seller") setShow((s) => ({ ...s, sellers: true }));
+    else if (type === "implant") setShow((s) => ({ ...s, implants: true }));
+    else if (type === "drop") setShow((s) => ({ ...s, drop: true }));
+    else if (type === "gudang") setShow((s) => ({ ...s, gudang: true }));
+  }, [initialFocus, sellers, implants, dropList, gudangList, onSelectVehicle]);
 
   const searchItems = useMemo(() => {
     const items: { type: string; id: number; label: string; sub: string; lat: number; lng: number }[] = [
@@ -1015,6 +1028,12 @@ function LiveMapView({
         type: "seller", id: s.id_seller,
         label: s.nama_seller || `Seller ${s.id_seller}`,
         sub: [s.kode_seller, s.kota].filter(Boolean).join(" · "),
+        lat: s.latitude, lng: s.longitude,
+      })),
+      ...(implants ?? []).map((s) => ({
+        type: "implant", id: s.id_implant,
+        label: s.nama_implant || `Implant ${s.id_implant}`,
+        sub: [s.kode_implant, s.kota, s.kapten ? `Kapten: ${s.kapten}` : ""].filter(Boolean).join(" · "),
         lat: s.latitude, lng: s.longitude,
       })),
       ...dropList.map((p) => ({
@@ -1031,7 +1050,7 @@ function LiveMapView({
       })),
     ];
     return items.filter(i => Number.isFinite(Number(i.lat)) && Number.isFinite(Number(i.lng)) && i.lat != null && i.lng != null && Math.abs(Number(i.lat)) <= 90 && Math.abs(Number(i.lng)) <= 180);
-  }, [vehicles, sellers, dropList, gudangList]);
+  }, [vehicles, sellers, implants, dropList, gudangList]);
 
   const ql = q.trim().toLowerCase();
   const matches = ql
@@ -1049,6 +1068,7 @@ function LiveMapView({
       return;
     }
     if (it.type === "seller") setShow((s) => ({ ...s, sellers: true }));
+    else if (it.type === "implant") setShow((s) => ({ ...s, implants: true }));
     else if (it.type === "drop") setShow((s) => ({ ...s, drop: true }));
     else if (it.type === "gudang") setShow((s) => ({ ...s, gudang: true }));
     // ts = nonce biar klik berulang (item sama) tetap nge-trigger popup.
@@ -1087,6 +1107,7 @@ function LiveMapView({
           <div className={fullscreen ? "absolute right-0 bottom-full mb-3 w-60 max-w-[calc(100vw-32px)] space-y-1 rounded-xl border bg-white p-3 shadow-lg lg:bottom-auto lg:top-full lg:mb-0 lg:mt-3" : compact ? "flex flex-col items-center gap-1" : "space-y-0.5"}>
             <LegendToggle compact={fullscreen ? false : compact} label="Truk" color="#1e3a5f" active={show.trucks} onClick={() => toggleLayer("trucks")} />
             <LegendToggle compact={fullscreen ? false : compact} label="Seller" color="#10b981" active={show.sellers} onClick={() => toggleLayer("sellers")} />
+            <LegendToggle compact={fullscreen ? false : compact} label="Implant" color="#f59e0b" active={show.implants} onClick={() => toggleLayer("implants")} />
             <LegendToggle compact={fullscreen ? false : compact} label="Gudang Outgoing" color="#0ea5e9" active={show.gudang} onClick={() => toggleLayer("gudang")} />
             <LegendToggle compact={fullscreen ? false : compact} label="Gudang DC" color="#7c3aed" active={show.gudang} onClick={() => toggleLayer("gudang")} />
             <LegendToggle compact={fullscreen ? false : compact} label="Gateway" color="#f97316" active={show.drop} onClick={() => toggleLayer("drop")} />
@@ -1181,8 +1202,8 @@ function LiveMapView({
       >
         <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />
         <MapAutoResize />
-        <FitBounds vehicles={activeVehicles} sellers={sellers} gudang={gudangList} dropPoints={dropList} />
-        <FocusSelected vehicles={vehicles} selectedVehicleId={selectedVehicleId} initialFocus={initialFocus} />
+        <FitBounds vehicles={activeVehicles} sellers={sellers} implants={implants ?? []} gudang={gudangList} dropPoints={dropList} />
+        <FocusSelected vehicles={activeVehicles} selectedVehicleId={selectedVehicleId} />
 
         {/* Gudang (Outgoing biru / DC ungu) — dinamis, bisa difilter */}
         {show.gudang &&
@@ -1300,6 +1321,66 @@ function LiveMapView({
                         </div>
                       )}
                       {s.pic && <p className="mt-1 text-xs">PIC: <b>{s.pic}</b></p>}
+                      {(s.total_koli != null && s.total_koli! > 0) || (s.total_ecer != null && s.total_ecer! > 0) || (s.total_high_value != null && s.total_high_value! > 0) ? (
+                        <p className="mt-1 text-xs font-medium text-amber-600">
+                          Muatan: <b>{s.total_koli ?? 0} koli</b>
+                          {(s.total_ecer != null && s.total_ecer! > 0) && ` • ${s.total_ecer} ecer`}
+                          {(s.total_high_value != null && s.total_high_value! > 0) && ` • ${s.total_high_value} HV`}
+                        </p>
+                      ) : null}
+                      {s.no_hp && (
+                        <WhatsAppContact phone={s.no_hp} />
+                      )}
+                    </>
+                  )}
+                </div>
+              </Popup>
+            </PoiMarker>
+          ))}
+
+        {/* Implant — master terpisah dari seller; ikon sama, kunci "implant:" */}
+        {show.implants &&
+          (implants ?? []).map((s) => (
+            <PoiMarker
+              key={`implant-${s.id_implant}`}
+              poiKey={`implant:${s.id_implant}`}
+              position={[s.latitude, s.longitude]}
+              icon={getSellerIcon(s.jumlah_barang, s.status_pickup)}
+              focusKey={focusKey}
+            >
+              <Popup autoPan={false}>
+                <div className={compact ? "min-w-[140px] text-xs" : "min-w-[200px] text-sm"}>
+                  {s.nama_implant && (
+                    <p className="w-full break-words font-semibold text-amber-700">
+                      {s.nama_implant}
+                      {s.kode_implant && (
+                        <span className="ml-1 text-[10px] font-normal text-slate-400">({s.kode_implant})</span>
+                      )}
+                    </p>
+                  )}
+                  {s.alamat && (
+                    <p className={compact ? "max-w-[150px] truncate text-xs text-muted-foreground" : "text-xs text-muted-foreground"}>
+                      {s.alamat}
+                    </p>
+                  )}
+                  {!compact && (
+                    <>
+                      <p className="text-xs text-muted-foreground">{s.kota}</p>
+                      {(s.jarak_tempuh_km != null || s.jarak_dc_km != null) && (
+                        <div className="mt-1 space-y-0.5">
+                          {s.jarak_tempuh_km != null && (
+                            <p className="text-xs font-medium text-sky-600">
+                              Outgoing: <b>{s.jarak_tempuh_km.toFixed(1)} km</b>
+                            </p>
+                          )}
+                          {s.jarak_dc_km != null && (
+                            <p className="text-xs font-medium text-violet-600">
+                              DC: <b>{s.jarak_dc_km.toFixed(1)} km</b>
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {s.kapten && <p className="mt-1 text-xs">Kapten: <b>{s.kapten}</b></p>}
                       {(s.total_koli != null && s.total_koli! > 0) || (s.total_ecer != null && s.total_ecer! > 0) || (s.total_high_value != null && s.total_high_value! > 0) ? (
                         <p className="mt-1 text-xs font-medium text-amber-600">
                           Muatan: <b>{s.total_koli ?? 0} koli</b>
@@ -1547,6 +1628,8 @@ function liveMapPropsEqual(prev: LiveMapProps, next: LiveMapProps): boolean {
       .join("|");
   const sSig = (arr?: SellerLocation[]) =>
     (arr ?? []).map((s) => [s.id_seller, s.latitude.toFixed(5), s.longitude.toFixed(5), s.jumlah_barang, s.status_pickup].join(":")).join("|");
+  const iSig = (arr?: ImplantLocation[]) =>
+    (arr ?? []).map((s) => [s.id_implant, s.latitude.toFixed(5), s.longitude.toFixed(5), s.jumlah_barang, s.status_pickup].join(":")).join("|");
   const gSig = (arr?: GudangPoint[]) =>
     (arr ?? []).map((g) => [g.id_gudang, g.latitude.toFixed(5), g.longitude.toFixed(5)].join(":")).join("|");
   const dSig = (arr?: DropPointPoi[]) =>
@@ -1555,6 +1638,7 @@ function liveMapPropsEqual(prev: LiveMapProps, next: LiveMapProps): boolean {
   return (
     vSig(prev.vehicles) === vSig(next.vehicles) &&
     sSig(prev.sellers) === sSig(next.sellers) &&
+    iSig(prev.implants) === iSig(next.implants) &&
     gSig(prev.gudang) === gSig(next.gudang) &&
     dSig(prev.dropPoints) === dSig(next.dropPoints)
   );
