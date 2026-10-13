@@ -36,6 +36,32 @@ export function useTrackingMap() {
               (v) => (v.nama_driver || "").toLowerCase() === nameLower
             );
 
+            // Cek apakah driver sedang aktif menuju seller tertentu atau baru input di seller
+            const sellerName = (dp.asal_seller || "").toLowerCase().trim();
+            const matchedSeller =
+              sellerName && sellerName !== "gudang" && Array.isArray(data.sellers)
+                ? data.sellers.find(
+                    (s) => s.nama_seller && sellerName.includes(s.nama_seller.toLowerCase())
+                  )
+                : null;
+
+            const isAtSeller =
+              matchedSeller &&
+              matchedSeller.latitude &&
+              matchedSeller.longitude &&
+              (dp.status === "menuju_seller" || dp.status === "sedang menuju");
+
+            // Koordinat pusat: di seller jika aktif, atau di gudang outgoing jika selesai/standby
+            const baseLat = isAtSeller ? matchedSeller.latitude : -6.1741458;
+            const baseLng = isAtSeller ? matchedSeller.longitude : 106.6576157;
+
+            // Sebarkan posisi marker secara melingkar rapi agar tidak saling bertumpuk (overlap)
+            const count = Math.max(1, (data.driver_pickups ?? []).length);
+            const angle = (idx * 2 * Math.PI) / count;
+            const spreadRadius = isAtSeller ? 0.0004 : 0.0016; // ~40m di seller, ~170m di gudang
+            const offsetLat = Math.sin(angle) * spreadRadius;
+            const offsetLng = Math.cos(angle) * spreadRadius;
+
             if (matchedVehicle) {
               matchedVehicle.role_driver = "driver_pickup";
               matchedVehicle.total_awb = dp.jumlah_barang ?? matchedVehicle.total_awb;
@@ -43,14 +69,16 @@ export function useTrackingMap() {
               matchedVehicle.total_eceran = dp.ecer ?? matchedVehicle.total_eceran;
               matchedVehicle.total_high_value = dp.high_value ?? matchedVehicle.total_high_value;
               if (dp.status) matchedVehicle.status = dp.status;
+              if (isAtSeller) {
+                matchedVehicle.latitude = baseLat + offsetLat;
+                matchedVehicle.longitude = baseLng + offsetLng;
+              }
             } else if (!existingDriverNames.has(nameLower)) {
-              // Standby armada pickup di area Gudang Outgoing
+              // Standby armada pickup di area Gudang Outgoing atau Seller
               const syntheticId = 9000 + (dp.id_user || (idx + 1));
               if (!existingVehicleIds.has(syntheticId)) {
                 existingVehicleIds.add(syntheticId);
                 existingDriverNames.add(nameLower);
-                const offsetLat = Math.sin((dp.id_user || idx) * 1.5) * 0.0012;
-                const offsetLng = Math.cos((dp.id_user || idx) * 1.5) * 0.0012;
 
                 data.vehicles.push({
                   id_kendaraan: syntheticId,
@@ -60,8 +88,8 @@ export function useTrackingMap() {
                   nama_driver: dp.nama_driver || dp.username,
                   role_driver: "driver_pickup",
                   status: dp.status || "standby",
-                  latitude: -6.1741458 + offsetLat,
-                  longitude: 106.6576157 + offsetLng,
+                  latitude: baseLat + offsetLat,
+                  longitude: baseLng + offsetLng,
                   kecepatan: 0,
                   offline: false,
                   last_update: dp.updated_at || new Date().toISOString(),

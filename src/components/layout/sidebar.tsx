@@ -64,7 +64,6 @@ const NAV: NavItem[] = [
 
 export const ADMIN_NAV: NavItem[] = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard, key: "admin-dashboard" },
-  { label: "Peta", href: "/", icon: MapPin, key: "admin-peta" },
   { label: "Live Maps", href: "/armada/live-map", icon: MapPin, key: "admin-live-map" },
   { label: "Driver", href: "/admin/drivers", icon: Users, key: "admin-drivers" },
   { label: "Kendaraan", href: "/admin/vehicles", icon: Car, key: "admin-vehicles" },
@@ -86,9 +85,9 @@ export function Sidebar() {
   const role = useAuthStore((s) => s.user?.role);
   const user = useAuthStore((s) => s.user);
 
-  const isAdminRoute = pathname.startsWith("/admin");
-  const nav = useMemo(() => isAdminRoute ? ADMIN_NAV : filterNav(role), [isAdminRoute, role]);
-  const navLabel = isAdminRoute ? "Admin" : "Menu Utama";
+  const isAdmin = role === "admin" || pathname.startsWith("/admin");
+  const nav = useMemo(() => isAdmin ? ADMIN_NAV : filterNav(role), [isAdmin, role]);
+  const navLabel = isAdmin ? "Admin" : "Menu Utama";
 
   // State untuk melacak dropdown yang terbuka
   const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({

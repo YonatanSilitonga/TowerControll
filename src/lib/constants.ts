@@ -44,10 +44,7 @@ export const ROLE_LABEL: Record<UserRole, string> = {
 /** Mapping role -> modul yang boleh diakses (untuk menu & guard). */
 export const ROLE_MENU: Record<UserRole, string[]> = {
   admin: [
-    "dashboard", "efektivitas-armada", "armada-live-map",
-    "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips",
-    "implan", "riwayat-pickup", "jadwal", "manifest-foto", "analitik", "gudang", "absensi",
-    "section-menu", "section-armada", "section-lainnya",
+    "armada-live-map",
   ],
   developer: [
     "dashboard", "efektivitas-armada", "armada-live-map",

@@ -187,5 +187,11 @@ export function MiniMapLeaflet({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return <div ref={divRef} className="h-full w-full min-h-[220px]" />;
+  return (
+    <div
+      ref={divRef}
+      className="h-full w-full min-h-[220px] relative z-0 isolate overflow-hidden [&_.leaflet-pane]:!z-[1] [&_.leaflet-top]:!z-[2] [&_.leaflet-bottom]:!z-[2] [&_.leaflet-control]:!z-[2]"
+      style={{ isolation: "isolate" }}
+    />
+  );
 }

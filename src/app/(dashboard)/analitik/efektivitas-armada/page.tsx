@@ -180,7 +180,7 @@ export default function EfektivitasArmadaPage() {
   // 1. Backend already filtered Ritase by Date. 
   // (We slice it to max 5000 records to absolutely prevent React from freezing the browser 
   // just in case the backend hasn't been updated yet)
-  const filteredRitase = allRitase.slice(0, 5000);
+  const filteredRitase = (allRitase ?? []).slice(0, 5000);
 
   // 2. Compute Metrics per Vehicle
   const vehicleMetricsMap = useMemo(() => {

@@ -8,7 +8,7 @@ import { get } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
 import { LIVE_MAP_RETURN_KEY, safeMapReturn } from "@/lib/live-map-navigation";
 import { useSearchParams, useRouter } from "next/navigation";
-import { MapPin, RadioTower, X, ArrowLeft, List, ChevronUp, ChevronDown } from "lucide-react";
+import { MapPin, RadioTower, X, ArrowLeft, List, ChevronUp, ChevronDown, Store, Package, ExternalLink, Image as ImageIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -57,6 +57,40 @@ function minutesAgo(iso?: string | null): string {
   if (h < 24) return h === 1 ? "1 jam lalu" : `${h} jam lalu`;
   const d = Math.floor(h / 24);
   return d === 1 ? "1 hari lalu" : `${d} hari lalu`;
+}
+
+function renderPickupStatusBadge(status?: string | null) {
+  const s = (status || "").toLowerCase().trim();
+  if (s === "selesai") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+        Selesai di Gudang
+      </span>
+    );
+  }
+  if (s === "menuju_seller" || s === "sedang menuju") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+        Menuju Seller
+      </span>
+    );
+  }
+  if (s === "menuju_gudang") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+        <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+        Menuju Gudang
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-slate-50 text-slate-600 dark:bg-slate-800/60 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+      <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+      {status || "Standby"}
+    </span>
+  );
 }
 
 function LiveMapBody() {
@@ -374,16 +408,160 @@ function LiveMapBody() {
                 <div className="min-w-0 pr-10 sm:pr-0"><Dialog.Title className="break-words text-lg font-semibold text-slate-900">Log perjalanan · {selectedVehicle?.plat_nomor}</Dialog.Title><Dialog.Description className="mt-1 text-sm text-slate-500">Driver saat ini: {selectedVehicle?.nama_driver || "—"}</Dialog.Description><p className="mt-2 text-xs text-slate-400">Riwayat kendaraan · seluruh waktu dalam WIB</p></div>
                 <div className="min-w-0"><label htmlFor="live-log-date" className="mb-1.5 block text-xs font-medium text-slate-500">Tanggal aktivitas (WIB)</label><input id="live-log-date" type="date" value={selectedDate} max={todayLocal()} onChange={(e) => setSelectedDate(e.target.value || "")} className="min-h-11 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-blue-600" /></div>
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg bg-slate-50 p-3 text-xs">
-                <div><p className="text-slate-500">Aktivitas</p><p className="mt-1 font-semibold text-slate-800">{loadingHistory ? "…" : (history ?? []).length}</p></div>
-                <div className="border-l pl-3"><p className="text-slate-500">Ritase</p><p className="mt-1 font-semibold text-slate-800">{loadingHistory ? "…" : new Set((history ?? []).filter(e => e.kode_ritase || e.id_ritase).map(e => e.kode_ritase || String(e.id_ritase))).size}</p></div>
-                <div className="border-l pl-3"><p className="text-slate-500">Aktivitas terakhir</p><p className="mt-1 font-semibold text-slate-800">{(() => { const times = (history ?? []).map(e => Date.parse(e.created_at)).filter(Number.isFinite); return loadingHistory ? "…" : times.length ? new Intl.DateTimeFormat("id-ID", {hour:"2-digit",minute:"2-digit",timeZone:"Asia/Jakarta"}).format(new Date(Math.max(...times))) + " WIB" : "—"; })()}</p></div>
+              <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg bg-slate-50 p-3 text-xs dark:bg-slate-800/60">
+                {isPickupDriver ? (
+                  <>
+                    <div>
+                      <p className="text-slate-500 dark:text-slate-400">Total Input</p>
+                      <p className="mt-1 font-semibold text-slate-800 dark:text-white">
+                        {loadingPickupHistory ? "…" : `${pickupHistory.length} kali`}
+                      </p>
+                    </div>
+                    <div className="border-l border-slate-200 dark:border-slate-700 pl-3">
+                      <p className="text-slate-500 dark:text-slate-400">Total Muatan</p>
+                      <p className="mt-1 font-semibold text-slate-800 dark:text-white">
+                        {loadingPickupHistory ? "…" : `${totalAwbHariIni} AWB (${totalKoliHariIni} Koli)`}
+                      </p>
+                    </div>
+                    <div className="border-l border-slate-200 dark:border-slate-700 pl-3">
+                      <p className="text-slate-500 dark:text-slate-400">Aktivitas terakhir</p>
+                      <p className="mt-1 font-semibold text-slate-800 dark:text-white">
+                        {(() => {
+                          const times = (pickupHistory ?? [])
+                            .map((p) => Date.parse(p.updated_at || p.created_at || p.tanggal))
+                            .filter(Number.isFinite);
+                          return loadingPickupHistory
+                            ? "…"
+                            : times.length
+                            ? new Intl.DateTimeFormat("id-ID", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                timeZone: "Asia/Jakarta",
+                              }).format(new Date(Math.max(...times))) + " WIB"
+                            : "—";
+                        })()}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div><p className="text-slate-500">Aktivitas</p><p className="mt-1 font-semibold text-slate-800">{loadingHistory ? "…" : (history ?? []).length}</p></div>
+                    <div className="border-l pl-3"><p className="text-slate-500">Ritase</p><p className="mt-1 font-semibold text-slate-800">{loadingHistory ? "…" : new Set((history ?? []).filter(e => e.kode_ritase || e.id_ritase).map(e => e.kode_ritase || String(e.id_ritase))).size}</p></div>
+                    <div className="border-l pl-3"><p className="text-slate-500">Aktivitas terakhir</p><p className="mt-1 font-semibold text-slate-800">{(() => { const times = (history ?? []).map(e => Date.parse(e.created_at)).filter(Number.isFinite); return loadingHistory ? "…" : times.length ? new Intl.DateTimeFormat("id-ID", {hour:"2-digit",minute:"2-digit",timeZone:"Asia/Jakarta"}).format(new Date(Math.max(...times))) + " WIB" : "—"; })()}</p></div>
+                  </>
+                )}
               </div>
             </div>
-            <Dialog.Close aria-label="Tutup log perjalanan" className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></Dialog.Close>
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
-              {loadingHistory ? <Skeleton className="h-40" /> : !(history ?? []).length ? <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center"><p className="font-medium text-slate-700">Belum ada aktivitas</p><p className="text-sm text-slate-500">Tidak ada log kendaraan pada tanggal ini. Pilih tanggal lain untuk melihat riwayat.</p></div> : <DashboardLogTable roomy key={String(selectedId) + selectedDate} events={history ?? []} ritaseInfoMap={ritaseInfoMap} />}
-            </div>
+            <Dialog.Close aria-label="Tutup log perjalanan" className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="h-5 w-5" /></Dialog.Close>
+            {isPickupDriver ? (
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
+                {loadingPickupHistory ? (
+                  <Skeleton className="h-40" />
+                ) : !pickupHistory.length ? (
+                  <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+                    <Store className="h-10 w-10 text-slate-300 dark:text-slate-600" />
+                    <p className="font-semibold text-slate-700 dark:text-slate-300">Belum ada riwayat penjemputan</p>
+                    <p className="max-w-sm text-xs text-slate-400">
+                      Driver {selectedVehicle?.nama_driver} belum menginput penjemputan toko/seller pada tanggal {selectedDate}.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                      <span>{pickupHistory.length} sesi penjemputan · Waktu WIB</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        Total {totalAwbHariIni} AWB ({totalKoliHariIni} Koli · {totalEcerHariIni} Pcs · {totalHvHariIni} HV)
+                      </span>
+                    </div>
+                    <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+                      {pickupHistory.map((item, idx) => {
+                        const timeStr = item.updated_at || item.created_at;
+                        const formattedTime =
+                          timeStr && !isNaN(Date.parse(timeStr))
+                            ? new Intl.DateTimeFormat("id-ID", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                timeZone: "Asia/Jakarta",
+                              }).format(new Date(timeStr)) + " WIB"
+                            : "—";
+                        return (
+                          <div
+                            key={item.id_log || idx}
+                            className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5 dark:border-slate-800">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#0c1e3a] dark:bg-blue-950 dark:text-blue-300">
+                                  <Store className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="block truncate text-xs font-bold text-slate-900 sm:text-sm dark:text-white">
+                                    {item.asal_seller || "Gudang / Lokasi Penjemputan"}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400">
+                                    Input #{item.id_log || idx + 1} · {formattedTime}
+                                  </span>
+                                </div>
+                              </div>
+                              <div>{renderPickupStatusBadge(item.status)}</div>
+                            </div>
+
+                            <div className="mt-2.5 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                              <div className="rounded-lg bg-slate-50 p-2 dark:bg-slate-800/50">
+                                <span className="block text-[10px] font-medium text-slate-400">Total AWB</span>
+                                <span className="text-sm font-extrabold text-slate-800 dark:text-white">
+                                  {item.jumlah_barang || 0}
+                                </span>
+                              </div>
+                              <div className="rounded-lg bg-slate-50 p-2 dark:bg-slate-800/50">
+                                <span className="block text-[10px] font-medium text-slate-400">Koli (Karung)</span>
+                                <span className="font-bold text-slate-800 dark:text-slate-200">{item.koli || 0}</span>
+                              </div>
+                              <div className="rounded-lg bg-slate-50 p-2 dark:bg-slate-800/50">
+                                <span className="block text-[10px] font-medium text-slate-400">Eceran</span>
+                                <span className="font-bold text-slate-800 dark:text-slate-200">{item.ecer || 0}</span>
+                              </div>
+                              <div className="rounded-lg bg-slate-50 p-2 dark:bg-slate-800/50">
+                                <span className="block text-[10px] font-medium text-slate-400">High Value</span>
+                                <span className="font-bold text-amber-600 dark:text-amber-400">
+                                  {item.high_value || 0}
+                                </span>
+                              </div>
+                            </div>
+
+                            {item.catatan && (
+                              <div className="mt-2 rounded-lg bg-slate-50 p-2 text-[11px] italic text-slate-600 dark:bg-slate-800/40 dark:text-slate-300">
+                                &quot;{item.catatan}&quot;
+                              </div>
+                            )}
+
+                            {(item as any).foto_manifest_url && (
+                              <div className="mt-2.5 flex items-center gap-2 border-t border-slate-100 pt-2 dark:border-slate-800">
+                                <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                                  <ImageIcon className="h-3 w-3" /> Bukti Manifest:
+                                </span>
+                                <a
+                                  href={(item as any).foto_manifest_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:underline"
+                                >
+                                  Lihat Foto <ExternalLink className="h-3 w-3" />
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
+                {loadingHistory ? <Skeleton className="h-40" /> : !(history ?? []).length ? <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center"><p className="font-medium text-slate-700">Belum ada aktivitas</p><p className="text-sm text-slate-500">Tidak ada log kendaraan pada tanggal ini. Pilih tanggal lain untuk melihat riwayat.</p></div> : <DashboardLogTable roomy key={String(selectedId) + selectedDate} events={history ?? []} ritaseInfoMap={ritaseInfoMap} />}
+              </div>
+            )}
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>

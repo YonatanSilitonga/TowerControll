@@ -19,7 +19,7 @@ export function MobileNav() {
   const pathname = usePathname();
   const role = useAuthStore((s) => s.user?.role);
   const user = useAuthStore((s) => s.user);
-  const isAdminRoute = pathname.startsWith("/admin");
+  const isAdminRoute = role === "admin" || pathname.startsWith("/admin");
   const nav = useMemo(() => isAdminRoute ? ADMIN_NAV : filterNav(role), [isAdminRoute, role]);
 
   const toggleDropdown = (key: string) => {

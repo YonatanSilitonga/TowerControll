@@ -236,13 +236,43 @@ function FitBounds({
   const map = useMap();
 
   const points = useMemo(() => {
-    const coords: [number, number][] = [
-      ...gudang.map((g) => [g.latitude, g.longitude] as [number, number]),
-      ...dropPoints.map((p) => [p.latitude, p.longitude] as [number, number]),
-      ...vehicles.map((v) => [v.latitude, v.longitude] as [number, number]),
-      ...sellers.map((s) => [s.latitude, s.longitude] as [number, number]),
-      ...(implants ?? []).map((s) => [s.latitude, s.longitude] as [number, number]),
-    ];
+    const isValid = (lat?: number | null, lng?: number | null): [number, number] | null => {
+      if (lat == null || lng == null || isNaN(lat) || isNaN(lng)) return null;
+      if (Math.abs(lat) < 0.05 && Math.abs(lng) < 0.05) return null; // hindari (0,0)
+      if (lat < -11 || lat > 6 || lng < 95 || lng > 141) return null; // batasi Indonesia
+      return [lat, lng];
+    };
+
+    const coords: [number, number][] = [];
+
+    // Prioritaskan kendaraan aktif yang sedang dimonitor
+    vehicles.forEach((v) => {
+      const c = isValid(v.latitude, v.longitude);
+      if (c) coords.push(c);
+    });
+
+    // Tambahkan titik gudang utama
+    gudang.forEach((g) => {
+      const c = isValid(g.latitude, g.longitude);
+      if (c) coords.push(c);
+    });
+
+    // Jika kendaraan sedikit, sertakan drop point, seller, dan implant terdekat
+    if (coords.length < 3) {
+      dropPoints.forEach((p) => {
+        const c = isValid(p.latitude, p.longitude);
+        if (c) coords.push(c);
+      });
+      sellers.forEach((s) => {
+        const c = isValid(s.latitude, s.longitude);
+        if (c) coords.push(c);
+      });
+      (implants ?? []).forEach((im) => {
+        const c = isValid(im.latitude, im.longitude);
+        if (c) coords.push(c);
+      });
+    }
+
     return coords;
   }, [vehicles, sellers, implants, gudang, dropPoints]);
 
@@ -261,7 +291,11 @@ function FitBounds({
 
   const fit = () => {
     if (points.length === 0) return;
-    map.fitBounds(L.latLngBounds(points), { padding: [48, 48] });
+    try {
+      map.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 14 });
+    } catch {
+      // fallback
+    }
   };
 
   useEffect(() => {
@@ -403,7 +437,7 @@ function VehicleMarker({
       }}
     >
       {!hidePopup && (
-        <Popup maxWidth={340} minWidth={200} className="vehicle-compact-popup [&_.leaflet-popup-content]:!m-4 [&_.leaflet-popup-content-wrapper]:!rounded-2xl [&_.leaflet-popup-close-button]:!right-2 [&_.leaflet-popup-close-button]:!top-2 [&_.leaflet-popup-close-button]:!h-8 [&_.leaflet-popup-close-button]:!w-8">
+        <Popup autoPan={false} maxWidth={340} minWidth={200} className="vehicle-compact-popup [&_.leaflet-popup-content]:!m-4 [&_.leaflet-popup-content-wrapper]:!rounded-2xl [&_.leaflet-popup-close-button]:!right-2 [&_.leaflet-popup-close-button]:!top-2 [&_.leaflet-popup-close-button]:!h-8 [&_.leaflet-popup-close-button]:!w-8">
           <div className="w-[304px] max-w-[calc(100vw-80px)] space-y-3 text-xs leading-snug text-slate-700 [&_p]:!m-0">
             <div className="flex items-start gap-3 pr-7">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
@@ -1442,7 +1476,7 @@ function LiveMapView({
               position={[activeRoute.next.point.lat, activeRoute.next.point.lng]}
               icon={activeRoute.next.point.icon}
             >
-              <Popup>
+              <Popup autoPan={false}>
                 <p className="text-xs font-semibold text-emerald-700">
                   {activeRoute.next.point.label}
                 </p>

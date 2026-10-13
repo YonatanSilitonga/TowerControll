@@ -53,6 +53,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [ready, setReady] = useState(bootDone);
 
   useEffect(() => {
+    // Admin harus selalu diarahkan ke portal /admin
+    const currentUser = useAuthStore.getState().user;
+    if (currentUser && currentUser.role === "admin" && pathname !== "/armada/live-map") {
+      router.replace("/admin");
+      return;
+    }
+
     // Sudah boot sebelumnya di sesi ini → tidak perlu fetch ulang, langsung lanjut
     if (bootDone) {
       setReady(true);

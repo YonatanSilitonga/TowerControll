@@ -1135,7 +1135,7 @@ const askCancelGenerate = async () => {
       {/* ── PENGATURAN PANEL (inline) ── */}
 
       {showPengaturan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm">
           <div className="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5 sm:py-3.5 dark:border-slate-800">
               <div className="min-w-0">
@@ -1323,7 +1323,7 @@ const askCancelGenerate = async () => {
           {filteredRitases.map((r) => (
             <div
               key={r.id_ritase}
-              className="group relative flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 overflow-hidden"
+              className="group relative z-0 isolate flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 overflow-hidden"
             >
               {/* ── Header strip warna status ── */}
               <div className="grid grid-cols-1 sm:grid-cols-12 flex-1 h-full">
@@ -1452,17 +1452,8 @@ const askCancelGenerate = async () => {
                   </div>
                 </div>
 
-                {/* ── Kolom Kanan: Avatar + Real Leaflet Map ── */}
-                <div className="sm:col-span-5 relative flex flex-col bg-slate-50 dark:bg-slate-800/50 min-h-[220px] h-full">
-                  {/* Avatar supir di pojok kanan atas */}
-                  <div className="absolute top-3 right-3 z-10">
-                    <img
-                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(r.nama_driver)}`}
-                      alt={r.nama_driver}
-                      className="h-10 w-10 rounded-full border-2 border-amber-300 bg-white shadow-md"
-                    />
-                  </div>
-
+                {/* ── Kolom Kanan: Real Leaflet Map ── */}
+                <div className="sm:col-span-5 relative z-0 isolate flex flex-col bg-slate-50 dark:bg-slate-800/50 min-h-[220px] h-full overflow-hidden">
                   {/* Real Leaflet Map */}
                   <div className="flex-1 w-full h-full min-h-[220px]">
                     <MiniMapWrapper stops={r.stops ?? []} ritaseId={r.id_ritase} locationLookup={locationLookup} className="h-full w-full" />
@@ -1476,7 +1467,7 @@ const askCancelGenerate = async () => {
 
       {/* ── MODAL 1-KLIK GENERATE CONFIRMATION & PREVIEW ── */}
       {showGenerateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm">
           <div
             className="flex w-11/12 max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-[#0c1e3a] border border-slate-200 dark:border-slate-700/50"
             style={{ maxHeight: "90vh" }}
@@ -1906,7 +1897,7 @@ const askCancelGenerate = async () => {
 
       {/* ── MODAL BUAT JADWAL MANUAL ── */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm">
           <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-lg bg-white p-4 sm:p-5 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
               <div className="min-w-0">
@@ -2300,7 +2291,7 @@ const askCancelGenerate = async () => {
 
       {/* ── MODAL EDIT RITASE & RUTE STOPS ── */}
       {editingRitase && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm">
           <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-lg bg-white p-4 sm:p-5 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
               <div className="min-w-0">
@@ -2840,7 +2831,7 @@ function SearchSelect({
               top: pos.top,
               left: pos.left,
               width: pos.width,
-              zIndex: 70,
+              zIndex: 120,
             }}
             className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900"
           >

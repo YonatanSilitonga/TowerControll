@@ -34,7 +34,10 @@ export function MiniMapWrapper({
   className,
 }: MiniMapWrapperProps) {
   return (
-    <div className={"overflow-hidden h-full w-full " + (className ?? "")}>
+    <div
+      className={"relative z-0 isolate overflow-hidden h-full w-full " + (className ?? "")}
+      style={{ isolation: "isolate" }}
+    >
       <MiniMapLeaflet
         stops={stops}
         ritaseId={ritaseId}

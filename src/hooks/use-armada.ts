@@ -47,13 +47,14 @@ export function useRitase(startDate?: string, endDate?: string) {
   const token = useAuthStore(tokenSelector);
   return useQuery({
     queryKey: ["armada-ritase", startDate, endDate],
-    queryFn: () => {
+    queryFn: async () => {
       let url = "/armada/ritase";
       const params = new URLSearchParams();
       if (startDate) params.append("start_date", startDate);
       if (endDate) params.append("end_date", endDate);
       if (params.toString()) url += `?${params.toString()}`;
-      return get<Ritase[]>(url, { token });
+      const data = await get<Ritase[]>(url, { token });
+      return Array.isArray(data) ? data : [];
     },
     enabled: !!token,
     staleTime: 30_000,
