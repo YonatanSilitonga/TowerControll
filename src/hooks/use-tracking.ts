@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, post } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
 import { normalizeTripEvents } from "@/lib/normalize-trip-events";
+import { hasActiveSession } from "@/lib/utils";
 import type { DriverPickupItem, DriverPickupLog, TrackingCheckpoint, TrackingMap, TrackingVehicle } from "@/types/armada";
 
 const tokenSelector = (s: { token: string | null }) => s.token;
@@ -68,37 +69,42 @@ export function useTrackingMap() {
               matchedVehicle.total_koli = dp.koli ?? matchedVehicle.total_koli;
               matchedVehicle.total_eceran = dp.ecer ?? matchedVehicle.total_eceran;
               matchedVehicle.total_high_value = dp.high_value ?? matchedVehicle.total_high_value;
-              if (dp.status) matchedVehicle.status = dp.status;
+              if (dp.session_online !== undefined) matchedVehicle.session_online = dp.session_online;
+              if (dp.last_login !== undefined) matchedVehicle.last_login = dp.last_login;
               if (isAtSeller) {
                 matchedVehicle.latitude = baseLat + offsetLat;
                 matchedVehicle.longitude = baseLng + offsetLng;
               }
             } else if (!existingDriverNames.has(nameLower)) {
-              // Standby armada pickup di area Gudang Outgoing atau Seller
-              const syntheticId = 9000 + (dp.id_user || (idx + 1));
-              if (!existingVehicleIds.has(syntheticId)) {
-                existingVehicleIds.add(syntheticId);
-                existingDriverNames.add(nameLower);
+              // HANYA buat marker jika driver pickup BENAR-BENAR SEDANG LOGIN (bukan logout)
+              const isDpOnline = dp.session_online || hasActiveSession(dp.last_login);
+              if (isDpOnline) {
+                const syntheticId = 9000 + (dp.id_user || (idx + 1));
+                if (!existingVehicleIds.has(syntheticId)) {
+                  existingVehicleIds.add(syntheticId);
+                  existingDriverNames.add(nameLower);
 
-                data.vehicles.push({
-                  id_kendaraan: syntheticId,
-                  plat_nomor: dp.nama_driver?.toLowerCase() === "pickup" ? "B 9278 PDD" : `B 9${String(dp.id_user || idx + 1).padStart(3, "0")} PDD`,
-                  tipe: "pickup",
-                  id_driver: dp.id_user,
-                  nama_driver: dp.nama_driver || dp.username,
-                  role_driver: "driver_pickup",
-                  status: dp.status || "standby",
-                  latitude: baseLat + offsetLat,
-                  longitude: baseLng + offsetLng,
-                  kecepatan: 0,
-                  offline: false,
-                  last_update: dp.updated_at || new Date().toISOString(),
-                  last_login: new Date().toISOString(),
-                  total_awb: dp.jumlah_barang || 0,
-                  total_koli: dp.koli || 0,
-                  total_eceran: dp.ecer || 0,
-                  total_high_value: dp.high_value || 0,
-                } as any);
+                  data.vehicles.push({
+                    id_kendaraan: syntheticId,
+                    plat_nomor: dp.nama_driver?.toLowerCase() === "pickup" ? "B 9278 PDD" : `B 9${String(dp.id_user || idx + 1).padStart(3, "0")} PDD`,
+                    tipe: "pickup",
+                    id_driver: dp.id_user,
+                    nama_driver: dp.nama_driver || dp.username,
+                    role_driver: "driver_pickup",
+                    status: dp.status || "standby",
+                    latitude: baseLat + offsetLat,
+                    longitude: baseLng + offsetLng,
+                    kecepatan: 0,
+                    offline: false,
+                    last_update: dp.updated_at || new Date().toISOString(),
+                    last_login: dp.last_login ?? new Date().toISOString(),
+                    session_online: true,
+                    total_awb: dp.jumlah_barang || 0,
+                    total_koli: dp.koli || 0,
+                    total_eceran: dp.ecer || 0,
+                    total_high_value: dp.high_value || 0,
+                  } as any);
+                }
               }
             }
           });

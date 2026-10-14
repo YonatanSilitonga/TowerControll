@@ -261,7 +261,16 @@ export default function DashboardPage() {
 
   // Hitung jumlah AWB / muatan per driver pickup mulai dari sesi pickup terbaru (cutoff saat selesai / mulai pickup baru)
   const resolvedDriverPickups = useMemo(() => {
-    const dps = map.data?.driver_pickups ?? [];
+    const rawDps = map.data?.driver_pickups ?? [];
+    // Jaring pengaman: deduplikasi berdasarkan id_user agar tiap driver pickup selalu unik
+    const seenUsers = new Set<number>();
+    const dps = rawDps.filter((dp) => {
+      if (dp.id_user == null) return false;
+      if (seenUsers.has(dp.id_user)) return false;
+      seenUsers.add(dp.id_user);
+      return true;
+    });
+
     if (!pickupHistoryQuery.data || pickupHistoryQuery.data.length === 0) return dps;
 
     // Kelompokkan log per id_user (terurut DESC dari backend)
@@ -663,6 +672,157 @@ export default function DashboardPage() {
       );
     });
 
+    const renderPickupDriverCard = (d: (typeof driverPickups)[0], isMenujuGudang: boolean) => {
+      const targetVeh = vehicles.find((v) => 
+        (v.nama_driver && d.nama_driver && v.nama_driver.trim().toLowerCase() === d.nama_driver.trim().toLowerCase()) ||
+        (v.id_driver && d.id_user && v.id_driver === d.id_user)
+      );
+      const isSelected = !!(targetVeh && selectedId === targetVeh.id_kendaraan);
+
+      const handleClick = () => {
+        if (targetVeh) {
+          setSelectedId(targetVeh.id_kendaraan);
+          setFocusTarget({ type: "truck", id: targetVeh.id_kendaraan, ts: Date.now() } as any);
+        } else if (d.asal_seller) {
+          const implantMatch = implants.find((s) => s.nama_implant.toLowerCase().includes((d.asal_seller || "").toLowerCase()));
+          if (implantMatch) setFocusTarget({ type: "implant", id: implantMatch.id_implant });
+          else {
+            const sellerMatch = sellers.find((s) => s.nama_seller.toLowerCase().includes((d.asal_seller || "").toLowerCase()));
+            if (sellerMatch) setFocusTarget({ type: "seller", id: sellerMatch.id_seller });
+          }
+        }
+      };
+
+      return (
+        <div
+          key={`pickup-${d.id_user}-${isMenujuGudang ? "gudang" : "seller"}`}
+          onClick={handleClick}
+          className={cn(
+            "group relative rounded-xl border bg-white p-3.5 transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md hover:border-slate-300",
+            isSelected
+              ? "border-blue-500 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-sm"
+              : "border-slate-200/90"
+          )}
+          title="Klik untuk melihat posisi armada di peta"
+        >
+          {/* Accent Left Bar */}
+          <div
+            className={cn(
+              "absolute left-0 top-3 bottom-3 w-1 rounded-r-full transition-all",
+              isMenujuGudang ? "bg-emerald-500" : "bg-amber-500"
+            )}
+          />
+
+          <div className="pl-1.5 space-y-2.5">
+            {/* Baris 1: Driver, Plat Nomor, & Status */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-bold text-slate-900 text-xs tracking-tight capitalize truncate">
+                    {d.nama_driver}
+                  </span>
+                  {targetVeh?.plat_nomor && (
+                    <span className="inline-flex items-center rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[9.5px] font-bold tracking-wider text-white shadow-2xs">
+                      {targetVeh.plat_nomor}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[9.5px] font-semibold border",
+                      isMenujuGudang
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200/70"
+                        : "bg-amber-50 text-amber-700 border-amber-200/70"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "h-1.5 w-1.5 rounded-full",
+                        isMenujuGudang ? "bg-emerald-500 animate-pulse" : "bg-amber-500 animate-pulse"
+                      )}
+                    />
+                    {isMenujuGudang ? "Menuju Gudang" : "Menuju Seller"}
+                  </span>
+
+                  {targetVeh && (
+                    <span className="text-[10px] text-slate-400 font-medium tabular-nums">
+                      {targetVeh.kecepatan ?? 0} km/h
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Muatan Badge (Right) */}
+              <div className="flex flex-col items-end shrink-0">
+                <div
+                  className={cn(
+                    "flex items-baseline gap-1 rounded-lg px-2.5 py-1 text-center shadow-2xs border",
+                    isMenujuGudang
+                      ? "bg-emerald-600 text-white border-emerald-700"
+                      : "bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-600"
+                  )}
+                >
+                  <span className="text-sm font-extrabold leading-none tabular-nums">
+                    {d.jumlah_barang ?? 0}
+                  </span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider opacity-90">
+                    AWB
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center gap-1 text-[10px] font-medium text-slate-500 tabular-nums">
+                  <span>{d.koli ?? 0} Koli</span>
+                  {(d.high_value ?? 0) > 0 && (
+                    <>
+                      <span>·</span>
+                      <span className="text-amber-700 font-semibold">{d.high_value} HV</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Baris 2: Asal Pickup */}
+            {d.asal_seller && (
+              <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs border border-slate-100/80">
+                <Store className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                <span className="text-[10.5px] text-slate-500 font-medium shrink-0">Asal Pickup:</span>
+                <span className="text-[11px] font-bold text-slate-800 truncate">{d.asal_seller}</span>
+              </div>
+            )}
+
+            {d.catatan && (
+              <p className="text-[10px] text-slate-500 italic pl-1 truncate">
+                &quot;{d.catatan}&quot;
+              </p>
+            )}
+
+            {/* Baris 3: Footer Hubungi & Lacak */}
+            <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px]">
+              {d.no_hp ? (
+                <a
+                  href={`tel:${d.no_hp.replace(/[^+\d]/g, "")}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1.5 text-slate-600 hover:text-emerald-600 font-medium transition-colors"
+                  title="Telepon driver"
+                >
+                  <Phone className="h-3 w-3 text-slate-400" />
+                  <span className="text-[10.5px]">{d.no_hp}</span>
+                </a>
+              ) : (
+                <span className="text-[10.5px] text-slate-400 italic">No HP tidak tersedia</span>
+              )}
+
+              <span className="inline-flex items-center gap-0.5 text-[10.5px] font-semibold text-slate-400 group-hover:text-blue-600 transition-colors">
+                Lacak di peta
+                <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     return (
       <div className="relative flex h-[calc(100vh-5.25rem)] w-full gap-3 overflow-hidden rounded-xl">
         {/* PETA FULL */}
@@ -739,122 +899,132 @@ export default function DashboardPage() {
 
         {/* SIDEBAR KANAN: KOORDINATOR GUDANG */}
         {rightPanelOpen && (
-          <aside className="relative flex h-full w-full max-w-[400px] shrink-0 flex-col gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm transition-all duration-300">
+          <aside className="relative flex h-full w-full max-w-[400px] shrink-0 flex-col gap-3 overflow-hidden rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-md transition-all duration-300">
             {/* Header sidebar kanan */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <div
                   className={cn(
-                    "flex h-7 w-7 items-center justify-center rounded-lg text-white shadow-xs shrink-0",
+                    "flex h-8 w-8 items-center justify-center rounded-xl text-white shadow-xs shrink-0 transition-colors",
                     implanTab === "menunggu"
-                      ? "bg-amber-500"
+                      ? "bg-amber-500 shadow-amber-500/20"
                       : implanTab === "menuju_seller"
-                      ? "bg-amber-600"
+                      ? "bg-amber-600 shadow-amber-600/20"
                       : implanTab === "diambil"
-                      ? "bg-emerald-600"
-                      : "bg-blue-600"
+                      ? "bg-emerald-600 shadow-emerald-600/20"
+                      : "bg-blue-600 shadow-blue-600/20"
                   )}
                 >
                   {implanTab === "menunggu" ? (
-                    <Store className="h-3.5 w-3.5 text-white" />
+                    <Store className="h-4 w-4" />
                   ) : (
-                    <Truck className="h-3.5 w-3.5 text-white" />
+                    <Truck className="h-4 w-4" />
                   )}
                 </div>
                 <div className="min-w-0">
-                  <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 leading-tight">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 leading-tight">
                     {implanTab === "menunggu"
                       ? "Implan Perlu Dijemput"
                       : implanTab === "menuju_seller"
                       ? "Driver Menuju Seller"
                       : implanTab === "diambil"
-                      ? "Driver Pickup Menuju Gudang"
-                      : "Driver Reguler (Antar / Ambil)"}
+                      ? "Driver Menuju Gudang"
+                      : "Armada Reguler Aktif"}
                   </h2>
-                  <p className="text-[10px] text-slate-400 font-medium mt-0.5 leading-tight">
-                    {implanTab === "menunggu" ? (
-                      <span>{waitingSellers.length} menunggu · <b className="text-amber-600">{totalAwbWaiting} AWB</b></span>
-                    ) : implanTab === "menuju_seller" ? (
-                      <span>{driverPickupsMenujuSeller.length} driver · <b className="text-amber-700">{totalAwbMenujuSeller} AWB</b></span>
-                    ) : implanTab === "diambil" ? (
-                      <span>{driverPickupsMenujuGudang.length} driver · <b className="text-emerald-700">{totalAwbDriver} AWB</b></span>
-                    ) : (
-                      <span>{regularDrivers.length} armada · <b className="text-blue-700">{totalKoliReguler} Koli</b></span>
-                    )}
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                    </span>
+                    <p className="text-[10.5px] text-slate-500 font-medium leading-tight">
+                      {implanTab === "menunggu" ? (
+                        <span>{waitingSellers.length} menunggu · <b className="text-amber-700 font-semibold">{totalAwbWaiting} AWB</b></span>
+                      ) : implanTab === "menuju_seller" ? (
+                        <span>{driverPickupsMenujuSeller.length} driver · <b className="text-amber-700 font-semibold">{totalAwbMenujuSeller} AWB</b></span>
+                      ) : implanTab === "diambil" ? (
+                        <span>{driverPickupsMenujuGudang.length} driver · <b className="text-emerald-700 font-semibold">{totalAwbDriver} AWB</b></span>
+                      ) : (
+                        <span>{regularDrivers.length} armada · <b className="text-blue-700 font-semibold">{totalKoliReguler} Koli</b></span>
+                      )}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setRightPanelOpen(false)}
-                  className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors"
-                  title="Perkecil panel"
-                >
-                  <span className="text-[11px] font-medium">Perkecil</span>
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setRightPanelOpen(false)}
+                className="flex items-center gap-1 rounded-lg border border-slate-200/80 bg-slate-50 px-2 py-1 text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors shadow-2xs"
+                title="Perkecil panel"
+              >
+                <span className="text-[11px] font-medium">Perkecil</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
             </div>
 
-            {/* Tab Filter (4 Pilihan: Perlu Jemput, Menuju Gudang, Menuju Seller, Driver Reguler) */}
-            <div className="grid grid-cols-4 gap-1 border-b border-slate-100 pb-2">
+            {/* Tab Filter (Segmented Switcher) */}
+            <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-slate-100/80 border border-slate-200/60">
               {/* Tab 1: Perlu Jemput */}
               <button
                 type="button"
                 onClick={() => setImplanTab("menunggu")}
                 className={cn(
-                  "flex flex-col items-center justify-center rounded-lg py-2 px-1 transition-all gap-0.5",
+                  "flex flex-col items-center justify-center rounded-lg py-1.5 px-1 transition-all gap-0.5",
                   implanTab === "menunggu"
-                    ? "bg-amber-500 text-white shadow-xs"
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                    ? "bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
                 )}
               >
-                <Store className="h-3.5 w-3.5 shrink-0" />
-                <span className="text-[8.5px] font-bold leading-tight text-center whitespace-nowrap">Jemput</span>
-                <span className={cn(
-                  "text-[10px] font-black leading-tight tabular-nums",
-                  implanTab === "menunggu" ? "text-white" : "text-slate-700"
-                )}>{waitingSellers.length}</span>
+                <div className="flex items-center gap-1">
+                  <Store className={cn("h-3.5 w-3.5", implanTab === "menunggu" ? "text-amber-600" : "text-slate-400")} />
+                  <span className={cn(
+                    "text-[10px] font-bold tabular-nums px-1 rounded-full",
+                    implanTab === "menunggu" ? "bg-amber-100 text-amber-800" : "bg-slate-200/70 text-slate-600"
+                  )}>{waitingSellers.length}</span>
+                </div>
+                <span className="text-[9.5px] font-semibold leading-tight text-center whitespace-nowrap">Jemput</span>
               </button>
 
-              {/* Tab 2: Menuju Gudang */}
-              <button
-                type="button"
-                onClick={() => setImplanTab("diambil")}
-                className={cn(
-                  "flex flex-col items-center justify-center rounded-lg py-2 px-1 transition-all gap-0.5",
-                  implanTab === "diambil"
-                    ? "bg-emerald-600 text-white shadow-xs"
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                )}
-              >
-                <Truck className="h-3.5 w-3.5 shrink-0" />
-                <span className="text-[8.5px] font-bold leading-tight text-center whitespace-nowrap">Ke Gudang</span>
-                <span className={cn(
-                  "text-[10px] font-black leading-tight tabular-nums",
-                  implanTab === "diambil" ? "text-white" : "text-slate-700"
-                )}>{driverPickupsMenujuGudang.length}</span>
-              </button>
-
-              {/* Tab 3: Menuju Seller */}
+              {/* Tab 2: Ke Seller */}
               <button
                 type="button"
                 onClick={() => setImplanTab("menuju_seller")}
                 className={cn(
-                  "flex flex-col items-center justify-center rounded-lg py-2 px-1 transition-all gap-0.5",
+                  "flex flex-col items-center justify-center rounded-lg py-1.5 px-1 transition-all gap-0.5",
                   implanTab === "menuju_seller"
-                    ? "bg-amber-600 text-white shadow-xs"
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                    ? "bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
                 )}
               >
-                <Store className="h-3.5 w-3.5 shrink-0" />
-                <span className="text-[8.5px] font-bold leading-tight text-center whitespace-nowrap">Ke Seller</span>
-                <span className={cn(
-                  "text-[10px] font-black leading-tight tabular-nums",
-                  implanTab === "menuju_seller" ? "text-white" : "text-slate-700"
-                )}>{driverPickupsMenujuSeller.length}</span>
+                <div className="flex items-center gap-1">
+                  <RouteIcon className={cn("h-3.5 w-3.5", implanTab === "menuju_seller" ? "text-amber-600" : "text-slate-400")} />
+                  <span className={cn(
+                    "text-[10px] font-bold tabular-nums px-1 rounded-full",
+                    implanTab === "menuju_seller" ? "bg-amber-100 text-amber-800" : "bg-slate-200/70 text-slate-600"
+                  )}>{driverPickupsMenujuSeller.length}</span>
+                </div>
+                <span className="text-[9.5px] font-semibold leading-tight text-center whitespace-nowrap">Ke Seller</span>
+              </button>
+
+              {/* Tab 3: Ke Gudang */}
+              <button
+                type="button"
+                onClick={() => setImplanTab("diambil")}
+                className={cn(
+                  "flex flex-col items-center justify-center rounded-lg py-1.5 px-1 transition-all gap-0.5",
+                  implanTab === "diambil"
+                    ? "bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
+                )}
+              >
+                <div className="flex items-center gap-1">
+                  <Truck className={cn("h-3.5 w-3.5", implanTab === "diambil" ? "text-emerald-600" : "text-slate-400")} />
+                  <span className={cn(
+                    "text-[10px] font-bold tabular-nums px-1 rounded-full",
+                    implanTab === "diambil" ? "bg-emerald-100 text-emerald-800" : "bg-slate-200/70 text-slate-600"
+                  )}>{driverPickupsMenujuGudang.length}</span>
+                </div>
+                <span className="text-[9.5px] font-semibold leading-tight text-center whitespace-nowrap">Ke Gudang</span>
               </button>
 
               {/* Tab 4: Driver Reguler */}
@@ -862,66 +1032,94 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => setImplanTab("reguler")}
                 className={cn(
-                  "flex flex-col items-center justify-center rounded-lg py-2 px-1 transition-all gap-0.5",
+                  "flex flex-col items-center justify-center rounded-lg py-1.5 px-1 transition-all gap-0.5",
                   implanTab === "reguler"
-                    ? "bg-blue-600 text-white shadow-xs"
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                    ? "bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-white/40"
                 )}
               >
-                <Truck className="h-3.5 w-3.5 shrink-0" />
-                <span className="text-[8.5px] font-bold leading-tight text-center whitespace-nowrap">Reguler</span>
-                <span className={cn(
-                  "text-[10px] font-black leading-tight tabular-nums",
-                  implanTab === "reguler" ? "text-white" : "text-slate-700"
-                )}>{regularDrivers.length}</span>
+                <div className="flex items-center gap-1">
+                  <Boxes className={cn("h-3.5 w-3.5", implanTab === "reguler" ? "text-blue-600" : "text-slate-400")} />
+                  <span className={cn(
+                    "text-[10px] font-bold tabular-nums px-1 rounded-full",
+                    implanTab === "reguler" ? "bg-blue-100 text-blue-800" : "bg-slate-200/70 text-slate-600"
+                  )}>{regularDrivers.length}</span>
+                </div>
+                <span className="text-[9.5px] font-semibold leading-tight text-center whitespace-nowrap">Reguler</span>
               </button>
             </div>
 
-            {/* Summary Banner Muatan */}
-            {implanTab === "menunggu" && (
-              <div className="rounded-lg bg-amber-50 border border-amber-200/70 px-3 py-2 text-[11px] text-amber-900 flex items-center justify-between gap-2">
-                <span className="font-semibold flex items-center gap-1 shrink-0">
-                  <Store className="h-3 w-3 text-amber-600" />
-                  Total:
-                </span>
-                <span className="font-extrabold text-amber-700 tabular-nums text-right">
-                  {totalAwbWaiting} AWB · {totalKoliWaiting} Koli · {totalHvWaiting} HV
-                </span>
+            {/* Summary KPI Banner */}
+            <div className="rounded-xl bg-gradient-to-r from-slate-50 via-white to-slate-50 border border-slate-200/90 p-2.5 flex items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div
+                  className={cn(
+                    "h-8 w-8 rounded-lg flex items-center justify-center shrink-0 border shadow-2xs",
+                    implanTab === "menunggu"
+                      ? "bg-amber-50 border-amber-200/70 text-amber-600"
+                      : implanTab === "menuju_seller"
+                      ? "bg-amber-50 border-amber-200/70 text-amber-600"
+                      : implanTab === "diambil"
+                      ? "bg-emerald-50 border-emerald-200/70 text-emerald-600"
+                      : "bg-blue-50 border-blue-200/70 text-blue-600"
+                  )}
+                >
+                  {implanTab === "menunggu" ? (
+                    <Store className="h-4 w-4" />
+                  ) : (
+                    <Package className="h-4 w-4" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <span className="block text-[9.5px] font-bold uppercase tracking-wider text-slate-400 leading-none">
+                    Total Muatan
+                  </span>
+                  <div className="flex items-baseline gap-1 mt-0.5">
+                    <span className="text-sm font-black text-slate-900 tabular-nums">
+                      {implanTab === "menunggu"
+                        ? totalAwbWaiting
+                        : implanTab === "menuju_seller"
+                        ? totalAwbMenujuSeller
+                        : implanTab === "diambil"
+                        ? totalAwbDriver
+                        : totalAwbReguler}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-500">AWB</span>
+                  </div>
+                </div>
               </div>
-            )}
-            {implanTab === "menuju_seller" && (
-              <div className="rounded-lg bg-amber-50 border border-amber-200/70 px-3 py-2 text-[11px] text-amber-900 flex items-center justify-between gap-2">
-                <span className="font-semibold flex items-center gap-1 shrink-0">
-                  <Store className="h-3 w-3 text-amber-600" />
-                  Total:
-                </span>
-                <span className="font-extrabold text-amber-700 tabular-nums text-right">
-                  {totalAwbMenujuSeller} AWB · {totalKoliMenujuSeller} Koli
-                </span>
+
+              <div className="flex items-center gap-3 divide-x divide-slate-200 text-right shrink-0">
+                <div className="pr-1">
+                  <span className="block text-[9.5px] font-bold uppercase tracking-wider text-slate-400 leading-none">
+                    Koli Fisik
+                  </span>
+                  <span className="text-xs font-extrabold text-slate-800 tabular-nums mt-0.5 block">
+                    {implanTab === "menunggu"
+                      ? totalKoliWaiting
+                      : implanTab === "menuju_seller"
+                      ? totalKoliMenujuSeller
+                      : implanTab === "diambil"
+                      ? totalKoliDriver
+                      : totalKoliReguler}
+                  </span>
+                </div>
+                <div className="pl-3">
+                  <span className="block text-[9.5px] font-bold uppercase tracking-wider text-slate-400 leading-none">
+                    {implanTab === "menunggu" ? "Seller" : "Armada"}
+                  </span>
+                  <span className="text-xs font-extrabold text-slate-800 tabular-nums mt-0.5 block">
+                    {implanTab === "menunggu"
+                      ? waitingSellers.length
+                      : implanTab === "menuju_seller"
+                      ? driverPickupsMenujuSeller.length
+                      : implanTab === "diambil"
+                      ? driverPickupsMenujuGudang.length
+                      : regularDrivers.length}
+                  </span>
+                </div>
               </div>
-            )}
-            {implanTab === "diambil" && (
-              <div className="rounded-lg bg-emerald-50 border border-emerald-200/70 px-3 py-2 text-[11px] text-emerald-900 flex items-center justify-between gap-2">
-                <span className="font-semibold flex items-center gap-1 shrink-0">
-                  <Truck className="h-3 w-3 text-emerald-600" />
-                  Total:
-                </span>
-                <span className="font-extrabold text-emerald-700 tabular-nums text-right">
-                  {totalAwbDriver} AWB · {totalKoliDriver} Koli · {totalHvDriver} HV
-                </span>
-              </div>
-            )}
-            {implanTab === "reguler" && (
-              <div className="rounded-lg bg-blue-50 border border-blue-200/70 px-3 py-2 text-[11px] text-blue-900 flex items-center justify-between gap-2">
-                <span className="font-semibold flex items-center gap-1 shrink-0">
-                  <Truck className="h-3 w-3 text-blue-600" />
-                  Total:
-                </span>
-                <span className="font-extrabold text-blue-700 tabular-nums text-right">
-                  {totalAwbReguler} AWB · {totalKoliReguler} Koli · {totalHvReguler} HV
-                </span>
-              </div>
-            )}
+            </div>
 
             {/* Pencarian */}
             <div className="relative">
@@ -936,217 +1134,79 @@ export default function DashboardPage() {
                     ? "Cari driver, plat nopol, lokasi..."
                     : "Cari nama driver pickup, asal..."
                 }
-                className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50/60 pl-8 pr-3 text-xs outline-none focus:border-[#0c1e3a] focus:bg-white focus:ring-2 focus:ring-[#0c1e3a]/15 transition-all"
+                className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50/70 pl-8 pr-8 text-xs outline-none focus:border-slate-800 focus:bg-white focus:ring-2 focus:ring-slate-900/10 transition-all placeholder:text-slate-400"
               />
+              {implanQ && (
+                <button
+                  type="button"
+                  onClick={() => setImplanQ("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
             </div>
 
             {/* List Content (Scrollable) */}
             <div className="flex-1 space-y-2 overflow-y-auto pr-1">
               {map.isPending ? (
                 Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                  <Skeleton key={i} className="h-24 w-full rounded-xl" />
                 ))
               ) : implanTab === "diambil" ? (
-                /* TAB MENUJU GUDANG: hanya driver status menuju_gudang */
+                /* TAB MENUJU GUDANG: driver status menuju_gudang */
                 displayedMenujuGudangDrivers.length === 0 ? (
                   <div className="py-12 text-center text-slate-400">
-                    <Truck className="mx-auto mb-2 h-7 w-7 text-slate-300" />
-                    <p className="text-xs font-semibold text-slate-600">
+                    <div className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+                      <Truck className="h-5 w-5" />
+                    </div>
+                    <p className="text-xs font-bold text-slate-700">
                       {ql ? "Tidak ada driver yang cocok" : "Belum ada driver menuju gudang"}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Driver yang sedang membawa muatan menuju gudang akan muncul di sini.
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {displayedMenujuGudangDrivers.map((d) => {
-                      const targetVeh = vehicles.find((v) => 
-                        (v.nama_driver && d.nama_driver && v.nama_driver.trim().toLowerCase() === d.nama_driver.trim().toLowerCase()) ||
-                        (v.id_driver && d.id_user && v.id_driver === d.id_user)
-                      );
-                      const isSelected = !!(targetVeh && selectedId === targetVeh.id_kendaraan);
-
-                      return (
-                        <div
-                          key={d.id_user}
-                          onClick={() => {
-                            if (targetVeh) {
-                              setSelectedId(targetVeh.id_kendaraan);
-                              setFocusTarget({ type: "truck", id: targetVeh.id_kendaraan, ts: Date.now() } as any);
-                            } else if (d.asal_seller) {
-                              const implantMatch = implants.find((s) => s.nama_implant.toLowerCase().includes((d.asal_seller || "").toLowerCase()));
-                              if (implantMatch) setFocusTarget({ type: "implant", id: implantMatch.id_implant });
-                              else {
-                                const sellerMatch = sellers.find((s) => s.nama_seller.toLowerCase().includes((d.asal_seller || "").toLowerCase()));
-                                if (sellerMatch) setFocusTarget({ type: "seller", id: sellerMatch.id_seller });
-                              }
-                            }
-                          }}
-                          className={cn(
-                            "rounded-xl border p-3 text-xs shadow-xs transition-all cursor-pointer hover:shadow-md hover:scale-[1.01]",
-                            isSelected
-                              ? "border-emerald-500 bg-emerald-100/60 ring-2 ring-emerald-500/30"
-                              : "border-emerald-300 bg-emerald-50/30 hover:border-emerald-400"
-                          )}
-                          title="Klik untuk melihat posisi armada di peta"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-bold text-slate-900 capitalize truncate">{d.nama_driver}</span>
-                                {targetVeh?.plat_nomor && (
-                                  <span className="rounded bg-emerald-700 text-white px-1.5 py-0.5 text-[9px] font-bold tracking-wide">
-                                    🚗 {targetVeh.plat_nomor}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                                <span className="rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase bg-emerald-600 text-white">
-                                  🚚 Menuju Gudang
-                                </span>
-                                {d.no_hp && (
-                                  <a
-                                    href={`tel:${d.no_hp.replace(/[^+\d]/g, "")}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:underline"
-                                  >
-                                    <Phone className="h-3 w-3" /> {d.no_hp}
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <div className="rounded-lg px-2 py-1 text-center shadow-2xs min-w-[42px] bg-emerald-600 text-white">
-                                <span className="block text-[12px] leading-tight font-extrabold">{d.jumlah_barang ?? 0}</span>
-                                <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-90">AWB</span>
-                              </div>
-                              <div className="rounded-lg px-2 py-1 text-center shadow-2xs min-w-[38px] border bg-slate-100 text-slate-700 border-slate-200/70">
-                                <span className="block text-[12px] leading-tight font-extrabold">{d.koli ?? 0}</span>
-                                <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-75">Koli</span>
-                              </div>
-                              <div className="rounded-lg px-2 py-1 text-center shadow-2xs min-w-[38px] border bg-slate-100 text-slate-700 border-slate-200/70">
-                                <span className="block text-[12px] leading-tight font-extrabold">{d.high_value ?? 0}</span>
-                                <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-75">HV</span>
-                              </div>
-                            </div>
-                          </div>
-                          {d.asal_seller && (
-                            <p className="mt-1.5 rounded bg-emerald-50/70 px-2 py-1 text-[10px] text-emerald-900 border border-emerald-200/60 font-medium">
-                              Asal Pickup: <b>{d.asal_seller}</b>
-                            </p>
-                          )}
-                          {d.catatan && (
-                            <p className="mt-1 text-[10px] text-slate-500 italic">&quot;{d.catatan}&quot;</p>
-                          )}
-                        </div>
-                      );
-                    })}
+                  <div className="space-y-2.5">
+                    {displayedMenujuGudangDrivers.map((d) => renderPickupDriverCard(d, true))}
                   </div>
                 )
               ) : implanTab === "menuju_seller" ? (
                 /* TAB MENUJU SELLER */
                 displayedMenujuSellerDrivers.length === 0 ? (
                   <div className="py-12 text-center text-slate-400">
-                    <Store className="mx-auto mb-2 h-7 w-7 text-slate-300" />
-                    <p className="text-xs font-semibold text-slate-600">
+                    <div className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+                      <Store className="h-5 w-5" />
+                    </div>
+                    <p className="text-xs font-bold text-slate-700">
                       {ql ? "Tidak ada driver yang cocok" : "Belum ada driver menuju seller"}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Driver yang sedang dalam perjalanan menjemput barang akan muncul di sini.
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {displayedMenujuSellerDrivers.map((d) => {
-                      const targetVeh = vehicles.find((v) => 
-                        (v.nama_driver && d.nama_driver && v.nama_driver.trim().toLowerCase() === d.nama_driver.trim().toLowerCase()) ||
-                        (v.id_driver && d.id_user && v.id_driver === d.id_user)
-                      );
-                      const isSelected = !!(targetVeh && selectedId === targetVeh.id_kendaraan);
-
-                      return (
-                        <div
-                          key={d.id_user}
-                          onClick={() => {
-                            if (targetVeh) {
-                              setSelectedId(targetVeh.id_kendaraan);
-                              setFocusTarget({ type: "truck", id: targetVeh.id_kendaraan, ts: Date.now() } as any);
-                            } else if (d.asal_seller) {
-                              const implantMatch = implants.find((s) => s.nama_implant.toLowerCase().includes((d.asal_seller || "").toLowerCase()));
-                              if (implantMatch) setFocusTarget({ type: "implant", id: implantMatch.id_implant });
-                              else {
-                                const sellerMatch = sellers.find((s) => s.nama_seller.toLowerCase().includes((d.asal_seller || "").toLowerCase()));
-                                if (sellerMatch) setFocusTarget({ type: "seller", id: sellerMatch.id_seller });
-                              }
-                            }
-                          }}
-                          className={cn(
-                            "rounded-xl border p-3 text-xs shadow-xs transition-all cursor-pointer hover:shadow-md hover:scale-[1.01]",
-                            isSelected
-                              ? "border-amber-500 bg-amber-100/60 ring-2 ring-amber-500/30"
-                              : "border-amber-300 bg-amber-50/30 hover:border-amber-400"
-                          )}
-                          title="Klik untuk melihat posisi armada di peta"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-bold text-slate-900 capitalize truncate">{d.nama_driver}</span>
-                                {targetVeh?.plat_nomor && (
-                                  <span className="rounded bg-amber-700 text-white px-1.5 py-0.5 text-[9px] font-bold tracking-wide">
-                                    🚗 {targetVeh.plat_nomor}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                                <span className="rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase bg-amber-600 text-white">
-                                  🏬 Menuju Seller
-                                </span>
-                                {d.no_hp && (
-                                  <a
-                                    href={`tel:${d.no_hp.replace(/[^+\d]/g, "")}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 hover:underline"
-                                  >
-                                    <Phone className="h-3 w-3" /> {d.no_hp}
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <div className="rounded-lg px-2 py-1 text-center shadow-2xs min-w-[42px] bg-amber-600 text-white">
-                                <span className="block text-[12px] leading-tight font-extrabold">{d.jumlah_barang ?? 0}</span>
-                                <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-90">AWB</span>
-                              </div>
-                              <div className="rounded-lg px-2 py-1 text-center shadow-2xs min-w-[38px] border bg-slate-100 text-slate-700 border-slate-200/70">
-                                <span className="block text-[12px] leading-tight font-extrabold">{d.koli ?? 0}</span>
-                                <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-75">Koli</span>
-                              </div>
-                              <div className="rounded-lg px-2 py-1 text-center shadow-2xs min-w-[38px] border bg-slate-100 text-slate-700 border-slate-200/70">
-                                <span className="block text-[12px] leading-tight font-extrabold">{d.high_value ?? 0}</span>
-                                <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-75">HV</span>
-                              </div>
-                            </div>
-                          </div>
-                          {d.asal_seller && (
-                            <p className="mt-1.5 rounded bg-amber-50/70 px-2 py-1 text-[10px] text-amber-900 border border-amber-200/60 font-medium">
-                              Asal Pickup: <b>{d.asal_seller}</b>
-                            </p>
-                          )}
-                          {d.catatan && (
-                            <p className="mt-1 text-[10px] text-slate-500 italic">&quot;{d.catatan}&quot;</p>
-                          )}
-                        </div>
-                      );
-                    })}
+                  <div className="space-y-2.5">
+                    {displayedMenujuSellerDrivers.map((d) => renderPickupDriverCard(d, false))}
                   </div>
                 )
               ) : implanTab === "reguler" ? (
                 /* TAB DRIVER REGULER: armada reguler */
                 displayedRegularDrivers.length === 0 ? (
                   <div className="py-12 text-center text-slate-400">
-                    <Truck className="mx-auto mb-2 h-7 w-7 text-slate-300" />
-                    <p className="text-xs font-semibold text-slate-600">
-                      {ql ? "Tidak ada driver yang cocok" : "Belum ada armada reguler"}
+                    <div className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+                      <Boxes className="h-5 w-5" />
+                    </div>
+                    <p className="text-xs font-bold text-slate-700">
+                      {ql ? "Tidak ada armada yang cocok" : "Belum ada armada reguler online"}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Armada CDD / CDE reguler dengan sesi aktif akan tampil di sini.
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     {displayedRegularDrivers.map((v, idx) => {
                       const isSelected = selectedId === v.id_kendaraan;
                       const live = isOnline(v);
@@ -1165,72 +1225,118 @@ export default function DashboardPage() {
                             setFocusTarget({ type: "truck", id: v.id_kendaraan });
                           }}
                           className={cn(
-                            "rounded-xl border p-3 text-xs shadow-xs transition-all cursor-pointer hover:shadow-md hover:scale-[1.01]",
+                            "group relative rounded-xl border bg-white p-3.5 transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md hover:border-slate-300",
                             isSelected
-                              ? "border-blue-500 bg-blue-100/60 ring-2 ring-blue-500/30"
-                              : "border-slate-200 bg-white hover:border-blue-300"
+                              ? "border-blue-500 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-sm"
+                              : "border-slate-200/90"
                           )}
                           title="Klik untuk melihat posisi armada di peta"
                         >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-bold text-slate-900 capitalize truncate">{v.nama_driver || "Tanpa Driver"}</span>
-                                {v.plat_nomor && (
-                                  <span className="rounded bg-slate-800 text-white px-1.5 py-0.5 text-[9px] font-bold tracking-wide">
-                                    🚚 {v.plat_nomor}
+                          {/* Accent Left Bar */}
+                          <div className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full bg-blue-500 transition-all" />
+
+                          <div className="pl-1.5 space-y-2.5">
+                            {/* Baris 1: Driver, Plat & Status */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-bold text-slate-900 text-xs tracking-tight capitalize truncate">
+                                    {v.nama_driver || "Tanpa Driver"}
                                   </span>
-                                )}
-                              </div>
-                              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                                <span
-                                  className={cn(
-                                    "rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase",
-                                    loggedOut
-                                      ? "bg-slate-200 text-slate-600"
-                                      : live
-                                      ? "bg-emerald-600 text-white"
-                                      : "bg-amber-100 text-amber-800"
+                                  {v.plat_nomor && (
+                                    <span className="inline-flex items-center rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[9.5px] font-bold tracking-wider text-white shadow-2xs">
+                                      {v.plat_nomor}
+                                    </span>
                                   )}
-                                >
-                                  {loggedOut ? "Logout" : live ? "LIVE" : "Standby"}
-                                </span>
-                                {phone && (
-                                  <a
-                                    href={`tel:${phone.replace(/[^+\d]/g, "")}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:underline"
+                                </div>
+                                <div className="mt-1 flex items-center gap-2">
+                                  <span
+                                    className={cn(
+                                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9.5px] font-semibold border",
+                                      loggedOut
+                                        ? "bg-slate-100 text-slate-600 border-slate-200"
+                                        : live
+                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200/70"
+                                        : "bg-amber-50 text-amber-700 border-amber-200/70"
+                                    )}
                                   >
-                                    <Phone className="h-3 w-3" /> {phone}
-                                  </a>
-                                )}
+                                    <span
+                                      className={cn(
+                                        "h-1.5 w-1.5 rounded-full",
+                                        loggedOut ? "bg-slate-400" : live ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                                      )}
+                                    />
+                                    {loggedOut ? "Logout" : live ? "Live Online" : "Standby"}
+                                  </span>
+
+                                  {v.kecepatan != null && live && (
+                                    <span className="text-[10px] text-slate-400 font-medium tabular-nums">
+                                      {v.kecepatan} km/h
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Muatan Badge */}
+                              <div className="flex flex-col items-end shrink-0">
+                                <div className="flex items-baseline gap-1 rounded-lg px-2.5 py-1 text-center shadow-2xs border bg-slate-800 text-white border-slate-900">
+                                  <span className="text-sm font-extrabold leading-none tabular-nums">
+                                    {v.total_koli ?? 0}
+                                  </span>
+                                  <span className="text-[9px] font-bold uppercase tracking-wider opacity-90">
+                                    Koli
+                                  </span>
+                                </div>
+                                <div className="mt-1 flex items-center gap-1 text-[10px] font-medium text-slate-500 tabular-nums">
+                                  <span>{v.total_eceran ?? 0} Ecer</span>
+                                  {(v.total_high_value ?? 0) > 0 && (
+                                    <>
+                                      <span>·</span>
+                                      <span className="text-amber-700 font-semibold">{v.total_high_value} HV</span>
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <div className="rounded-lg px-2 py-1 text-center shadow-2xs min-w-[38px] border bg-slate-100 text-slate-700 border-slate-200/70">
-                                <span className="block text-[12px] leading-tight font-extrabold">{v.total_koli ?? 0}</span>
-                                <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-75">Koli</span>
+
+                            {/* Lokasi / Ritase */}
+                            {v.nama_lokasi && (
+                              <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs border border-slate-100/80">
+                                <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                <span className="text-[10.5px] text-slate-500 font-medium shrink-0">Posisi:</span>
+                                <span className="text-[11px] font-bold text-slate-800 truncate">{v.nama_lokasi}</span>
                               </div>
-                              <div className="rounded-lg px-2 py-1 text-center shadow-2xs min-w-[38px] border bg-slate-100 text-slate-700 border-slate-200/70">
-                                <span className="block text-[12px] leading-tight font-extrabold">{v.total_eceran ?? 0}</span>
-                                <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-75">Ecer</span>
-                              </div>
-                              <div className="rounded-lg px-2 py-1 text-center shadow-2xs min-w-[38px] border bg-slate-100 text-slate-700 border-slate-200/70">
-                                <span className="block text-[12px] leading-tight font-extrabold">{v.total_high_value ?? 0}</span>
-                                <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-75">HV</span>
-                              </div>
+                            )}
+
+                            {v.status_ritase && (
+                              <p className="text-[10px] text-slate-500 pl-1">
+                                Ritase: <span className="font-semibold text-slate-700">{v.status_ritase}</span>{" "}
+                                {v.kode_ritase ? `(${v.kode_ritase})` : ""}
+                              </p>
+                            )}
+
+                            {/* Footer */}
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px]">
+                              {phone ? (
+                                <a
+                                  href={`tel:${phone.replace(/[^+\d]/g, "")}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1.5 text-slate-600 hover:text-emerald-600 font-medium transition-colors"
+                                  title="Telepon driver"
+                                >
+                                  <Phone className="h-3 w-3 text-slate-400" />
+                                  <span className="text-[10.5px]">{phone}</span>
+                                </a>
+                              ) : (
+                                <span className="text-[10.5px] text-slate-400 italic">No HP tidak tersedia</span>
+                              )}
+
+                              <span className="inline-flex items-center gap-0.5 text-[10.5px] font-semibold text-slate-400 group-hover:text-blue-600 transition-colors">
+                                Lacak di peta
+                                <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                              </span>
                             </div>
                           </div>
-                          {v.nama_lokasi && (
-                            <p className="mt-1.5 rounded bg-slate-50 px-2 py-1 text-[10px] text-slate-700 border border-slate-200 font-medium truncate">
-                              📍 <b>{v.nama_lokasi}</b>
-                            </p>
-                          )}
-                          {v.status_ritase && (
-                            <p className="mt-1 text-[10px] text-slate-500">
-                              Ritase: <span className="font-semibold text-slate-700">{v.status_ritase}</span> {v.kode_ritase ? `(${v.kode_ritase})` : ""}
-                            </p>
-                          )}
                         </div>
                       );
                     })}
@@ -1238,111 +1344,108 @@ export default function DashboardPage() {
                 )
               ) : displayedSellers.length === 0 ? (
                 <div className="py-12 text-center text-slate-400">
-                  <Package className="mx-auto mb-2 h-7 w-7 text-slate-300" />
-                  <p className="text-xs font-semibold text-slate-600">
-                    {ql
-                      ? "Tidak ada implan yang cocok"
-                      : "Tidak ada implan yang perlu dijemput saat ini"}
+                  <div className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+                    <Package className="h-5 w-5" />
+                  </div>
+                  <p className="text-xs font-bold text-slate-700">
+                    {ql ? "Tidak ada implan yang cocok" : "Tidak ada implan yang perlu dijemput"}
                   </p>
                   <p className="mt-1 text-[11px] text-slate-400">
-                    Semua barang implan sudah dijemput atau belum ada muatan.
+                    Semua barang implan sudah dijemput atau belum ada muatan baru.
                   </p>
                 </div>
               ) : (
-                displayedSellers.map((s) => {
-                  const awbCount = s.jumlah_barang ?? 0;
+                <div className="space-y-2.5">
+                  {displayedSellers.map((s) => {
+                    const awbCount = s.jumlah_barang ?? 0;
 
-                  return (
-                    <div
-                      key={s.id_implant}
-                      onClick={() => setFocusTarget({ type: "implant", id: s.id_implant })}
-                      className="rounded-xl border border-slate-200 p-3 transition-all text-xs bg-white hover:border-slate-300 shadow-xs cursor-pointer hover:bg-slate-50/80"
-                    >
-                      {/* Top Bar: Nama & AWB Badge */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-slate-900 truncate flex items-center gap-1.5">
-                            <span className="truncate">{s.nama_implant}</span>
-                            {s.kode_implant && (
-                              <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[9px] font-medium text-slate-500 shrink-0">
-                                {s.kode_implant}
-                              </span>
-                            )}
-                          </p>
-                          <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                            <MapPin className="h-3 w-3 text-slate-400" />
-                            <span>{s.kota || "-"}</span>
-                            {s.jarak_tempuh_km != null && (
-                              <span className="ml-1 text-sky-600 font-medium">· {s.jarak_tempuh_km.toFixed(1)} km</span>
-                            )}
-                          </p>
-                        </div>
+                    return (
+                      <div
+                        key={s.id_implant}
+                        onClick={() => setFocusTarget({ type: "implant", id: s.id_implant })}
+                        className="group relative rounded-xl border border-slate-200/90 bg-white p-3.5 transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md hover:border-slate-300"
+                        title="Klik untuk melihat posisi toko di peta"
+                      >
+                        {/* Accent Left Bar */}
+                        <div className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full bg-amber-500 transition-all" />
 
-                        {/* 3 Kotak Muatan: AWB, Koli, HV */}
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {/* Kotak AWB */}
-                          <div
-                            className={cn(
-                              "rounded-lg px-2 py-1 text-center font-extrabold text-xs shadow-2xs min-w-[42px]",
-                              awbCount > 0
-                                ? "bg-amber-500 text-white"
-                                : "bg-slate-100 text-slate-500"
-                            )}
-                          >
-                            <span className="block text-[12px] leading-tight font-extrabold">
-                              {awbCount}
-                            </span>
-                            <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-90">
-                              AWB
-                            </span>
+                        <div className="pl-1.5 space-y-2.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-slate-900 text-xs tracking-tight truncate">
+                                  {s.nama_implant}
+                                </span>
+                                {s.kode_implant && (
+                                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-mono font-bold text-slate-600 border border-slate-200/60">
+                                    {s.kode_implant}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10.5px] text-slate-500 flex items-center gap-1 mt-1">
+                                <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                                <span className="truncate">{s.kota || "-"}</span>
+                                {s.jarak_tempuh_km != null && (
+                                  <span className="text-sky-600 font-semibold shrink-0">· {s.jarak_tempuh_km.toFixed(1)} km</span>
+                                )}
+                              </p>
+                            </div>
+
+                            {/* Muatan Badge */}
+                            <div className="flex flex-col items-end shrink-0">
+                              <div
+                                className={cn(
+                                  "flex items-baseline gap-1 rounded-lg px-2.5 py-1 text-center shadow-2xs border",
+                                  awbCount > 0
+                                    ? "bg-amber-500 text-white border-amber-600"
+                                    : "bg-slate-100 text-slate-500 border-slate-200"
+                                )}
+                              >
+                                <span className="text-sm font-extrabold leading-none tabular-nums">
+                                  {awbCount}
+                                </span>
+                                <span className="text-[9px] font-bold uppercase tracking-wider opacity-90">
+                                  AWB
+                                </span>
+                              </div>
+                              <div className="mt-1 flex items-center gap-1 text-[10px] font-medium text-slate-500 tabular-nums">
+                                <span>{s.koli ?? 0} Koli</span>
+                                {(s.high_value ?? 0) > 0 && (
+                                  <>
+                                    <span>·</span>
+                                    <span className="text-amber-700 font-semibold">{s.high_value} HV</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
                           </div>
 
-                          {/* Kotak Koli */}
-                          <div className="rounded-lg px-2 py-1 text-center font-extrabold text-xs shadow-2xs min-w-[38px] border bg-slate-100 text-slate-700 border-slate-200/70">
-                            <span className="block text-[12px] leading-tight font-extrabold">
-                              {s.koli ?? 0}
-                            </span>
-                            <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-75">
-                              Koli
-                            </span>
-                          </div>
+                          {s.catatan_pickup && (
+                            <p className="text-[10px] text-slate-500 italic pl-1 rounded bg-slate-50 px-2 py-1 border border-slate-100">
+                              &quot;{s.catatan_pickup}&quot;
+                            </p>
+                          )}
 
-                          {/* Kotak HV (High Value) */}
-                          <div className="rounded-lg px-2 py-1 text-center font-extrabold text-xs shadow-2xs min-w-[38px] border bg-slate-100 text-slate-700 border-slate-200/70">
-                            <span className="block text-[12px] leading-tight font-extrabold">
-                              {s.high_value ?? 0}
+                          <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px]">
+                            <span className="text-slate-600 font-medium text-[10.5px]">
+                              Kapten: <b>{s.kapten || "-"}</b>
                             </span>
-                            <span className="block text-[8px] uppercase tracking-wider font-semibold opacity-75">
-                              HV
-                            </span>
+                            {s.no_hp && (
+                              <a
+                                href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 font-semibold text-emerald-600 hover:underline text-[10.5px]"
+                              >
+                                <Phone className="h-3 w-3" />
+                                <span>{s.no_hp}</span>
+                              </a>
+                            )}
                           </div>
                         </div>
                       </div>
-
-                      {/* Catatan jika ada */}
-                      {s.catatan_pickup && (
-                        <p className="mt-1.5 rounded bg-slate-50 p-1 text-[10px] text-slate-600 italic border border-slate-100">
-                          &quot;{s.catatan_pickup}&quot;
-                        </p>
-                      )}
-
-                      {/* PIC & Kontak Telepon */}
-                      <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                        <span className="text-slate-600 font-medium">Kapten: {s.kapten || "-"}</span>
-                        {s.no_hp && (
-                          <a
-                            href={`tel:${s.no_hp.replace(/[^+\d]/g, "")}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 font-semibold text-emerald-600 hover:underline"
-                          >
-                            <Phone className="h-3 w-3" />
-                            <span>{s.no_hp}</span>
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                </div>
               )}
             </div>
           </aside>

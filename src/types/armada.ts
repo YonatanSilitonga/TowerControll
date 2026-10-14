@@ -233,6 +233,8 @@ export interface DriverPickupItem {
   status: string; // 'menuju_gudang' | 'menuju_seller' | 'selesai' | 'standby'
   catatan?: string;
   asal_seller?: string;
+  session_online?: boolean;
+  last_login?: string | null;
   updated_at?: string | null;
 }
 

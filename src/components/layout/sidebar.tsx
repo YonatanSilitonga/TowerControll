@@ -24,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ROLE_MENU, ROLE_LABEL } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth-store";
+import { useSidebarStore } from "@/stores/sidebar-store";
 
 export interface NavChild {
   label: string;
@@ -112,9 +113,16 @@ export function Sidebar() {
     setOpenDropdowns((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const isOpen = useSidebarStore((s) => s.isOpen);
+
   return (
-    <div className="hidden w-60 shrink-0 bg-[#0c1e3a] lg:block">
-    <aside className="sticky top-0 flex h-screen w-full flex-col border-r border-[#0c1e3a] text-slate-300">
+    <div
+      className={cn(
+        "hidden shrink-0 bg-[#0c1e3a] transition-all duration-300 ease-in-out lg:block",
+        isOpen ? "w-60 opacity-100" : "w-0 overflow-hidden opacity-0 pointer-events-none"
+      )}
+    >
+      <aside className="sticky top-0 flex h-screen w-60 flex-col border-r border-[#0c1e3a] text-slate-300">
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-white/10 px-5">
         <Image

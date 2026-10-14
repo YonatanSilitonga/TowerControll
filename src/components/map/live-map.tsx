@@ -22,6 +22,30 @@ import { useRitaseDetail, useDriver } from "@/hooks/use-armada";
 import { displayTrackingStatus, ritaseStatusLabel } from "@/lib/constants";
 import { cn, hasActiveSession } from "@/lib/utils";
 
+// Patch Leaflet DomUtil.getPosition agar tidak pernah crash jika elemen DOM telah unmount sebelum animasi Leaflet selesai
+if (typeof window !== "undefined" && L && L.DomUtil) {
+  const origGetPos = L.DomUtil.getPosition;
+  L.DomUtil.getPosition = function (el: HTMLElement) {
+    if (!el) return new L.Point(0, 0);
+    try {
+      return origGetPos ? origGetPos.call(L.DomUtil, el) : (el as any)._leaflet_pos || new L.Point(0, 0);
+    } catch {
+      return (el as any)?._leaflet_pos || new L.Point(0, 0);
+    }
+  };
+
+  const origSetPos = L.DomUtil.setPosition;
+  L.DomUtil.setPosition = function (el: HTMLElement, point: L.Point) {
+    if (!el) return;
+    try {
+      if (origSetPos) origSetPos.call(L.DomUtil, el, point);
+      else (el as any)._leaflet_pos = point;
+    } catch {
+      // Abaikan jika node sudah unmount dari DOM
+    }
+  };
+}
+
 // Tile CARTO (gratis & lebih cepat dari OSM publik) — render area baru jauh lebih responsif.
 const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const TILE_ATTRIBUTION =
@@ -988,19 +1012,52 @@ function LiveMapView({
   // Rute yang digambar saat seller/gateway diklik (dari Outgoing & DC).
 
 
-  // Hanya tampilkan kendaraan yang AKTIF (online, sesi driver aktif, driver pickup, GPS hari ini, atau sedang dipilih).
+  // Hanya tampilkan kendaraan yang AKTIF di map (driver yang sedang login / memiliki sesi aktif).
+  // Driver yang sudah LOGOUT tidak boleh muncul di map.
+  // Jika 1 driver terhubung ke lebih dari 1 kendaraan (misal baru ganti armada), hanya tampilkan armada dengan update terbaru.
   const activeVehicles = useMemo(() => {
-    return vehicles.filter((v) => {
-      // Tampilkan seluruh armada yang memiliki koordinat lokasi (baik live maupun posisi standby/terakhir)
+    const filtered = uniqueVehicles.filter((v) => {
       if (!v.latitude || !v.longitude) return false;
+      const isOnline = v.session_online ?? hasActiveSession(v.last_login);
+      if (!isOnline) return false;
+
+      // Filter kendaraan yang sudah 'selesai' dan offline / tidak ada update > 10 menit
+      const statusLower = (v.status || "").toLowerCase();
+      const lastT = v.last_update ? Date.parse(v.last_update) : 0;
+      const isStale = !lastT || Date.now() - lastT > 10 * 60 * 1000;
+      if (statusLower === "selesai" && (v.offline || isStale)) {
+        return false;
+      }
+
       return true;
     });
-  }, [vehicles]);
+
+    const driverBest = new Map<number, (typeof uniqueVehicles)[0]>();
+    const withoutDriver: typeof uniqueVehicles = [];
+
+    for (const v of filtered) {
+      if (!v.id_driver) {
+        withoutDriver.push(v);
+        continue;
+      }
+      const existing = driverBest.get(v.id_driver);
+      if (!existing) {
+        driverBest.set(v.id_driver, v);
+      } else {
+        const tExisting = existing.last_update ? Date.parse(existing.last_update) : 0;
+        const tCurrent = v.last_update ? Date.parse(v.last_update) : 0;
+        if (tCurrent > tExisting) {
+          driverBest.set(v.id_driver, v);
+        }
+      }
+    }
+
+    return [...withoutDriver, ...Array.from(driverBest.values())];
+  }, [uniqueVehicles]);
 
   // Rute LIVE armada terpilih: dari posisi truk → stop berikutnya (ritase aktif).
   const selectedVehicle =
     activeVehicles.find((v) => v.id_kendaraan === selectedVehicleId) ??
-    vehicles.find((v) => v.id_kendaraan === selectedVehicleId) ??
     null;
   const [vehiclePopupOpen, setVehiclePopupOpen] = useState(false);
   const activeRoute = useActiveRoute(selectedVehicle, sellers, dropList, gudangList);
@@ -1084,7 +1141,7 @@ function LiveMapView({
       })),
     ];
     return items.filter(i => Number.isFinite(Number(i.lat)) && Number.isFinite(Number(i.lng)) && i.lat != null && i.lng != null && Math.abs(Number(i.lat)) <= 90 && Math.abs(Number(i.lng)) <= 180);
-  }, [vehicles, sellers, implants, dropList, gudangList]);
+  }, [activeVehicles, sellers, implants, dropList, gudangList]);
 
   const ql = q.trim().toLowerCase();
   const matches = ql

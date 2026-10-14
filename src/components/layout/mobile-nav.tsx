@@ -33,17 +33,14 @@ export function MobileNav() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={cn(
-          "rounded-md p-2 text-slate-600 hover:bg-slate-100",
-          !isKoorGudang && "lg:hidden"
-        )}
+        className="rounded-md p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
         aria-label="Buka menu"
       >
         <Menu className="h-5 w-5" />
       </button>
 
       {open && (
-        <div className={cn("fixed inset-0 z-[9999]", !isKoorGudang && "lg:hidden")}>
+        <div className="fixed inset-0 z-[9999] lg:hidden">
           {/* Overlay */}
           <div
             className="absolute inset-0 bg-black/40"

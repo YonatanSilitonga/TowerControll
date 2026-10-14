@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, LogOut, X } from "lucide-react";
+import { KeyRound, LogOut, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ROLE_LABEL, USE_MOCK } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth-store";
+import { useSidebarStore } from "@/stores/sidebar-store";
 import { changePasswordRequest } from "@/lib/auth";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { HeaderRitaseTimer } from "@/components/layout/header-ritase-timer";
@@ -23,6 +24,8 @@ import { HeaderRitaseTimer } from "@/components/layout/header-ritase-timer";
 export function Header() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const isSidebarOpen = useSidebarStore((s) => s.isOpen);
+  const toggleSidebar = useSidebarStore((s) => s.toggle);
   const token = useAuthStore((s) => s.token);
   const showRitaseTimer =
     user?.role === "koor_gudang" ||
@@ -85,6 +88,15 @@ export function Header() {
       {/* KIRI: Hamburger + Jam/Ritase */}
       <div className="flex items-center gap-2 min-w-0 flex-1">
         <MobileNav />
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          className="hidden lg:flex items-center justify-center rounded-md p-2 text-slate-600 hover:bg-slate-100 transition-colors"
+          title={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
+          aria-label={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
+        >
+          <Menu className="h-5 w-5" />
+        </button>
         {USE_MOCK && (
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 shrink-0">
             Mock
