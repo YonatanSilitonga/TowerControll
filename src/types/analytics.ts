@@ -49,3 +49,18 @@ export interface SellerAnalytics {
   total_high_value: number;
   total_eceran: number;
 }
+
+export interface ImplantAnalytics {
+  id_implant: number;
+  kode_implant: string;
+  nama_implant: string;
+  kota: string;
+  jarak_tempuh_km?: number | null;
+  jarak_dc_km?: number | null;
+  kunjungan: number;
+  ritase_selesai: number;
+  total_awb: number;
+  total_koli: number;
+  total_high_value: number;
+  total_eceran: number;
+}

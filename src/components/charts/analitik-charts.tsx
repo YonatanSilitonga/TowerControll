@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { format } from "date-fns";
-import type { TrendPoint, DriverPerformance, SellerAnalytics } from "@/types/analytics";
+import type { TrendPoint, DriverPerformance, SellerAnalytics, ImplantAnalytics } from "@/types/analytics";
 
 function fmtFullDate(t: string): string {
   const d = new Date(`${t}T00:00:00`);
@@ -91,6 +91,20 @@ export function SellerBarChart({ data }: { data: SellerAnalytics[] }) {
         <YAxis type="category" dataKey="nama_seller" width={130} tick={{ fontSize: 11, fill: "#334155" }} tickLine={false} axisLine={false} />
         <Tooltip />
         <Bar dataKey="kunjungan" name="Kunjungan" fill="#0c1e3a" radius={[0, 4, 4, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+export function ImplantBarChart({ data }: { data: ImplantAnalytics[] }) {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={data} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+        <XAxis type="number" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} allowDecimals={false} />
+        <YAxis type="category" dataKey="nama_implant" width={130} tick={{ fontSize: 11, fill: "#334155" }} tickLine={false} axisLine={false} />
+        <Tooltip />
+        <Bar dataKey="kunjungan" name="Kunjungan" fill="#b45309" radius={[0, 4, 4, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

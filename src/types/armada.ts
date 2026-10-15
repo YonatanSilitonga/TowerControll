@@ -179,6 +179,9 @@ export interface SellerLocation {
   high_value?: number | null;
   status_pickup?: string | null;
   catatan_pickup?: string | null;
+  /** Sisa muatan hari ini (input kapten − sudah diambil). Bubble peta hanya tampil bila > 0. */
+  sisa_barang?: number | null;
+  sisa_koli?: number | null;
 }
 
 export interface ImplanBarangLog {
@@ -219,6 +222,9 @@ export interface ImplantLocation {
   high_value?: number | null;
   status_pickup?: string | null;
   catatan_pickup?: string | null;
+  /** Sisa muatan hari ini (input kapten − sudah diambil). Bubble peta hanya tampil bila > 0. */
+  sisa_barang?: number | null;
+  sisa_koli?: number | null;
 }
 
 export interface DriverPickupItem {
@@ -436,10 +442,14 @@ export interface ManifestPhotoItem {
   ecer_hv_jkt: number;
   ecer_hv_seg: number;
   ecer_hv_btn: number;
-  /** Opsi A: HV gabungan 1 field (alias baru dari backend, fallback jumlah legacy). */
+  awb_hv_jkt: number;
+  awb_hv_seg: number;
+  awb_hv_btn: number;
+  /** Alias HV dari backend (jumlah per seksi, untuk kompatibilitas data lama). */
   koli_hv?: number;
   hv_awb?: number;
   ecer_hv?: number;
+  awb_hv?: number;
   /** Total computed fields */
   total_koli: number;
   total_ecer: number;
@@ -505,10 +515,14 @@ export interface RiwayatPenjemputan {
   ecer_hv_jkt?: number;
   ecer_hv_seg?: number;
   ecer_hv_btn?: number;
-  /** Opsi A: HV gabungan (alias baru, fallback jumlah legacy). */
+  awb_hv_jkt?: number;
+  awb_hv_seg?: number;
+  awb_hv_btn?: number;
+  /** Alias HV dari backend (jumlah per seksi, untuk kompatibilitas data lama). */
   koli_hv?: number;
   hv_awb?: number;
   ecer_hv?: number;
+  awb_hv?: number;
   foto_penjemputan_url: string;
   catatan: string;
   created_at: string;

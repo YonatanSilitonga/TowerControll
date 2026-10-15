@@ -44,6 +44,10 @@ const SellerBarChart = dynamic(
   () => import("@/components/charts/analitik-charts").then((m) => m.SellerBarChart),
   { ssr: false, loading: ChartSkeleton }
 );
+const ImplantBarChart = dynamic(
+  () => import("@/components/charts/analitik-charts").then((m) => m.ImplantBarChart),
+  { ssr: false, loading: ChartSkeleton }
+);
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -52,6 +56,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InfoTip } from "@/components/ui/info-tip";
 import {
   useAnalyticsDrivers,
+  useAnalyticsImplants,
   useAnalyticsSellers,
   useAnalyticsTrend,
 } from "@/hooks/use-analytics";
@@ -60,6 +65,7 @@ import { AlertCard, BottleneckCard } from "@/components/dashboard/analisis-cards
 import { cn, formatNumber } from "@/lib/utils";
 import type {
   DriverPerformance,
+  ImplantAnalytics,
   SellerAnalytics,
   TrendPoint,
 } from "@/types/analytics";
@@ -236,17 +242,19 @@ export default function AnalitikPage() {
   const trend = useAnalyticsTrend(from, to);
   const drivers = useAnalyticsDrivers(from, to);
   const sellers = useAnalyticsSellers(from, to);
+  const implants = useAnalyticsImplants(from, to);
   const analisis = useDashboardAnalisis();
 
   const trendData = trend.data ?? [];
   const driverData = drivers.data ?? [];
   const sellerData = sellers.data ?? [];
+  const implantData = implants.data ?? [];
   const bottlenecks = analisis.data?.bottleneck ?? [];
   const alerts = analisis.data?.alerts ?? [];
 
-  const loading = trend.isLoading || drivers.isLoading || sellers.isLoading;
+  const loading = trend.isLoading || drivers.isLoading || sellers.isLoading || implants.isLoading;
   const errorMsg =
-    trend.error?.message ?? drivers.error?.message ?? sellers.error?.message ?? null;
+    trend.error?.message ?? drivers.error?.message ?? sellers.error?.message ?? implants.error?.message ?? null;
 
   const kpi = useMemo(() => {
     let ritase = 0,
@@ -287,6 +295,10 @@ export default function AnalitikPage() {
   const topSellers = useMemo(
     () => [...sellerData].sort((a, b) => b.kunjungan - a.kunjungan).slice(0, 10),
     [sellerData]
+  );
+  const topImplants = useMemo(
+    () => [...implantData].sort((a, b) => b.kunjungan - a.kunjungan).slice(0, 10),
+    [implantData]
   );
 
   const setPreset = (days: number) => {
@@ -396,6 +408,7 @@ export default function AnalitikPage() {
           <TabsTrigger value="ringkasan" className="data-[state=active]:bg-[#FEA103] data-[state=active]:text-white">Ringkasan</TabsTrigger>
           <TabsTrigger value="driver" className="data-[state=active]:bg-[#FEA103] data-[state=active]:text-white">Driver</TabsTrigger>
           <TabsTrigger value="seller" className="data-[state=active]:bg-[#FEA103] data-[state=active]:text-white">Seller</TabsTrigger>
+          <TabsTrigger value="implant" className="data-[state=active]:bg-[#FEA103] data-[state=active]:text-white">Implant</TabsTrigger>
         </TabsList>
 
         {/* ===== RINGKASAN ===== */}
@@ -611,6 +624,79 @@ export default function AnalitikPage() {
                     render: (s) => (
                       <span className="block max-w-[220px] truncate font-medium text-slate-800" title={s.nama_seller}>
                         {s.nama_seller || "-"}
+                      </span>
+                    ),
+                  },
+                  { header: "Kota", render: (s) => <span className="text-slate-500">{s.kota || "-"}</span> },
+                  { header: "Kunjungan", render: (s) => <span className="tabular-nums font-semibold">{formatNumber(s.kunjungan)}</span> },
+                  { header: "Selesai", render: (s) => <span className="tabular-nums text-[#0c1e3a]">{formatNumber(s.ritase_selesai)}</span> },
+                  { header: "AWB", render: (s) => <span className="tabular-nums">{formatNumber(s.total_awb)}</span> },
+                   { header: "Koli", render: (s) => <span className="tabular-nums">{formatNumber(s.total_koli)}</span> },
+                   { header: "HV", render: (s) => <span className="tabular-nums text-amber-500">{formatNumber(s.total_high_value)}</span> },
+                   { header: "Ecer", render: (s) => <span className="tabular-nums text-violet-500">{formatNumber(s.total_eceran)}</span> },
+                  {
+                    header: "Jarak OG",
+                    render: (s) => (
+                      <span className="tabular-nums text-slate-500">
+                        {s.jarak_tempuh_km != null ? `${s.jarak_tempuh_km.toFixed(1)} km` : "-"}
+                      </span>
+                    ),
+                  },
+                ]}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ===== IMPLANT ===== */}
+        <TabsContent value="implant" className="space-y-4">
+          <Card className="rounded-lg border-slate-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                <Truck className="h-4 w-4 text-[#0c1e3a]" /> Kunjungan per Implant (Top 10)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <CardSkeleton h="h-[260px]" />
+              ) : topImplants.length === 0 ? (
+                <EmptyNote />
+              ) : (
+                <div className="h-[260px] w-full">
+                    <ImplantBarChart data={topImplants} />
+                  </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-lg border-slate-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                <Truck className="h-4 w-4 text-[#0c1e3a]" /> Detail Kunjungan Implant
+                <span className="ml-auto text-xs font-normal text-slate-400">
+                  {implantData.length} implant
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DataTable<ImplantAnalytics>
+                loading={loading}
+                rows={implantData}
+                rowKey={(s) => String(s.id_implant)}
+                searchPlaceholder="Cari nama / kode implant..."
+                searchFilter={(s, q) =>
+                  `${s.nama_implant} ${s.kode_implant ?? ""} ${s.kota ?? ""}`
+                    .toLowerCase()
+                    .includes(q.toLowerCase())
+                }
+                emptyText="Belum ada data implant pada periode ini"
+                columns={[
+                  { header: "Kode", render: (s) => <span className="font-mono text-xs text-slate-500">{s.kode_implant || "-"}</span> },
+                  {
+                    header: "Implant",
+                    render: (s) => (
+                      <span className="block max-w-[220px] truncate font-medium text-slate-800" title={s.nama_implant}>
+                        {s.nama_implant || "-"}
                       </span>
                     ),
                   },

@@ -106,7 +106,11 @@ function getTruckIcon(
     border = "#fff";
   }
 
-  const bubbleBg = awbVal > 0 ? (isPickup ? "#c2410c" : "#047857") : (isPickup ? "#ea580c" : "#475569");
+  // Bubble AWB hanya tampil bila driver membawa muatan (> 0).
+  // Tanpa muatan → marker truk polos. Geometri ikon dipertahankan agar
+  // posisi marker tidak melompat saat angka muncul/hilang.
+  const hasBubble = awbVal > 0;
+  const bubbleBg = isPickup ? "#c2410c" : "#047857";
 
   const icon = L.divIcon({
     className: "",
@@ -114,11 +118,12 @@ function getTruckIcon(
     iconAnchor: [17, 37],
     html: `
       <div style="position:relative;width:34px;height:54px;">
+        ${hasBubble ? `
         <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:10;white-space:nowrap;background:${bubbleBg};color:#fff;border:1.5px solid #fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800;box-shadow:0 2px 5px rgba(0,0,0,0.35);display:flex;align-items:center;gap:2px;">
           <span>${awbVal}</span>
           <span style="font-size:8px;opacity:0.85;">AWB</span>
           <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid ${bubbleBg};"></div>
-        </div>
+        </div>` : ""}
         ${selected ? `<span class="truck-pulse-ring" style="top:20px;"></span>` : ""}
         <div class="marker-visual" style="
           position:absolute;bottom:0;left:0;z-index:1;
@@ -154,28 +159,23 @@ function getTruckIcon(
 }
 
 /** Ikon Seller / Implan:
- *  - Memiliki bubble chat di atasnya jika ada input jumlah barang
- *  - Warna bubble: Amber/Kuning jika menunggu, Hijau jika sudah diambil
+ *  - Bubble angka AWB di atasnya HANYA bila ada sisa muatan (> 0).
+ *  - Tanpa muatan (0 / sudah habis diambil) → marker polos tanpa bubble.
+ *  - Warna marker: hijau bila sudah diambil semua, biru bila masih menunggu.
  */
-function getSellerIcon(jumlahBarang?: number | null, statusPickup?: string | null): L.DivIcon {
+function getSellerIcon(jumlahBarang?: number | null, statusPickup?: string | null, sisaBarang?: number | null): L.DivIcon {
   const count = jumlahBarang != null && jumlahBarang >= 0 ? jumlahBarang : 0;
+  // Sisa = input − sudah diambil (dari backend); fallback ke total bila backend lama.
+  const shown = sisaBarang != null && sisaBarang >= 0 ? sisaBarang : count;
   const status = statusPickup || "menunggu";
-  const key = `${count}:${status}`;
+  const key = `${shown}:${status}`;
 
   const cached = sellerIconCache.get(key);
   if (cached) return cached;
 
   const isSelesai = status === "sudah_diambil";
-  let badgeBg = "#475569"; // default netral slate saat 0
-  let badgeText = `${count}`;
-
-  if (isSelesai) {
-    badgeBg = "#059669"; // hijau selesai
-    badgeText = "✓ 0";
-  } else if (count > 0) {
-    badgeBg = "#d97706"; // amber jika ada barang menunggu
-    badgeText = `${count}`;
-  }
+  const hasBubble = shown > 0;
+  const badgeBg = "#d97706"; // amber — hanya dipakai saat bubble tampil
 
   const icon = L.divIcon({
     className: "",
@@ -183,10 +183,11 @@ function getSellerIcon(jumlahBarang?: number | null, statusPickup?: string | nul
     iconAnchor: [15, 35],
     html: `
       <div style="position:relative;width:30px;height:50px;">
+        ${hasBubble ? `
         <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:10;white-space:nowrap;background:${badgeBg};color:#fff;border:1.5px solid #fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800;box-shadow:0 2px 5px rgba(0,0,0,0.35);display:flex;align-items:center;gap:2px;">
-          <span>${badgeText}</span>
+          <span>${shown}</span>
           <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid ${badgeBg};"></div>
-        </div>
+        </div>` : ""}
         <div class="marker-visual" style="
           position:absolute;bottom:0;left:0;
           width:30px;height:30px;
@@ -671,7 +672,8 @@ function resolveStopPoint(
   stop: RitaseStop,
   sellers: SellerLocation[],
   dropList: DropPointPoi[],
-  gudangList: GudangPoint[]
+  gudangList: GudangPoint[],
+  implants: ImplantLocation[] = []
 ): StopPoint | null {
   // 1. Koordinat langsung dari backend
   if (
@@ -681,9 +683,11 @@ function resolveStopPoint(
     stop.longitude !== 0
   ) {
     const isSeller = stop.jenis_stop === "seller";
+    const isImplant = stop.jenis_stop === "implant";
     const isGudang = stop.jenis_stop === "gudang";
     const label =
       stop.nama_seller ||
+      stop.nama_implant ||
       stop.nama_gudang ||
       stop.nama_drop_point ||
       `Stop #${stop.urutan}`;
@@ -691,8 +695,8 @@ function resolveStopPoint(
       lat: stop.latitude,
       lng: stop.longitude,
       label,
-      icon: isSeller ? SELLER_ICON : isGudang ? DC_ICON : DROP_ICON,
-      kind: isSeller ? "seller" : isGudang ? "gudang" : "drop",
+      icon: isSeller || isImplant ? SELLER_ICON : isGudang ? DC_ICON : DROP_ICON,
+      kind: isSeller ? "seller" : isImplant ? "implant" : isGudang ? "gudang" : "drop",
     };
   }
 
@@ -706,6 +710,19 @@ function resolveStopPoint(
         label: s.nama_seller || `Seller ${s.id_seller}`,
         icon: SELLER_ICON,
         kind: "seller",
+      };
+  }
+
+  // 2b. Lookup implant
+  if (stop.jenis_stop === "implant" && stop.id_implant != null) {
+    const s = implants.find((x) => x.id_implant === stop.id_implant);
+    if (s)
+      return {
+        lat: s.latitude,
+        lng: s.longitude,
+        label: s.nama_implant || `Implant ${s.id_implant}`,
+        icon: SELLER_ICON,
+        kind: "implant",
       };
   }
 
@@ -827,7 +844,8 @@ function useActiveRoute(
   vehicle: TrackingVehicle | null,
   sellers: SellerLocation[],
   dropList: DropPointPoi[],
-  gudangList: GudangPoint[]
+  gudangList: GudangPoint[],
+  implants: ImplantLocation[] = []
 ): {
   next: { stop: RitaseStop; point: StopPoint } | null;
   route: RouteResult | null;
@@ -843,7 +861,7 @@ function useActiveRoute(
 
   const next = useMemo(() => {
     if (!vehicle || !hasActiveSession(vehicle.last_login) || vehicle.offline || isPickup) return null;
-    const points = stops.map((s) => resolveStopPoint(s, sellers, dropList, gudangList));
+    const points = stops.map((s) => resolveStopPoint(s, sellers, dropList, gudangList, implants));
     const found = findNextStop(stops, points, events);
     if (found) return found;
 
@@ -868,6 +886,15 @@ function useActiveRoute(
         const dummyStop: RitaseStop = { id_ritase: rit?.id_ritase ?? 0, id_stop: 998, urutan: 1, jenis_stop: "seller", id_seller: sellerMatch.id_seller, nama_seller: sellerMatch.nama_seller };
         return { stop: dummyStop, point: { lat: sellerMatch.latitude, lng: sellerMatch.longitude, label: sellerMatch.nama_seller ?? "Seller", icon: SELLER_ICON, kind: "seller" } };
       }
+      // 2b. Match Implant
+      const implantMatch = implants.find((sel) =>
+        targetLocName.includes((sel.nama_implant || "").toLowerCase()) ||
+        (sel.nama_implant || "").toLowerCase().includes(targetLocName.replace(/implant/gi, "").trim())
+      );
+      if (implantMatch && implantMatch.latitude && implantMatch.longitude) {
+        const dummyStop: RitaseStop = { id_ritase: rit?.id_ritase ?? 0, id_stop: 996, urutan: 1, jenis_stop: "implant", id_implant: implantMatch.id_implant, nama_implant: implantMatch.nama_implant };
+        return { stop: dummyStop, point: { lat: implantMatch.latitude, lng: implantMatch.longitude, label: implantMatch.nama_implant ?? "Implant", icon: SELLER_ICON, kind: "implant" } };
+      }
       // 3. Match Gudang
       const gudangMatch = gudangList.find((g) =>
         targetLocName.includes((g.nama_gudang || "").toLowerCase()) ||
@@ -880,7 +907,7 @@ function useActiveRoute(
     }
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vehicle, rit, stops, events, sellers, dropList, gudangList, isPickup]);
+  }, [vehicle, rit, stops, events, sellers, dropList, gudangList, implants, isPickup]);
 
   const [route, setRoute] = useState<RouteResult | null>(null);
   const lastKeyRef = useRef("");
@@ -1060,7 +1087,7 @@ function LiveMapView({
     activeVehicles.find((v) => v.id_kendaraan === selectedVehicleId) ??
     null;
   const [vehiclePopupOpen, setVehiclePopupOpen] = useState(false);
-  const activeRoute = useActiveRoute(selectedVehicle, sellers, dropList, gudangList);
+  const activeRoute = useActiveRoute(selectedVehicle, sellers, dropList, gudangList, implants);
 
   // Pencarian semua kategori (truk/seller/gudang/drop) + popup saat klik hasil.
   const [q, setQ] = useState("");
@@ -1376,7 +1403,7 @@ function LiveMapView({
               key={`seller-${s.id_seller}`}
               poiKey={`seller:${s.id_seller}`}
               position={[s.latitude, s.longitude]}
-              icon={getSellerIcon(s.jumlah_barang, s.status_pickup)}
+              icon={getSellerIcon(s.jumlah_barang, s.status_pickup, s.sisa_barang)}
               focusKey={focusKey}
             >
               <Popup autoPan={false}>    {/* ⬅️ INI — tambahkan autoPan={false} di sini */}
@@ -1436,7 +1463,7 @@ function LiveMapView({
               key={`implant-${s.id_implant}`}
               poiKey={`implant:${s.id_implant}`}
               position={[s.latitude, s.longitude]}
-              icon={getSellerIcon(s.jumlah_barang, s.status_pickup)}
+              icon={getSellerIcon(s.jumlah_barang, s.status_pickup, s.sisa_barang)}
               focusKey={focusKey}
             >
               <Popup autoPan={false}>

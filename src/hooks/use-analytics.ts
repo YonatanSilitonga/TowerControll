@@ -5,6 +5,7 @@ import { get } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
 import type {
   DriverPerformance,
+  ImplantAnalytics,
   SellerAnalytics,
   TrendPoint,
 } from "@/types/analytics";
@@ -53,6 +54,16 @@ export function useAnalyticsSellers(from: string, to: string) {
   return useAnalytics<SellerAnalytics[]>(
     "analytics-sellers",
     "/dashboard/analytics/sellers",
+    from,
+    to
+  );
+}
+
+/** Analitik per implant: kunjungan, durasi bongkar, muatan. */
+export function useAnalyticsImplants(from: string, to: string) {
+  return useAnalytics<ImplantAnalytics[]>(
+    "analytics-implants",
+    "/dashboard/analytics/implants",
     from,
     to
   );

@@ -479,6 +479,7 @@ function RouteTemplateTab({
   const vehicles = masterOptions?.kendaraan ?? [];
   const gudangs = masterOptions?.gudangs ?? [];
   const sellers = masterOptions?.sellers ?? [];
+  const implants = masterOptions?.implants ?? [];
   const dropPoints = masterOptions?.drop_points ?? [];
 
   // Fokus dulu ke driver Transporter Outgoing & Incoming saja — konsisten dengan JadwalPage.
@@ -560,6 +561,10 @@ function RouteTemplateTab({
         newStops[idx].kolom_lokasi = "id_seller";
         newStops[idx].id_lokasi = sellers[0]?.id_seller ?? 1;
         newStops[idx].nama_lokasi = sellers[0]?.nama_seller ?? "";
+      } else if (value === "implant") {
+        newStops[idx].kolom_lokasi = "id_implant";
+        newStops[idx].id_lokasi = implants[0]?.id_implant ?? 1;
+        newStops[idx].nama_lokasi = implants[0]?.nama_implant ?? "";
       } else {
         newStops[idx].kolom_lokasi = "id_drop_point";
         newStops[idx].id_lokasi = dropPoints[0]?.id_drop_point ?? 1;
@@ -668,6 +673,8 @@ function RouteTemplateTab({
       return gudangs.map((g) => ({ id: g.id_gudang, name: g.nama_gudang }));
     if (jenis === "seller")
       return sellers.map((s) => ({ id: s.id_seller, name: s.nama_seller }));
+    if (jenis === "implant")
+      return implants.map((s) => ({ id: s.id_implant, name: s.nama_implant }));
     return dropPoints.map((d) => ({
       id: d.id_drop_point,
       name: d.nama_drop_point,
@@ -856,6 +863,7 @@ function RouteTemplateTab({
                   >
                     <option value="gudang">Gudang</option>
                     <option value="seller">Seller</option>
+                    <option value="implant">Implant</option>
                     <option value="gateway">Gateway</option>
                   </select>
                   <select

@@ -52,6 +52,9 @@ interface CumulativeData {
   ecer_jkt: number;
   ecer_seg: number;
   ecer_btn: number;
+  awb_hv_jkt: number;
+  awb_hv_seg: number;
+  awb_hv_btn: number;
   koli_hv_jkt: number;
   koli_hv_seg: number;
   koli_hv_btn: number;
@@ -68,6 +71,10 @@ interface HvFields {
   koli_hv?: number;
   hv_awb?: number;
   ecer_hv?: number;
+  awb_hv?: number;
+  awb_hv_jkt?: number;
+  awb_hv_seg?: number;
+  awb_hv_btn?: number;
   koli_hv_jkt?: number;
   koli_hv_seg?: number;
   koli_hv_btn?: number;
@@ -76,24 +83,32 @@ interface HvFields {
   ecer_hv_btn?: number;
 }
 
-/** Jumlah HV gabungan: alias baru bila > 0, fallback jumlah legacy jkt+seg+btn. */
+/** Jumlah HV per seksi: jumlah region jkt+seg+btn; alias lama jadi fallback bila region 0. */
 function hvTotal(
   p: HvFields,
   aliasKeys: (keyof HvFields)[],
   legacyKeys: (keyof HvFields)[],
 ): number {
+  const sum = legacyKeys.reduce((a, k) => a + (p[k] ?? 0), 0);
+  if (sum > 0) return sum;
   for (const k of aliasKeys) {
     const v = p[k] ?? 0;
     if (v > 0) return v;
   }
-  return legacyKeys.reduce((a, k) => a + (p[k] ?? 0), 0);
+  return 0;
 }
+
+const awbHvOf = (p: HvFields) =>
+  hvTotal(p, ["awb_hv"], ["awb_hv_jkt", "awb_hv_seg", "awb_hv_btn"]);
 
 const koliHvOf = (p: HvFields) =>
   hvTotal(p, ["koli_hv"], ["koli_hv_jkt", "koli_hv_seg", "koli_hv_btn"]);
 
 const hvAwbOf = (p: HvFields) =>
   hvTotal(p, ["hv_awb", "ecer_hv"], ["ecer_hv_jkt", "ecer_hv_seg", "ecer_hv_btn"]);
+
+const ecerHvOf = (p: HvFields) =>
+  hvTotal(p, ["ecer_hv", "hv_awb"], ["ecer_hv_jkt", "ecer_hv_seg", "ecer_hv_btn"]);
 
 interface RitaseGroup {
   id_ritase: number;
@@ -280,9 +295,9 @@ export default function ManifestFotoPage() {
     const ecerJkt = uniquePhotos.reduce((a, p) => a + (p.ecer_jkt || 0), 0);
     const ecerSeg = uniquePhotos.reduce((a, p) => a + (p.ecer_seg || 0), 0);
     const ecerBtn = uniquePhotos.reduce((a, p) => a + (p.ecer_btn || 0), 0);
-    const hvJkt = uniquePhotos.reduce((a, p) => a + (p.koli_hv_jkt || 0) + (p.ecer_hv_jkt || 0), 0);
-    const hvSeg = uniquePhotos.reduce((a, p) => a + (p.koli_hv_seg || 0) + (p.ecer_hv_seg || 0), 0);
-    const hvBtn = uniquePhotos.reduce((a, p) => a + (p.koli_hv_btn || 0) + (p.ecer_hv_btn || 0), 0);
+    const hvJkt = uniquePhotos.reduce((a, p) => a + (p.koli_hv_jkt || 0) + (p.ecer_hv_jkt || 0) + (p.awb_hv_jkt || 0), 0);
+    const hvSeg = uniquePhotos.reduce((a, p) => a + (p.koli_hv_seg || 0) + (p.ecer_hv_seg || 0) + (p.awb_hv_seg || 0), 0);
+    const hvBtn = uniquePhotos.reduce((a, p) => a + (p.koli_hv_btn || 0) + (p.ecer_hv_btn || 0) + (p.awb_hv_btn || 0), 0);
 
     return {
       totalPhotos, uniqueDrivers, uniqueSellers, totalKoli, totalEcer, totalHV, totalAwb,
@@ -445,6 +460,7 @@ export default function ManifestFotoPage() {
       let running: CumulativeData = {
         awb: 0, koli_jkt: 0, koli_seg: 0, koli_btn: 0,
         ecer_jkt: 0, ecer_seg: 0, ecer_btn: 0,
+        awb_hv_jkt: 0, awb_hv_seg: 0, awb_hv_btn: 0,
         koli_hv_jkt: 0, koli_hv_seg: 0, koli_hv_btn: 0,
         ecer_hv_jkt: 0, ecer_hv_seg: 0, ecer_hv_btn: 0,
         total_koli: 0, total_ecer: 0, total_hv: 0,
@@ -457,6 +473,9 @@ export default function ManifestFotoPage() {
         running.ecer_jkt += p.ecer_jkt || 0;
         running.ecer_seg += p.ecer_seg || 0;
         running.ecer_btn += p.ecer_btn || 0;
+        running.awb_hv_jkt += p.awb_hv_jkt || 0;
+        running.awb_hv_seg += p.awb_hv_seg || 0;
+        running.awb_hv_btn += p.awb_hv_btn || 0;
         running.koli_hv_jkt += p.koli_hv_jkt || 0;
         running.koli_hv_seg += p.koli_hv_seg || 0;
         running.koli_hv_btn += p.koli_hv_btn || 0;
@@ -1372,10 +1391,11 @@ export default function ManifestFotoPage() {
                                       if (r.jumlah_awb > 0) chunks.push(`${r.jumlah_awb} AWB`);
                                       const k = seg("Koli", r.koli_jkt, r.koli_seg, r.koli_btn);
                                       const e = seg("Ecer", r.ecer_jkt, r.ecer_seg, r.ecer_btn);
+                                      const ah = seg("AWB HV", r.awb_hv_jkt, r.awb_hv_seg, r.awb_hv_btn);
                                       const kh = seg("Koli HV", r.koli_hv_jkt, r.koli_hv_seg, r.koli_hv_btn);
                                       const eh = seg("Ecer HV", r.ecer_hv_jkt, r.ecer_hv_seg, r.ecer_hv_btn);
                                       // Fallback ringkas bila rincian per wilayah tidak ada.
-                                      if (chunks.length === 0 && !k && !e && !kh && !eh) {
+                                      if (chunks.length === 0 && !k && !e && !ah && !kh && !eh) {
                                         if (r.jumlah_awb > 0 || r.total_koli > 0 || r.total_ecer > 0 || r.total_hv > 0) {
                         return (
                                             <span className="font-semibold text-slate-600 dark:text-slate-300">
@@ -1387,6 +1407,7 @@ export default function ManifestFotoPage() {
                                       }
                                       if (k) chunks.push(k);
                                       if (e) chunks.push(e);
+                                      if (ah) chunks.push(ah);
                                       if (kh) chunks.push(kh);
                                       if (eh) chunks.push(eh);
                                       return (
@@ -1432,6 +1453,7 @@ export default function ManifestFotoPage() {
                                         jumlah_awb: r.jumlah_awb,
                                         koli_jkt: r.koli_jkt ?? 0, koli_seg: r.koli_seg ?? 0, koli_btn: r.koli_btn ?? 0,
                                         ecer_jkt: r.ecer_jkt ?? 0, ecer_seg: r.ecer_seg ?? 0, ecer_btn: r.ecer_btn ?? 0,
+                                        awb_hv_jkt: r.awb_hv_jkt ?? 0, awb_hv_seg: r.awb_hv_seg ?? 0, awb_hv_btn: r.awb_hv_btn ?? 0,
                                         koli_hv_jkt: r.koli_hv_jkt ?? 0, koli_hv_seg: r.koli_hv_seg ?? 0, koli_hv_btn: r.koli_hv_btn ?? 0,
                                         ecer_hv_jkt: r.ecer_hv_jkt ?? 0, ecer_hv_seg: r.ecer_hv_seg ?? 0, ecer_hv_btn: r.ecer_hv_btn ?? 0,
                                         total_koli: r.total_koli,
@@ -1978,6 +2000,9 @@ function RegionalBreakdown({ photo, cumulative, variant = "table" }: { photo: Ma
   const ecerJkt = cumulative?.ecer_jkt ?? photo.ecer_jkt;
   const ecerSeg = cumulative?.ecer_seg ?? photo.ecer_seg;
   const ecerBtn = cumulative?.ecer_btn ?? photo.ecer_btn;
+  const hvaJkt = cumulative?.awb_hv_jkt ?? photo.awb_hv_jkt ?? 0;
+  const hvaSeg = cumulative?.awb_hv_seg ?? photo.awb_hv_seg ?? 0;
+  const hvaBtn = cumulative?.awb_hv_btn ?? photo.awb_hv_btn ?? 0;
   const hvkJkt = cumulative?.koli_hv_jkt ?? photo.koli_hv_jkt;
   const hvkSeg = cumulative?.koli_hv_seg ?? photo.koli_hv_seg;
   const hvkBtn = cumulative?.koli_hv_btn ?? photo.koli_hv_btn;
@@ -1994,6 +2019,7 @@ function RegionalBreakdown({ photo, cumulative, variant = "table" }: { photo: Ma
   const rows = [
     { label: "Koli", jkt: koliJkt, seg: koliSeg, btn: koliBtn },
     { label: "Ecer", jkt: ecerJkt, seg: ecerSeg, btn: ecerBtn },
+    { label: "AWB HV", jkt: hvaJkt, seg: hvaSeg, btn: hvaBtn },
     { label: "Koli HV", jkt: hvkJkt, seg: hvkSeg, btn: hvkBtn },
     { label: "Ecer HV", jkt: hveJkt, seg: hveSeg, btn: hveBtn },
   ];
@@ -2005,6 +2031,7 @@ function RegionalBreakdown({ photo, cumulative, variant = "table" }: { photo: Ma
     const accents: Record<string, string> = {
       Koli: "text-blue-700 dark:text-blue-300",
       Ecer: "text-amber-700 dark:text-amber-300",
+      "AWB HV": "text-red-700 dark:text-red-300",
       "Koli HV": "text-orange-700 dark:text-orange-300",
       "Ecer HV": "text-pink-700 dark:text-pink-300",
     };
