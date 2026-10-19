@@ -1048,12 +1048,21 @@ function LiveMapView({
       const isOnline = v.session_online ?? hasActiveSession(v.last_login);
       if (!isOnline) return false;
 
-      // Filter kendaraan yang sudah 'selesai' dan offline / tidak ada update > 10 menit
       const statusLower = (v.status || "").toLowerCase();
       const lastT = v.last_update ? Date.parse(v.last_update) : 0;
       const isStale = !lastT || Date.now() - lastT > 10 * 60 * 1000;
+
+      // Filter kendaraan yang sudah 'selesai' dan offline / tidak ada update > 10 menit
       if (statusLower === "selesai" && (v.offline || isStale)) {
         return false;
+      }
+
+      // Driver pickup: sembunyikan dari map jika GPS sudah > 15 menit tidak update.
+      // last_open mungkin masih fresh (background service) tapi GPS tidak terkirim
+      // artinya driver sudah tidak aktif di lapangan.
+      if (v.role_driver === "driver_pickup") {
+        const pickupStale = !lastT || Date.now() - lastT > 15 * 60 * 1000;
+        if (pickupStale) return false;
       }
 
       return true;
