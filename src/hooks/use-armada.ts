@@ -15,7 +15,7 @@ export function useKendaraan() {
     queryKey: ["armada-kendaraan"],
     queryFn: async () => {
       const data = await get<Kendaraan[]>("/armada/kendaraan", { token });
-      if (!Array.isArray(data)) return [];
+      if (!Array.isArray(data)) throw new Error("Format data kendaraan tidak valid.");
       const seen = new Set<number>();
       return data.filter((v) => {
         if (!v || v.id_kendaraan == null) return false;

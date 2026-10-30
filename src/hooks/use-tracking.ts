@@ -235,6 +235,54 @@ export function useAllDriverPickupHistory(params?: {
   });
 }
 
+/** Satu baris serah terima terkonfirmasi pada satu titik. */
+export interface MuatanKonfirmasi {
+  id: number;
+  jumlah_awb: number;
+  koli: number;
+  ecer: number;
+  hv: number;
+  oleh: string;
+  peran: string;
+  waktu: string;
+  foto?: string | null;
+  catatan?: string | null;
+}
+
+/** Rincian muatan satu titik dalam satu ritase. */
+export interface MuatanDetail {
+  id_ritase: number;
+  nama_lokasi: string;
+  lokasi: { jenis: string; id: number; nama: string } | null;
+  input: { awb: number; koli: number; ecer: number; hv: number };
+  diambil: { awb: number; koli: number; ecer: number; hv: number };
+  sisa: { awb: number; koli: number; ecer: number; hv: number };
+  konfirmasi: MuatanKonfirmasi[];
+}
+
+/** Rincian muatan satu titik (lazy — hanya di-fetch saat dialog Detail dibuka). */
+export function useMuatanDetail(
+  idRitase: number | null | undefined,
+  namaLokasi: string | null | undefined,
+  enabled: boolean
+) {
+  const token = useAuthStore(tokenSelector);
+  return useQuery({
+    queryKey: ["muatan-detail", idRitase, namaLokasi],
+    queryFn: () =>
+      get<MuatanDetail>("/armada/tracking/muatan-detail", {
+        token,
+        query: {
+          id_ritase: idRitase ?? undefined,
+          nama_lokasi: namaLokasi ?? undefined,
+        },
+      }),
+    enabled: !!token && !!idRitase && !!namaLokasi && enabled,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
 /** Riwayat status (checkpoint) untuk satu kendaraan atau satu driver, opsional filter tanggal (YYYY-MM-DD).
  *  Cache 30s — jarang berubah & di-invalidate via SSE untuk kendaraan terpilih. */
 export function useTrackingHistory(idKendaraan: number | null, tanggal?: string, idDriver?: number | null) {

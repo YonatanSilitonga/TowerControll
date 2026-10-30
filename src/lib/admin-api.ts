@@ -29,9 +29,9 @@ async function adminFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
   return json.data as T;
 }
 
-/* ─────────────────────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
  * LOCAL STORAGE MOCK FALLBACK (for mock mode or backend offline)
- * ───────────────────────────────────────────────────────────── */
+ * â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function getStorage<T>(key: string, defaultData: T[]): T[] {
   if (typeof window === "undefined") return defaultData;
   try {
@@ -53,11 +53,11 @@ function setStorage<T>(key: string, data: T[]): void {
   } catch { /* ignore */ }
 }
 
-/* ─────────────────────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
  * TYPES & HANDLERS
- * ───────────────────────────────────────────────────────────── */
+ * â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
-// ── Driver ──
+// â”€â”€ Driver â”€â”€
 export type DriverAdmin = {
   id_driver: number;
   nama_driver: string;
@@ -137,7 +137,7 @@ export const adminDriver = {
   },
 };
 
-// ── Kendaraan ──
+// â”€â”€ Kendaraan â”€â”€
 export type KendaraanAdmin = {
   id_kendaraan: number;
   plat_nomor: string;
@@ -200,7 +200,7 @@ export const adminKendaraan = {
   },
 };
 
-// ── Seller ──
+// â”€â”€ Seller â”€â”€
 export type SellerAdmin = {
   id_seller: number;
   kode_seller: string;
@@ -277,7 +277,7 @@ export const adminSeller = {
   },
 };
 
-// ── Implant (master lokasi implant, terpisah dari seller; PIC = kapten) ──
+// â”€â”€ Implant (master lokasi implant, terpisah dari seller; PIC = kapten) â”€â”€
 export type ImplantAdmin = {
   id_implant: number;
   kode_implant: string;
@@ -319,7 +319,7 @@ export const adminImplant = {
   },
 };
 
-// ── DropPoint ──
+// â”€â”€ DropPoint â”€â”€
 export type DropPointAdmin = {
   id_drop_point: number;
   nama_drop_point: string;
@@ -383,7 +383,7 @@ export const adminDropPoint = {
   },
 };
 
-// ── User ──
+// â”€â”€ User â”€â”€
 export type UserAdmin = {
   id_user: number;
   username: string;
@@ -463,7 +463,7 @@ export const adminUser = {
   },
 };
 
-// ── Kapten (profil kapten implant + akun login) ──
+// â”€â”€ Kapten (profil kapten implant + akun login) â”€â”€
 export type KaptenSellerRef = {
   id_seller: number;
   kode_seller?: string;
@@ -475,6 +475,8 @@ export type KaptenImplantRef = {
   kode_implant?: string;
   nama_implant: string;
   peran?: string;
+  id_titik_implant?: number;
+  nama_titik_implant?: string;
 };
 
 export type KaptenAdmin = {
@@ -511,10 +513,10 @@ export const adminKapten = {
   get: async (id: number): Promise<KaptenAdmin> => {
     return await adminFetch<KaptenAdmin>(`/admin/kapten/${id}`);
   },
-  create: async (data: { nama: string; no_hp?: string; status?: string; username?: string; password?: string; seller_ids?: number[]; implant_ids?: number[]; implant_peran?: Record<number, string> }): Promise<KaptenCreated> => {
+  create: async (data: { nama: string; no_hp?: string; status?: string; username?: string; password?: string; seller_ids?: number[]; implant_ids?: number[]; implant_peran?: Record<number, string>; implant_titik?: Record<number, number> }): Promise<KaptenCreated> => {
     return await adminFetch<KaptenCreated>("/admin/kapten", { method: "POST", body: JSON.stringify(data) });
   },
-  update: async (id: number, data: { nama: string; no_hp?: string; status?: string; seller_ids?: number[]; implant_ids?: number[]; implant_peran?: Record<number, string> }) => {
+  update: async (id: number, data: { nama: string; no_hp?: string; status?: string; seller_ids?: number[]; implant_ids?: number[]; implant_peran?: Record<number, string>; implant_titik?: Record<number, number> }) => {
     return await adminFetch<any>(`/admin/kapten/${id}`, { method: "PUT", body: JSON.stringify(data) });
   },
   delete: async (id: number) => {
@@ -522,7 +524,7 @@ export const adminKapten = {
   },
 };
 
-// ── Ritase & Jam Operasional ──
+// â”€â”€ Ritase & Jam Operasional â”€â”€
 export type RitaseAdmin = {
   id_ritase: number;
   kode_ritase: string;

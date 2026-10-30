@@ -54,8 +54,8 @@ export const ROLE_MENU: Record<UserRole, string[]> = {
   ],
   tower_control: [
     "dashboard", "efektivitas-armada", "armada-live-map",
-    "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips",
-    "implan", "riwayat-pickup", "jadwal", "manifest-foto", "analitik", "gudang", "absensi",
+    "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-implants", "armada-trips",
+    "implan", "riwayat-implan", "riwayat-pickup", "jadwal", "manifest-foto", "analitik",
     "section-menu", "section-armada", "section-lainnya",
   ],
   direktur: [
@@ -63,9 +63,10 @@ export const ROLE_MENU: Record<UserRole, string[]> = {
     "armada", "armada-trips", "riwayat-pickup", "analitik",
     "section-menu", "section-armada", "section-lainnya",
   ],
+  // koor_gudang (fadel): tanpa Jadwal Ritase & Foto Manifest — fokus Gudang.
   koor_gudang: [
     "dashboard", "armada-live-map",
-    "jadwal", "manifest-foto", "riwayat-pickup", "gudang",
+    "riwayat-pickup", "gudang",
     "section-menu", "section-lainnya",
   ],
   driver: ["dashboard"],

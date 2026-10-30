@@ -49,7 +49,7 @@ function isLiveV(v?: { offline?: boolean; last_update: string }): boolean {
 }
 
 export default function KendaraanPage() {
-  const { data, isLoading } = useKendaraan();
+  const { data, isLoading, isError, refetch } = useKendaraan();
   const map = useTrackingMap();
   const { data: drivers } = useDriver();
   const router = useRouter();
@@ -76,6 +76,20 @@ export default function KendaraanPage() {
 
         {/* Table — wrapper persis seller: min-w-0 overflow-hidden */}
         <div className="min-w-0 overflow-hidden">
+          {isError ? (
+            <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-10 text-center">
+              <p className="text-sm font-medium text-rose-600">
+                Gagal memuat data kendaraan.
+              </p>
+              <button
+                type="button"
+                onClick={() => refetch()}
+                className="rounded-md border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-100"
+              >
+                Coba lagi
+              </button>
+            </div>
+          ) : (
           <DataTable<Kendaraan>
             loading={isLoading}
             rows={data ?? []}
@@ -145,6 +159,7 @@ export default function KendaraanPage() {
               },
             ]}
           />
+          )}
         </div>
 
         {/* Panel kanan: peta + detail — sama persis dengan seller */}

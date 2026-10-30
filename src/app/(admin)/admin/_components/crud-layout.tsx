@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback, ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import { swal } from "@/lib/swal";
@@ -436,6 +437,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
   statusFilterOptions?: { label: string; value: string }[];
   statusFilterKey?: string;
 }) {
+  const queryClient = useQueryClient();
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -589,6 +591,8 @@ export function AdminCrudPage<T extends Record<string, any>>({
       }
       setModalOpen(false);
       await refresh();
+      await queryClient.invalidateQueries({ queryKey: ["admin-master-options"] });
+      await queryClient.invalidateQueries({ queryKey: ["tracking-map"] });
     } catch (err: any) {
       swal.error("Gagal Menyimpan", err?.message || "Terjadi kesalahan server");
     }
@@ -608,6 +612,8 @@ export function AdminCrudPage<T extends Record<string, any>>({
       await deleteFn(id);
       swal.success("Data Dinonaktifkan", "Data berhasil dinonaktifkan.");
       await refresh();
+      await queryClient.invalidateQueries({ queryKey: ["admin-master-options"] });
+      await queryClient.invalidateQueries({ queryKey: ["tracking-map"] });
     } catch (err: any) {
       swal.error("Gagal", err?.message || "Gagal mengnonaktifkan data");
     }

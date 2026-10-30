@@ -156,7 +156,7 @@ function LiveMapBody() {
     return true;
   });
   const sellers = data?.sellers ?? [];
-  const implants = data?.implants ?? [];
+  const implants = data?.implant_points ?? data?.implants ?? [];
   const selectedVehicle =
     vehicles.find((v) => v.id_kendaraan === selectedId) ?? null;
     const isPickupDriver = selectedVehicle?.role_driver === "driver_pickup";

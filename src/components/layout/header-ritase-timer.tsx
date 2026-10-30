@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Clock, AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAdminMasterOptions } from "@/hooks/use-admin-ritase";
 
 export interface RitDefinition {
   id: number;
@@ -19,32 +20,62 @@ export const RIT_SCHEDULES: RitDefinition[] = [
   {
     id: 1,
     name: "Rit 1",
-    timeRange: "00:05–19:59",
+    timeRange: "00:00–19:59",
     startHour: 0,
-    startMinute: 5,
+    startMinute: 0,
     endHour: 19,
     endMinute: 59,
   },
   {
     id: 2,
     name: "Rit 2",
-    timeRange: "16:05–23:59",
+    timeRange: "16:00–23:59",
     startHour: 16,
-    startMinute: 5,
+    startMinute: 0,
     endHour: 23,
     endMinute: 59,
   },
   {
     id: 3,
     name: "Rit 3",
-    timeRange: "20:05–02:59",
+    timeRange: "20:00–03:00",
     startHour: 20,
-    startMinute: 5,
-    endHour: 2,
-    endMinute: 59,
+    startMinute: 0,
+    endHour: 3,
+    endMinute: 0,
     crossesMidnight: true,
   },
 ];
+
+function parseTime(value: string): [number, number] {
+  const [h, m] = value.split(":");
+  return [Number(h) || 0, Number(m) || 0];
+}
+
+function schedulesFromConfig(
+  config?: Array<{ jenis: string; ritase_ke: number; jam_mulai: string; jam_selesai: string }>
+): RitDefinition[] {
+  if (!config || config.length === 0) return RIT_SCHEDULES;
+  return RIT_SCHEDULES.map((fallback) => {
+    const found = config.find(
+      (j) => j.jenis === "outgoing" && j.ritase_ke === fallback.id
+    );
+    if (!found) return fallback;
+    const [startHour, startMinute] = parseTime(found.jam_mulai);
+    const [endHour, endMinute] = parseTime(found.jam_selesai);
+    const fmt = (h: number, m: number) =>
+      `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    return {
+      ...fallback,
+      timeRange: `${fmt(startHour, startMinute)}–${fmt(endHour, endMinute)}`,
+      startHour,
+      startMinute,
+      endHour,
+      endMinute,
+      crossesMidnight: endHour * 60 + endMinute <= startHour * 60 + startMinute,
+    };
+  });
+}
 
 export type AlertLevel = "normal" | "warning" | "critical" | "expired";
 
@@ -222,14 +253,20 @@ function RitChip({ rit }: { rit: ActiveRitStatus }) {
 
 export function HeaderRitaseTimer() {
   const [now, setNow] = useState<Date>(() => new Date());
+  const { data: masterOptions } = useAdminMasterOptions();
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
+  const schedules = useMemo(
+    () => schedulesFromConfig(masterOptions?.jam_ritase),
+    [masterOptions?.jam_ritase]
+  );
+
   const activeRits = useMemo<ActiveRitStatus[]>(() => {
-    return RIT_SCHEDULES.flatMap((rit) => {
+    return schedules.flatMap((rit) => {
       const res = calculateRitStatus(rit, now);
       if (!res.isActive) return [];
       return [
@@ -243,7 +280,7 @@ export function HeaderRitaseTimer() {
         } satisfies ActiveRitStatus,
       ];
     });
-  }, [now]);
+  }, [now, schedules]);
 
   // Jam HH:MM
   const hoursStr = useMemo(() => String(now.getHours()).padStart(2, "0"), [now]);

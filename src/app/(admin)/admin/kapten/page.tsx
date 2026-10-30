@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { swal } from "@/lib/swal";
 import {
@@ -191,19 +192,15 @@ function StatusSelect({ value, onChange }: { value: string; onChange: (v: string
   );
 }
 
-/* ─────────── IMPLANT MULTI-SELECT + PERAN ─────────── */
+/* ─────────── IMPLANT MULTI-SELECT ─────────── */
 function ImplantMultiSelect({
   implants,
   selected,
-  peran,
   onChange,
-  onPeran,
 }: {
   implants: ImplantAdmin[];
   selected: number[];
-  peran: Record<number, string>;
   onChange: (ids: number[]) => void;
-  onPeran: (id: number, peran: string) => void;
 }) {
   const toggle = (id: number) => {
     onChange(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id]);
@@ -215,53 +212,73 @@ function ImplantMultiSelect({
     <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2 dark:border-slate-700">
       {implants.map((s) => {
         const checked = selected.includes(s.id_implant);
-        const p = peran[s.id_implant] || "utama";
         return (
-          <div
+          <button
             key={s.id_implant}
+            type="button"
+            onClick={() => toggle(s.id_implant)}
             className={cn(
               "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
               checked ? "bg-[#FEA103]/10 font-semibold text-[#E09102] dark:text-[#FEA103]" : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"
             )}
           >
-            <button
-              type="button"
-              onClick={() => toggle(s.id_implant)}
-              className="flex flex-1 items-center gap-2.5 truncate text-left"
-            >
-              <span className={cn(
-                "flex h-5 w-5 shrink-0 items-center justify-center rounded border",
-                checked ? "border-[#FEA103] bg-[#FEA103] text-white" : "border-slate-300 text-transparent dark:border-slate-600"
-              )}>
-                <Check className="h-3 w-3" />
-              </span>
-              <span className="flex-1 truncate">{s.nama_implant}</span>
-              <span className="shrink-0 font-mono text-[10px] text-slate-400">{s.kode_implant}</span>
-            </button>
-            {checked && (
-              <button
-                type="button"
-                onClick={() => onPeran(s.id_implant, p === "utama" ? "cadangan" : "utama")}
-                title="Klik untuk ubah peran"
-                className={cn(
-                  "shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold",
-                  p === "utama"
-                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
-                    : "bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300"
-                )}
-              >
-                {p === "utama" ? "Utama" : "Cadangan"}
-              </button>
-            )}
-          </div>
+            <span className={cn(
+              "flex h-5 w-5 shrink-0 items-center justify-center rounded border",
+              checked ? "border-[#FEA103] bg-[#FEA103] text-white" : "border-slate-300 text-transparent dark:border-slate-600"
+            )}>
+              <Check className="h-3 w-3" />
+            </span>
+            <span className="flex-1 truncate">{s.nama_implant}</span>
+            <span className="shrink-0 font-mono text-[10px] text-slate-400">{s.kode_implant}</span>
+          </button>
         );
       })}
     </div>
   );
 }
 
+/* ─────────── ATUR TITIK PENJEMPUTAN ─────────── */
+function ImplantPointPicker({
+  implants,
+  selected,
+  titik,
+  onChange,
+}: {
+  implants: ImplantAdmin[];
+  selected: number[];
+  titik: Record<number, number>;
+  onChange: (id: number, host: number) => void;
+}) {
+  const selectedImplants = implants.filter((s) => selected.includes(s.id_implant));
+  if (selectedImplants.length === 0) return null;
+  const hosts = new Set(selectedImplants.map((s) => titik[s.id_implant] || s.id_implant));
+  return (
+    <div className="space-y-2 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+        {hosts.size} titik penjemputan
+      </p>
+      {selectedImplants.map((s) => (
+        <div key={s.id_implant} className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="min-w-0 flex-1 truncate">{s.nama_implant}</span>
+          <span className="text-xs text-slate-400">diambil di</span>
+          <select
+            value={titik[s.id_implant] || s.id_implant}
+            onChange={(e) => onChange(s.id_implant, Number(e.target.value))}
+            className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs dark:border-slate-600 dark:bg-slate-800"
+          >
+            {selectedImplants.map((h) => (
+              <option key={h.id_implant} value={h.id_implant}>{h.nama_implant}</option>
+            ))}
+          </select>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ─────────── PAGE ─────────── */
 export default function AdminKaptenPage() {
+  const queryClient = useQueryClient();
   const [data, setData] = useState<KaptenAdmin[]>([]);
   const [implants, setImplants] = useState<ImplantAdmin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -275,7 +292,12 @@ export default function AdminKaptenPage() {
   const [saving, setSaving] = useState(false);
   const [createdCred, setCreatedCred] = useState<{ username: string; password: string } | null>(null);
 
-  const [form, setFormState] = useState({ nama: "", no_hp: "", status: "aktif", implant_ids: [] as number[], implant_peran: {} as Record<number, string> });
+  const [form, setFormState] = useState({
+    nama: "", no_hp: "", status: "aktif",
+    implant_ids: [] as number[],
+    implant_peran: {} as Record<number, string>,
+    implant_titik: {} as Record<number, number>,
+  });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const refresh = useCallback(async () => {
@@ -307,9 +329,31 @@ export default function AdminKaptenPage() {
     if (formErrors[key]) setFormErrors((p) => ({ ...p, [key]: "" }));
   };
 
+  const setImplantIds = (ids: number[]) => {
+    setFormState((p) => {
+      const titik: Record<number, number> = {};
+      ids.forEach((id) => { titik[id] = p.implant_titik[id] || id; });
+      return { ...p, implant_ids: ids, implant_titik: titik };
+    });
+    if (formErrors.implant_ids) setFormErrors((p) => ({ ...p, implant_ids: "" }));
+  };
+
+  const setImplantTitik = (id: number, host: number) => {
+    setFormState((p) => {
+      const titik: Record<number, number> = {};
+      p.implant_ids.forEach((sid) => {
+        const cur = p.implant_titik[sid] || sid;
+        titik[sid] = cur === id && sid !== id ? host : cur;
+      });
+      titik[id] = host;
+      if (host !== id) titik[host] = host;
+      return { ...p, implant_titik: titik };
+    });
+  };
+
   const openCreate = () => {
     setEditTarget(null);
-    setFormState({ nama: "", no_hp: "", status: "aktif", implant_ids: [], implant_peran: {} });
+    setFormState({ nama: "", no_hp: "", status: "aktif", implant_ids: [], implant_peran: {}, implant_titik: {} });
     setFormErrors({});
     setCreatedCred(null);
     setFormOpen(true);
@@ -318,13 +362,18 @@ export default function AdminKaptenPage() {
   const openEdit = (row: KaptenAdmin) => {
     setEditTarget(row);
     const peran: Record<number, string> = {};
-    (row.implants ?? []).forEach((s) => { peran[s.id_implant] = s.peran || "utama"; });
+    const titik: Record<number, number> = {};
+    (row.implants ?? []).forEach((s) => {
+      peran[s.id_implant] = s.peran || "utama";
+      titik[s.id_implant] = s.id_titik_implant || s.id_implant;
+    });
     setFormState({
       nama: row.nama,
       no_hp: row.no_hp ?? "",
       status: row.status,
       implant_ids: (row.implants ?? []).map((s) => s.id_implant),
       implant_peran: peran,
+      implant_titik: titik,
     });
     setFormErrors({});
     setCreatedCred(null);
@@ -334,7 +383,12 @@ export default function AdminKaptenPage() {
   const validateForm = () => {
     const errors: Record<string, string> = {};
     if (!form.nama.trim()) errors.nama = "Nama kapten wajib diisi";
-    if (form.implant_ids.length === 0) errors.implant_ids = "Kapten wajib memegang minimal 1 implant";
+    if (form.status === "aktif" && form.implant_ids.length === 0) {
+      errors.implant_ids = "Kapten aktif wajib memegang minimal 1 implant";
+    }
+    if (form.implant_ids.some((id) => !form.implant_titik[id])) {
+      errors.implant_ids = "Titik penjemputan wajib ditentukan untuk setiap implant";
+    }
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -349,6 +403,7 @@ export default function AdminKaptenPage() {
         status: form.status,
         implant_ids: form.implant_ids,
         implant_peran: form.implant_ids.length > 0 ? form.implant_peran : undefined,
+        implant_titik: form.implant_ids.length > 0 ? form.implant_titik : undefined,
       };
       if (editTarget) {
         await adminKapten.update(editTarget.id_kapten, payload);
@@ -359,6 +414,8 @@ export default function AdminKaptenPage() {
         setCreatedCred({ username: res.username, password: res.password_awal });
       }
       await refresh();
+      await queryClient.invalidateQueries({ queryKey: ["admin-master-options"] });
+      await queryClient.invalidateQueries({ queryKey: ["tracking-map"] });
     } catch (err: any) { swal.error(err?.message || "Gagal menyimpan kapten"); }
     setSaving(false);
   };
@@ -373,6 +430,8 @@ export default function AdminKaptenPage() {
       await adminKapten.delete(row.id_kapten);
       swal.success("Kapten Dihapus", "Master + mapping dihapus, akun dinonaktifkan.");
       await refresh();
+      await queryClient.invalidateQueries({ queryKey: ["admin-master-options"] });
+      await queryClient.invalidateQueries({ queryKey: ["tracking-map"] });
     } catch (err: any) { swal.error(err?.message || "Gagal menghapus kapten"); }
   };
 
@@ -480,9 +539,6 @@ export default function AdminKaptenPage() {
                             <span key={s.id_implant} className="inline-flex items-center rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
                               <Store className="mr-1 h-2.5 w-2.5" />
                               {s.nama_implant}
-                              {s.peran === "cadangan" && (
-                                <span className="ml-1 rounded bg-sky-200/70 px-1 text-[8.5px] font-bold text-sky-800 dark:bg-sky-500/20 dark:text-sky-300">C</span>
-                              )}
                             </span>
                           ))}
                           {(row.implants ?? []).length > 3 && (
@@ -606,13 +662,19 @@ export default function AdminKaptenPage() {
             </div>
 
             <SectionDivider label="Implant Aktif (Kawasan Kerja)" />
-            <FieldWrapper label="Implant yang Dipegang" required error={formErrors.implant_ids} hint="Pilih implant yang jadi kawasan kerja kapten ini · klik label Utama/Cadangan untuk ubah peran">
+            <FieldWrapper label="Implant yang Dipegang" required={form.status === "aktif"} error={formErrors.implant_ids} hint="Pilih implant yang jadi kawasan kerja kapten ini">
               <ImplantMultiSelect
                 implants={implants}
                 selected={form.implant_ids}
-                peran={form.implant_peran}
-                onChange={(ids) => setField("implant_ids", ids)}
-                onPeran={(id, p) => setField("implant_peran", { ...form.implant_peran, [id]: p })}
+                onChange={setImplantIds}
+              />
+            </FieldWrapper>
+            <FieldWrapper label="Titik Penjemputan" hint="Implant yang menunjuk ke titik yang sama akan dijemput dalam satu form">
+              <ImplantPointPicker
+                implants={implants}
+                selected={form.implant_ids}
+                titik={form.implant_titik}
+                onChange={setImplantTitik}
               />
             </FieldWrapper>
 
@@ -681,14 +743,11 @@ export default function AdminKaptenPage() {
                     <span key={s.id_implant} className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
                       <Store className="h-3 w-3" />
                       {s.nama_implant}
-                      <span className={cn(
-                        "rounded px-1 text-[9px] font-bold",
-                        (s.peran || "utama") === "utama"
-                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
-                          : "bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300"
-                      )}>
-                        {(s.peran || "utama") === "utama" ? "Utama" : "Cadangan"}
-                      </span>
+                      {s.nama_titik_implant && s.nama_titik_implant !== s.nama_implant && (
+                        <span className="rounded bg-sky-100 px-1 text-[9px] font-bold text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">
+                          {s.nama_titik_implant}
+                        </span>
+                      )}
                     </span>
                   ))}
                 </div>

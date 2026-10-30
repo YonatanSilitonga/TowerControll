@@ -445,10 +445,12 @@ export default function DashboardPage() {
         return {
           ...v,
           role_driver: "driver_pickup",
-          total_awb: dp?.jumlah_barang ?? v.total_awb,
-          total_koli: dp?.koli ?? v.total_koli,
-          total_eceran: dp?.ecer ?? v.total_eceran,
-          total_high_value: dp?.high_value ?? v.total_high_value,
+          // Backend sudah menjumlahkan pickup log + konfirmasi kapten.
+          // Fallback ke data pickup hanya bila total gabungan masih nol.
+          total_awb: (v.total_awb ?? 0) > 0 ? v.total_awb : (dp?.jumlah_barang ?? 0),
+          total_koli: (v.total_koli ?? 0) > 0 ? v.total_koli : (dp?.koli ?? 0),
+          total_eceran: (v.total_eceran ?? 0) > 0 ? v.total_eceran : (dp?.ecer ?? 0),
+          total_high_value: (v.total_high_value ?? 0) > 0 ? v.total_high_value : (dp?.high_value ?? 0),
         };
       }
       return v;
@@ -487,6 +489,21 @@ export default function DashboardPage() {
   const pickupDayKoli = (selectedPickupLogs ?? []).reduce((acc: number, curr: DriverPickupLog) => acc + (curr.koli || 0), 0);
   const pickupDayEcer = (selectedPickupLogs ?? []).reduce((acc: number, curr: DriverPickupLog) => acc + (curr.ecer || 0), 0);
   const pickupDayHv = (selectedPickupLogs ?? []).reduce((acc: number, curr: DriverPickupLog) => acc + (curr.high_value || 0), 0);
+  // Untuk hari ini backend sudah menggabungkan pickup log + konfirmasi kapten.
+  // Tanggal lampau tetap memakai log pickup historis.
+  const isTodaySelected = selectedDate === todayLocal();
+  const displayAwb = isTodaySelected
+    ? Math.max(pickupDayAwb, selectedVehicle?.total_awb ?? 0)
+    : pickupDayAwb;
+  const displayKoli = isTodaySelected
+    ? Math.max(pickupDayKoli, selectedVehicle?.total_koli ?? 0)
+    : pickupDayKoli;
+  const displayEcer = isTodaySelected
+    ? Math.max(pickupDayEcer, selectedVehicle?.total_eceran ?? 0)
+    : pickupDayEcer;
+  const displayHv = isTodaySelected
+    ? Math.max(pickupDayHv, selectedVehicle?.total_high_value ?? 0)
+    : pickupDayHv;
 
   // Loading skeleton untuk koor_gudang (fokus map saja)
   if (isKoorGudang && map.isLoading) {
@@ -595,7 +612,7 @@ export default function DashboardPage() {
 
   // Filter peta
     const mapSellers = mapFilter === "trucks" || mapFilter === "warehouse" ? [] : sellers;
-  const implants = map.data?.implants ?? [];
+  const implants = map.data?.implant_points ?? map.data?.implants ?? [];
   const mapImplants = mapFilter === "trucks" || mapFilter === "warehouse" ? [] : implants;
   const mapGudang = mapFilter === "trucks" || mapFilter === "seller" ? [] : (map.data?.gudang ?? []);
   const mapDrop = mapFilter === "trucks" || mapFilter === "seller" ? [] : (map.data?.drop_points ?? []);
@@ -613,7 +630,7 @@ export default function DashboardPage() {
     const waitingSellers = allImplants.filter(
       (s) =>
         (s.status_pickup === "menunggu" || !s.status_pickup) &&
-        ((s.jumlah_barang ?? 0) > 0 || (s.koli ?? 0) > 0 || (s.ecer ?? 0) > 0 || (s.high_value ?? 0) > 0)
+        ((s.sisa_barang ?? s.jumlah_barang ?? 0) > 0 || (s.sisa_koli ?? s.koli ?? 0) > 0 || (s.ecer ?? 0) > 0 || (s.high_value ?? 0) > 0)
     );
 
     const driverPickups = resolvedDriverPickups;
@@ -647,7 +664,7 @@ export default function DashboardPage() {
       );
     });
 
-    const totalAwbWaiting = waitingSellers.reduce((acc, s) => acc + (s.jumlah_barang ?? 0), 0);
+    const totalAwbWaiting = waitingSellers.reduce((acc, s) => acc + (s.sisa_barang ?? s.jumlah_barang ?? 0), 0);
     const totalKoliWaiting = waitingSellers.reduce((acc, s) => acc + (s.koli ?? 0), 0);
     const totalHvWaiting = waitingSellers.reduce((acc, s) => acc + (s.high_value ?? 0), 0);
 
@@ -684,7 +701,11 @@ export default function DashboardPage() {
           setSelectedId(targetVeh.id_kendaraan);
           setFocusTarget({ type: "truck", id: targetVeh.id_kendaraan, ts: Date.now() } as any);
         } else if (d.asal_seller) {
-          const implantMatch = implants.find((s) => s.nama_implant.toLowerCase().includes((d.asal_seller || "").toLowerCase()));
+          const src = (d.asal_seller || "").toLowerCase();
+          const implantMatch = implants.find(
+            (s) => s.nama_implant.toLowerCase().includes(src) ||
+              (s.anggota ?? []).some((a) => a.toLowerCase().includes(src))
+          );
           if (implantMatch) setFocusTarget({ type: "implant", id: implantMatch.id_implant });
           else {
             const sellerMatch = sellers.find((s) => s.nama_seller.toLowerCase().includes((d.asal_seller || "").toLowerCase()));
@@ -1357,7 +1378,7 @@ export default function DashboardPage() {
               ) : (
                 <div className="space-y-2.5">
                   {displayedSellers.map((s) => {
-                    const awbCount = s.jumlah_barang ?? 0;
+                    const awbCount = s.sisa_barang ?? s.jumlah_barang ?? 0;
 
                     return (
                       <div
@@ -1707,9 +1728,9 @@ export default function DashboardPage() {
                       <span className="ml-auto flex items-center gap-2.5 text-slate-700">
                         {isSelectedPickup ? (
                           <>
-                            <span className="font-bold text-amber-900">{pickupDayAwb > 0 ? pickupDayAwb : (selectedVehicle.total_awb ?? 0)} AWB</span>
-                            <span><b>{pickupDayKoli > 0 ? pickupDayKoli : (selectedVehicle.total_koli ?? 0)}</b> koli</span>
-                            <span><b>{pickupDayEcer > 0 ? pickupDayEcer : (selectedVehicle.total_eceran ?? 0)}</b> ecer</span>
+                            <span className="font-bold text-amber-900">{displayAwb} AWB</span>
+                            <span><b>{displayKoli}</b> koli</span>
+                            <span><b>{displayEcer}</b> ecer</span>
                           </>
                         ) : (
                           <>
@@ -1766,19 +1787,19 @@ export default function DashboardPage() {
                         <div className="grid grid-cols-2 gap-2">
                           <div className="rounded-md border border-amber-100 bg-amber-50/70 p-2.5">
                             <p className="text-[10px] font-bold uppercase text-amber-700">Total AWB Hari Ini</p>
-                            <p className="text-xl font-bold tabular-nums text-amber-950">{pickupDayAwb > 0 ? pickupDayAwb : (selectedVehicle.total_awb ?? 0)}</p>
+                            <p className="text-xl font-bold tabular-nums text-amber-950">{displayAwb}</p>
                           </div>
                           <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5">
                             <p className="text-[10px] font-bold uppercase text-slate-400">Total Koli</p>
-                            <p className="text-xl font-bold tabular-nums text-slate-800">{pickupDayKoli > 0 ? pickupDayKoli : (selectedVehicle.total_koli ?? 0)}</p>
+                            <p className="text-xl font-bold tabular-nums text-slate-800">{displayKoli}</p>
                           </div>
                           <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5">
                             <p className="text-[10px] font-bold uppercase text-slate-400">Eceran</p>
-                            <p className="text-lg font-bold tabular-nums text-slate-800">{pickupDayEcer > 0 ? pickupDayEcer : (selectedVehicle.total_eceran ?? 0)}</p>
+                            <p className="text-lg font-bold tabular-nums text-slate-800">{displayEcer}</p>
                           </div>
                           <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5">
                             <p className="text-[10px] font-bold uppercase text-slate-400">High Value</p>
-                            <p className="text-lg font-bold tabular-nums text-slate-800">{pickupDayHv > 0 ? pickupDayHv : (selectedVehicle.total_high_value ?? 0)}</p>
+                            <p className="text-lg font-bold tabular-nums text-slate-800">{displayHv}</p>
                           </div>
                         </div>
                         <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs space-y-1">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -21,6 +21,19 @@ export function MobileNav() {
   const user = useAuthStore((s) => s.user);
   const isAdminRoute = role === "admin" || pathname.startsWith("/admin");
   const nav = useMemo(() => isAdminRoute ? ADMIN_NAV : filterNav(role), [isAdminRoute, role]);
+
+  useEffect(() => {
+    nav.forEach((item) => {
+      if (item.children) {
+        const isChildActive = item.children.some(
+          (c) => pathname === c.href || (pathname.startsWith(`${c.href}/`) && !pathname.startsWith("/armada/live-map"))
+        );
+        if (isChildActive) {
+          setOpenDropdowns((prev) => (prev[item.key] ? prev : { ...prev, [item.key]: true }));
+        }
+      }
+    });
+  }, [pathname, nav]);
 
   const toggleDropdown = (key: string) => {
     setOpenDropdowns((prev) => ({ ...prev, [key]: !prev[key] }));

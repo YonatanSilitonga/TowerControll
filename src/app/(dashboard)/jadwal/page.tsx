@@ -51,8 +51,12 @@ import type { AdminRitaseItem, AdminRitaseStop } from "@/types/armada";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTrackingMap } from "@/hooks/use-tracking";
 
+function formatJam(value?: string | null) {
+  return value ? value.slice(0, 5) : "?";
+}
+
 export default function JadwalPage() {
-  // ── Koordinat asli dari tracking map (seller/implant/gudang/drop_point) ──
+  // â”€â”€ Koordinat asli dari tracking map (seller/implant/gudang/drop_point) â”€â”€
   const trackingMap = useTrackingMap();
   const locationLookup = useMemo(() => {
     const lk = new Map();
@@ -60,6 +64,9 @@ export default function JadwalPage() {
       lk.set("seller_" + s.id_seller, [s.latitude, s.longitude]);
     }
     for (const s of trackingMap.data?.implants ?? []) {
+      lk.set("implant_" + s.id_implant, [s.latitude, s.longitude]);
+    }
+    for (const s of trackingMap.data?.implant_points ?? []) {
       lk.set("implant_" + s.id_implant, [s.latitude, s.longitude]);
     }
     for (const g of trackingMap.data?.gudang ?? []) {
@@ -70,7 +77,7 @@ export default function JadwalPage() {
     }
     return lk;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackingMap.data?.sellers, trackingMap.data?.implants, trackingMap.data?.gudang, trackingMap.data?.drop_points]);
+  }, [trackingMap.data?.sellers, trackingMap.data?.implants, trackingMap.data?.implant_points, trackingMap.data?.gudang, trackingMap.data?.drop_points]);
 
   const { data: contactDrivers } = useDriver();
   const currentUser = useAuthStore((s) => s.user);
@@ -93,7 +100,7 @@ export default function JadwalPage() {
     if (!val) return null;
     // Sudah HH:MM
     if (/^\d{2}:\d{2}$/.test(val)) return val;
-    // ISO timestamp → convert UTC+7
+    // ISO timestamp â†’ convert UTC+7
     const d = new Date(val.includes("T") ? val : val + "Z");
     if (Number.isNaN(d.getTime())) return null;
     const h = String((d.getUTCHours() + 7) % 24).padStart(2, "0");
@@ -108,7 +115,7 @@ export default function JadwalPage() {
   const [ritaseFilter, setRitaseFilter] = useState<string>("all");
   const [jenisFilter, setJenisFilter] = useState<string>("outgoing");
 
-  // Dynamic ritase options: outgoing cuma 3, incoming/all → 1-4
+  // Dynamic ritase options: outgoing cuma 3, incoming/all â†’ 1-4
   const ritaseOptions = useMemo(() => {
     const base = ["all"];
     if (jenisFilter === "outgoing") return [...base, "1", "2", "3"];
@@ -161,6 +168,10 @@ export default function JadwalPage() {
 
   // Fetch Master Data Options (Drivers, Vehicles, Sellers, Drop Points, Gudangs)
   const { data: masterOptions } = useAdminMasterOptions();
+  const implantOptions = masterOptions?.implant_points ?? [];
+  const defaultImplantPoint = implantOptions.find(
+    (s) => s.has_coordinate !== false,
+  );
 
   // Filter: driver aktif & kendaraan tersedia (dengan case-insensitive & fallback agar opsi tidak pernah kosong)
   const activeDrivers = useMemo(() => {
@@ -231,7 +242,7 @@ export default function JadwalPage() {
     ],
   });
 
-  // Default ID dari masterOptions — ganti hardcoded ID 1
+  // Default ID dari masterOptions â€” ganti hardcoded ID 1
   useEffect(() => {
     if (!masterOptions) return;
     setNewRitase((cur) => {
@@ -273,12 +284,12 @@ export default function JadwalPage() {
     isFetching: isFetchingPreview,
     refetch: fetchPreview,
   } = usePreviewDailyRitase();
-  // SESUDAH (rapi — satu useEffect, sort di akhir, snapshot disimpan setelahnya)
+  // SESUDAH (rapi â€” satu useEffect, sort di akhir, snapshot disimpan setelahnya)
 const [editableRoutes, setEditableRoutes] = useState<PreviewRoute[]>([]);
 const previewSnapshotRef = useRef<string>("");
 
 // Jenis driver ditentukan tetap dari jabatan (TRANSPORTER OUTGOING/INCOMING),
-// bukan pilihan manual — konsisten dengan Template Rute.
+// bukan pilihan manual â€” konsisten dengan Template Rute.
 const getDriverJenis = (idDriver: number) => {
   const driver = masterOptions?.drivers.find((d) => d.id_driver === idDriver);
   const jabatan = (driver?.jabatan ?? "").toLowerCase();
@@ -307,10 +318,13 @@ useEffect(() => {
               s.nama_lokasi = masterOptions.sellers[0].nama_seller;
             }
           } else if (s.jenis_stop === "implant") {
-            const validI = masterOptions.implants.find((sel) => sel.id_implant === s.id_lokasi);
-            if (!validI && masterOptions.implants.length > 0) {
-              s.id_lokasi = masterOptions.implants[0].id_implant;
-              s.nama_lokasi = masterOptions.implants[0].nama_implant;
+            const validI = implantOptions.find(
+              (sel) =>
+                sel.id_implant === s.id_lokasi && sel.has_coordinate !== false,
+            );
+            if (!validI && defaultImplantPoint) {
+              s.id_lokasi = defaultImplantPoint.id_implant;
+              s.nama_lokasi = defaultImplantPoint.nama_implant;
             }
           } else {
             const validDp = masterOptions.drop_points.find((dp) => dp.id_drop_point === s.id_lokasi);
@@ -322,7 +336,7 @@ useEffect(() => {
         });
       });
 
-      // Urutkan SEKALI saat data awal dimuat: Outgoing (R1→3) dulu, lalu Incoming (R1→4).
+      // Urutkan SEKALI saat data awal dimuat: Outgoing (R1â†’3) dulu, lalu Incoming (R1â†’4).
       // Urutan ini TIDAK dihitung ulang lagi setelah ini, supaya card tidak lompat
       // posisi saat user mengubah ritase_ke di tengah proses edit.
       routesCopy.sort((a, b) => {
@@ -544,9 +558,9 @@ const askCancelGenerate = async () => {
       stop.id_lokasi = g?.id_gudang ?? 1;
       stop.nama_lokasi = g?.nama_gudang ?? "Gudang Outgoing";
     } else if (newJenis === "implant") {
-      const s = masterOptions?.implants[0];
-      stop.id_lokasi = s?.id_implant ?? 1;
-      stop.nama_lokasi = s?.nama_implant ?? "Implant 1";
+      const s = defaultImplantPoint;
+      stop.id_lokasi = s?.id_implant ?? 0;
+      stop.nama_lokasi = s?.nama_implant ?? "";
     } else if (newJenis === "seller") {
       const s = masterOptions?.sellers[0];
       stop.id_lokasi = s?.id_seller ?? 1;
@@ -574,7 +588,7 @@ const askCancelGenerate = async () => {
       const item = masterOptions?.gudangs.find((g) => g.id_gudang === idLokasi);
       stop.nama_lokasi = item?.nama_gudang ?? `Gudang #${idLokasi}`;
     } else if (stop.jenis_stop === "implant") {
-      const item = masterOptions?.implants.find((s) => s.id_implant === idLokasi);
+      const item = implantOptions.find((s) => s.id_implant === idLokasi);
       stop.nama_lokasi = item?.nama_implant ?? `Implant #${idLokasi}`;
     } else if (stop.jenis_stop === "seller") {
       const item = masterOptions?.sellers.find((s) => s.id_seller === idLokasi);
@@ -668,7 +682,7 @@ const askCancelGenerate = async () => {
     const reindexedStops = (editingRitase.stops ?? []).map((s, idx) => ({
       ...s,
       urutan: idx + 1,
-      // Wajib: backend baca id_lokasi per stop (gudang→id_gudang, seller→id_seller, implant→id_implant, else→id_drop_point).
+      // Wajib: backend baca id_lokasi per stop (gudangâ†’id_gudang, sellerâ†’id_seller, implantâ†’id_implant, elseâ†’id_drop_point).
       id_lokasi:
         s.jenis_stop === "gudang"
           ? s.id_gudang
@@ -712,7 +726,7 @@ const askCancelGenerate = async () => {
   const handleSaveCreate = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // ── Validasi tanggal tidak boleh di masa lalu ──
+    // â”€â”€ Validasi tanggal tidak boleh di masa lalu â”€â”€
     if (newRitase.tanggal < todayStr) {
       swal.error(
         "Error",
@@ -721,7 +735,7 @@ const askCancelGenerate = async () => {
       return;
     }
 
-    // ── Validasi duplikat di frontend ──
+    // â”€â”€ Validasi duplikat di frontend â”€â”€
     const existingRitase = ritases?.find(
       (r) =>
         r.id_driver === newRitase.id_driver &&
@@ -739,7 +753,7 @@ const askCancelGenerate = async () => {
       return;
     }
 
-    // ── Validasi driver/kendaraan aktif ──
+    // â”€â”€ Validasi driver/kendaraan aktif â”€â”€
     const selectedDriver = activeDrivers.find(
       (d) => d.id_driver === newRitase.id_driver,
     );
@@ -897,7 +911,7 @@ const askCancelGenerate = async () => {
     }
   };
 
-  // Select location from database dropdown — pakai functional updater biar
+  // Select location from database dropdown â€” pakai functional updater biar
   // perubahan jenis_stop & lokasi gak saling menimpa (stale closure).
   const handleSelectLocationOption = (
     isEdit: boolean,
@@ -919,7 +933,7 @@ const askCancelGenerate = async () => {
         updatedName = found?.nama_seller ?? `Seller #${selectedId}`;
       } else if (currentStop.jenis_stop === "implant") {
         idImplant = selectedId;
-        const found = masterOptions?.implants.find(
+        const found = implantOptions.find(
           (s) => s.id_implant === selectedId,
         );
         updatedName = found?.nama_implant ?? `Implant #${selectedId}`;
@@ -1093,7 +1107,7 @@ const askCancelGenerate = async () => {
 
   return (
     <div className="space-y-4 pb-8">
-      {/* ── HEADER (PageHeader + breadcrumb + actions) ── */}
+      {/* â”€â”€ HEADER (PageHeader + breadcrumb + actions) â”€â”€ */}
       <PageHeader
         title="Manajemen Jadwal Ritase"
         description="Kelola penugasan rute armada, pilih driver & lokasi terdaftar database, dan generate rute harian 1 klik."
@@ -1132,7 +1146,7 @@ const askCancelGenerate = async () => {
         }
       />
 
-      {/* ── PENGATURAN PANEL (inline) ── */}
+      {/* â”€â”€ PENGATURAN PANEL (inline) â”€â”€ */}
 
       {showPengaturan && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm">
@@ -1162,7 +1176,7 @@ const askCancelGenerate = async () => {
         </div>
       )}
 
-      {/* ── TAB CONTENT ── */}
+      {/* â”€â”€ TAB CONTENT â”€â”€ */}
       {isDatePast && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-950/40">
           <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
@@ -1173,7 +1187,7 @@ const askCancelGenerate = async () => {
         </div>
       )}
 
-      {/* ── METRICS SUMMARY CARDS ── */}
+      {/* â”€â”€ METRICS SUMMARY CARDS â”€â”€ */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KPICard label="Total Ritase" value={totalRitase} icon={Layers} />
         <KPICard
@@ -1185,7 +1199,7 @@ const askCancelGenerate = async () => {
         <KPICard label="Ritase Selesai" value={completed} icon={CheckCircle2} />
       </div>
 
-      {/* ── FILTER, TANGGAL, & RITASE FILTER BAR ── */}
+      {/* â”€â”€ FILTER, TANGGAL, & RITASE FILTER BAR â”€â”€ */}
       <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-end gap-3">
           {/* Tanggal Picker */}
@@ -1205,7 +1219,7 @@ const askCancelGenerate = async () => {
             </div>
           </div>
 
-          {/* Jenis Filter — Outgoing / Incoming, dengan count langsung di label */}
+          {/* Jenis Filter â€” Outgoing / Incoming, dengan count langsung di label */}
           <div className="flex flex-col gap-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Jenis
@@ -1259,7 +1273,7 @@ const askCancelGenerate = async () => {
             </div>
           </div>
         </div>
-        {/* Tombol Buat Jadwal Manual — sendiri di paling kanan */}
+        {/* Tombol Buat Jadwal Manual â€” sendiri di paling kanan */}
         <button
           type="button"
           disabled={isDatePast}
@@ -1275,10 +1289,10 @@ const askCancelGenerate = async () => {
         </button>
       </div>
 
-      {/* ── ERROR DELETE (page-level) ── */}
+      {/* â”€â”€ ERROR DELETE (page-level) â”€â”€ */}
       {deleteMutation.error && <MutationError error={deleteMutation.error} />}
 
-      {/* ── SCHEDULE CARDS LIST ── */}
+      {/* â”€â”€ SCHEDULE CARDS LIST â”€â”€ */}
       {isLoading ? (
         <div className="flex h-48 items-center justify-center rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center gap-2 text-slate-500">
@@ -1325,9 +1339,9 @@ const askCancelGenerate = async () => {
               key={r.id_ritase}
               className="group relative z-0 isolate flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 overflow-hidden"
             >
-              {/* ── Header strip warna status ── */}
+              {/* â”€â”€ Header strip warna status â”€â”€ */}
               <div className="grid grid-cols-1 sm:grid-cols-12 flex-1 h-full">
-                {/* ── Kolom Kiri: Info + Stops ── */}
+                {/* â”€â”€ Kolom Kiri: Info + Stops â”€â”€ */}
                 <div className="sm:col-span-7 flex flex-col gap-3 p-4">
                   {/* Badge row */}
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -1364,7 +1378,7 @@ const askCancelGenerate = async () => {
                         {r.jam_mulai && (
                           <span className="inline-flex items-center gap-1">
                             <Clock className="h-3 w-3 text-slate-400" />
-                            <span>{r.jam_mulai} – {r.jam_selesai ?? "?"}</span>
+                            <span>{formatJam(r.jam_mulai)} – {formatJam(r.jam_selesai)}</span>
                           </span>
                         )}
                       </div>
@@ -1452,7 +1466,7 @@ const askCancelGenerate = async () => {
                   </div>
                 </div>
 
-                {/* ── Kolom Kanan: Real Leaflet Map ── */}
+                {/* â”€â”€ Kolom Kanan: Real Leaflet Map â”€â”€ */}
                 <div className="sm:col-span-5 relative z-0 isolate flex flex-col bg-slate-50 dark:bg-slate-800/50 min-h-[220px] h-full overflow-hidden">
                   {/* Real Leaflet Map */}
                   <div className="flex-1 w-full h-full min-h-[220px]">
@@ -1465,7 +1479,7 @@ const askCancelGenerate = async () => {
         </div>
       )}
 
-      {/* ── MODAL 1-KLIK GENERATE CONFIRMATION & PREVIEW ── */}
+      {/* â”€â”€ MODAL 1-KLIK GENERATE CONFIRMATION & PREVIEW â”€â”€ */}
       {showGenerateModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm">
           <div
@@ -1635,8 +1649,8 @@ const askCancelGenerate = async () => {
                                 <div className="flex items-center gap-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 px-2.5 py-1.5">
                                   <Clock className="h-3 w-3 text-slate-400" />
                                   <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                                    {route.jam_mulai?.slice(0, 5) ?? "?"} –{" "}
-                                    {route.jam_selesai?.slice(0, 5) ?? "?"}
+                                    {formatJam(route.jam_mulai)} –{" "}
+                                    {formatJam(route.jam_selesai)}
                                   </span>
                                 </div>
                               )}
@@ -1771,7 +1785,7 @@ const askCancelGenerate = async () => {
                                           </option>
                                         ))}
                                       {stop.jenis_stop === "implant" &&
-                                        masterOptions?.implants.map((s) => (
+                                        implantOptions.map((s) => (
                                           <option
                                             key={s.id_implant}
                                             value={s.id_implant}
@@ -1895,7 +1909,7 @@ const askCancelGenerate = async () => {
         </div>
       )}
 
-      {/* ── MODAL BUAT JADWAL MANUAL ── */}
+      {/* â”€â”€ MODAL BUAT JADWAL MANUAL â”€â”€ */}
       {showCreateModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm">
           <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-lg bg-white p-4 sm:p-5 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
@@ -2063,7 +2077,7 @@ const askCancelGenerate = async () => {
                       <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
                         Waktu:{" "}
                         <strong>
-                          {jamConfig.jam_mulai} – {jamConfig.jam_selesai}
+                          {formatJam(jamConfig.jam_mulai)} – {formatJam(jamConfig.jam_selesai)}
                         </strong>{" "}
                         ({jenis === "outgoing" ? "Outgoing" : "Incoming"} R
                         {newRitase.ritase_ke})
@@ -2151,12 +2165,12 @@ const askCancelGenerate = async () => {
                             );
                           } else if (
                             newType === "implant" &&
-                            masterOptions?.implants[0]
+                            defaultImplantPoint
                           ) {
                             handleSelectLocationOption(
                               false,
                               idx,
-                              masterOptions.implants[0].id_implant,
+                              defaultImplantPoint.id_implant,
                             );
                           } else if (
                             newType === "gudang" &&
@@ -2197,7 +2211,7 @@ const askCancelGenerate = async () => {
                       </button>
                       </div>
 
-                      {/* Row 2: Location Select — full width */}
+                      {/* Row 2: Location Select â€” full width */}
                       {stop.jenis_stop === "seller" ? (
                         <SearchSelect
                           value={stop.id_seller}
@@ -2218,10 +2232,12 @@ const askCancelGenerate = async () => {
                             handleSelectLocationOption(false, idx, id)
                           }
                           placeholder="Pilih implant..."
-                          options={(masterOptions?.implants ?? []).map((s) => ({
+                          options={implantOptions.map((s) => ({
                             id: s.id_implant,
                             label: s.nama_implant,
                             sub: s.kode_implant,
+                            disabled: s.has_coordinate === false,
+                            hint: "Belum ada koordinat",
                           }))}
                         />
                       ) : stop.jenis_stop === "gudang" ? (
@@ -2289,7 +2305,7 @@ const askCancelGenerate = async () => {
         </div>
       )}
 
-      {/* ── MODAL EDIT RITASE & RUTE STOPS ── */}
+      {/* â”€â”€ MODAL EDIT RITASE & RUTE STOPS â”€â”€ */}
       {editingRitase && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm">
           <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-lg bg-white p-4 sm:p-5 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
@@ -2438,7 +2454,7 @@ const askCancelGenerate = async () => {
                 </div>
               </div>
 
-              {/* ── EDITOR URUTAN RUTE PERJALANAN (STOPS) ── */}
+              {/* â”€â”€ EDITOR URUTAN RUTE PERJALANAN (STOPS) â”€â”€ */}
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
@@ -2514,12 +2530,12 @@ const askCancelGenerate = async () => {
                             );
                           } else if (
                             newType === "implant" &&
-                            masterOptions?.implants[0]
+                            defaultImplantPoint
                           ) {
                             handleSelectLocationOption(
                               true,
                               idx,
-                              masterOptions.implants[0].id_implant,
+                              defaultImplantPoint.id_implant,
                             );
                           } else if (
                             newType === "gudang" &&
@@ -2560,7 +2576,7 @@ const askCancelGenerate = async () => {
                       </button>
                       </div>
 
-                      {/* Row 2: Location Select — full width */}
+                      {/* Row 2: Location Select â€” full width */}
                       {stop.jenis_stop === "seller" ? (
                         <SearchSelect
                           value={stop.id_seller}
@@ -2581,10 +2597,12 @@ const askCancelGenerate = async () => {
                             handleSelectLocationOption(true, idx, id)
                           }
                           placeholder="Pilih implant..."
-                          options={(masterOptions?.implants ?? []).map((s) => ({
+                          options={implantOptions.map((s) => ({
                             id: s.id_implant,
                             label: s.nama_implant,
                             sub: s.kode_implant,
+                            disabled: s.has_coordinate === false,
+                            hint: "Belum ada koordinat",
                           }))}
                         />
                       ) : stop.jenis_stop === "gudang" ? (
@@ -2683,7 +2701,7 @@ const askCancelGenerate = async () => {
         </div>
       )}
 
-      {/* ── Lightbox Foto Manifest ── */}
+      {/* â”€â”€ Lightbox Foto Manifest â”€â”€ */}
       {selectedFoto && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm animate-in fade-in duration-200"
@@ -2724,7 +2742,7 @@ const askCancelGenerate = async () => {
   );
 }
 
-/** Banner error mutation — tampil kalau request backend gagal. */
+/** Banner error mutation â€” tampil kalau request backend gagal. */
 function MutationError({ error }: { error: unknown }) {
   if (!error) return null;
   const msg =
@@ -2745,7 +2763,13 @@ function SearchSelect({
 }: {
   value: number | null | undefined;
   onChange: (id: number) => void;
-  options: { id: number; label: string; sub?: string }[];
+  options: {
+    id: number;
+    label: string;
+    sub?: string;
+    disabled?: boolean;
+    hint?: string;
+  }[];
   placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -2815,8 +2839,15 @@ function SearchSelect({
         onClick={openDropdown}
         className="flex w-full items-center justify-between gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0c1e3a] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
       >
-        <span className="min-w-0 truncate">
-          {selected ? selected.label : placeholder}
+        <span className="min-w-0">
+          <span className="block truncate">
+            {selected ? selected.label : placeholder}
+          </span>
+          {selected?.disabled && selected.hint && (
+            <span className="block text-[10px] font-normal text-amber-600">
+              {selected.hint}
+            </span>
+          )}
         </span>
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
       </button>
@@ -2855,16 +2886,29 @@ function SearchSelect({
                   <li key={o.id}>
                     <button
                       type="button"
+                      disabled={o.disabled}
                       onClick={() => {
                         onChange(o.id);
                         setOpen(false);
                       }}
-                      className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
+                      className={cn(
+                        "flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs transition-colors",
+                        o.disabled
+                          ? "cursor-not-allowed opacity-60"
+                          : "hover:bg-slate-50 dark:hover:bg-slate-800",
+                      )}
                     >
-                      <span className="min-w-0 truncate font-medium text-slate-700 dark:text-slate-200">
-                        {o.label}
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-slate-700 dark:text-slate-200">
+                          {o.label}
+                        </span>
+                        {o.disabled && o.hint && (
+                          <span className="block text-[10px] text-amber-600">
+                            {o.hint}
+                          </span>
+                        )}
                       </span>
-                      {o.sub && (
+                      {o.sub && !o.disabled && (
                         <span className="shrink-0 text-[10px] text-slate-400">
                           {o.sub}
                         </span>

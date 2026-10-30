@@ -10,6 +10,7 @@ import {
   Car,
   ChevronDown,
   ClipboardCheck,
+  History,
   LayoutDashboard,
   MapPin,
   Package,
@@ -47,20 +48,29 @@ const NAV: NavItem[] = [
   { label: "Beranda", href: "/", icon: LayoutDashboard, key: "dashboard" },
   { label: "Dashboard", href: "/analitik/efektivitas-armada", icon: BarChart3, key: "efektivitas-armada" },
   { label: "Live Maps", href: "/armada/live-map", icon: MapPin, key: "armada-live-map" },
-  { label: "Armada", href: "", icon: Truck, key: "section-armada", isSection: true },
-  { label: "Ringkasan Armada", href: "/armada", icon: Truck, key: "armada" },
-  { label: "Kendaraan", href: "/armada/vehicles", icon: Car, key: "armada-vehicles" },
-  { label: "Driver", href: "/armada/drivers", icon: Users, key: "armada-drivers" },
-  { label: "Seller", href: "/armada/sellers", icon: Store, key: "armada-sellers" },
-  { label: "Jadwal & Riwayat Ritase", href: "/armada/trips", icon: Route, key: "armada-trips" },
-  { label: "Lainnya", href: "", icon: LayoutDashboard, key: "section-lainnya", isSection: true },
-  { label: "Kelola AWB Implan", href: "/implan", icon: Package, key: "implan" },
-  { label: "Riwayat Pickup", href: "/riwayat-pickup", icon: PackageCheck, key: "riwayat-pickup" },
   { label: "Jadwal Ritase", href: "/jadwal", icon: Calendar, key: "jadwal" },
-  { label: "Foto Manifest", href: "/manifest-foto", icon: Camera, key: "manifest-foto" },
+  {
+    label: "Armada",
+    href: "",
+    icon: Truck,
+    key: "section-armada",
+    children: [
+      { label: "Ringkasan Armada", href: "/armada", key: "armada" },
+      { label: "Kendaraan", href: "/armada/vehicles", key: "armada-vehicles" },
+      { label: "Driver", href: "/armada/drivers", key: "armada-drivers" },
+      { label: "Implan", href: "/armada/implants", key: "armada-implants" },
+      { label: "Seller", href: "/armada/sellers", key: "armada-sellers" },
+      { label: "Jadwal & Riwayat Ritase", href: "/armada/trips", key: "armada-trips" },
+    ],
+  },
+  { label: "Lainnya", href: "", icon: LayoutDashboard, key: "section-lainnya", isSection: true },
+  { label: "Riwayat Implan", href: "/riwayat-implan", icon: History, key: "riwayat-implan" },
+  { label: "Riwayat Pickup", href: "/riwayat-pickup", icon: PackageCheck, key: "riwayat-pickup" },
+  { label: "Foto Manifest Driver", href: "/manifest-foto", icon: Camera, key: "manifest-foto" },
   { label: "Analitik", href: "/analitik", icon: BarChart3, key: "analitik" },
   { label: "Gudang", href: "/gudang", icon: Warehouse, key: "gudang" },
   { label: "Absensi", href: "/absensi", icon: ClipboardCheck, key: "absensi" },
+  { label: "Kelola AWB Implan", href: "/implan", icon: Package, key: "implan" },
 ];
 
 export const ADMIN_NAV: NavItem[] = [
@@ -78,7 +88,16 @@ export const ADMIN_NAV: NavItem[] = [
 /** Item menu sesuai role — dipakai sidebar desktop & drawer mobile. */
 export function filterNav(role?: string) {
   const allowed = role ? ROLE_MENU[role as keyof typeof ROLE_MENU] ?? [] : [];
-  return NAV.filter((item) => allowed.includes(item.key));
+  return NAV.reduce<NavItem[]>((items, item) => {
+    if (!allowed.includes(item.key)) return items;
+    if (!item.children) {
+      items.push(item);
+      return items;
+    }
+    const children = item.children.filter((child) => allowed.includes(child.key));
+    if (children.length > 0) items.push({ ...item, children });
+    return items;
+  }, []);
 }
 
 export function Sidebar() {

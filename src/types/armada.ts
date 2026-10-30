@@ -225,6 +225,8 @@ export interface ImplantLocation {
   /** Sisa muatan hari ini (input kapten − sudah diambil). Bubble peta hanya tampil bila > 0. */
   sisa_barang?: number | null;
   sisa_koli?: number | null;
+  /** Nama implant sumber yang digabung ke titik ini. */
+  anggota?: string[];
 }
 
 export interface DriverPickupItem {
@@ -265,6 +267,8 @@ export interface TrackingMap {
   vehicles: TrackingVehicle[];
   sellers: SellerLocation[];
   implants?: ImplantLocation[];
+  /** Titik penjemputan hasil penggabungan implant. */
+  implant_points?: ImplantLocation[];
   /** Posisi gudang (Outgoing/Incoming=DC) — dinamis dari backend. */
   gudang?: GudangPoint[];
   /** Posisi drop point (Gateway JKT/SEG) — dinamis dari backend. */
@@ -292,6 +296,11 @@ export interface GudangPoint {
   tipe: string;
   latitude: number;
   longitude: number;
+  /** Muatan hari ini dari input koor gudang. */
+  jumlah_barang?: number | null;
+  /** Sisa muatan (input − sudah diambil). Bubble peta hanya tampil bila > 0. */
+  sisa_barang?: number | null;
+  status_pickup?: string | null;
 }
 
 export interface TrackingCheckpoint {
@@ -416,6 +425,8 @@ export interface RitaseDetail extends Ritase {
 
 export interface ManifestPhotoItem {
   id_event: number;
+  id_seller?: number;
+  id_implant?: number;
   id_ritase: number;
   kode_ritase: string;
   tanggal: string;
@@ -469,6 +480,7 @@ export interface ManifestPhotoItem {
 
 /** Ringkasan serah terima kapten per (seller, jenis, rit): input vs diambil vs sisa. */
 export interface PenjemputanRingkasan {
+  id_implant?: number;
   id_seller: number;
   nama_lokasi: string;
   jenis_ritase: string;
@@ -495,6 +507,7 @@ export interface RiwayatPenjemputan {
   tanggal: string;
   ritase_ke: number;
   jenis_ritase: string;
+  id_implant?: number;
   id_seller: number;
   nama_lokasi: string;
   nama_driver: string;

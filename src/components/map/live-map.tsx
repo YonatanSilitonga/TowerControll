@@ -236,6 +236,49 @@ function createGudangIcon(color: string) {
   });
 }
 
+const gudangIconCache = new Map<string, L.DivIcon>();
+
+/** Ikon gudang + bubble AWB kondisional: hanya tampil bila sisa muatan > 0.
+ *  Geometri dipertahankan agar posisi marker tidak melompat. */
+function getGudangIcon(color: string, sisaBarang?: number | null): L.DivIcon {
+  const shown = sisaBarang != null && sisaBarang >= 0 ? sisaBarang : 0;
+  const key = `${color}:${shown > 0 ? shown : 0}`;
+  const cached = gudangIconCache.get(key);
+  if (cached) return cached;
+
+  const hasBubble = shown > 0;
+  const icon = L.divIcon({
+    className: "",
+    iconSize: [38, 58],
+    iconAnchor: [19, 39],
+    html: `
+      <div style="position:relative;width:38px;height:58px;">
+        ${hasBubble ? `
+        <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:10;white-space:nowrap;background:#d97706;color:#fff;border:1.5px solid #fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800;box-shadow:0 2px 5px rgba(0,0,0,0.35);display:flex;align-items:center;gap:2px;">
+          <span>${shown}</span>
+          <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid #d97706;"></div>
+        </div>` : ""}
+        <div class="marker-visual" style="
+          position:absolute;bottom:0;left:0;
+          width:38px;height:38px;
+          background:${color};
+          border:3px solid #fff;
+          border-radius:50%;
+          box-shadow:0 0 0 3px ${color}55, 0 2px 6px rgba(0,0,0,.4);
+          display:flex;align-items:center;justify-content:center;
+        ">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 21h18"/>
+            <path d="M5 21V7l7-5 7 5v14"/>
+            <path d="M9 21v-6h6v6"/>
+          </svg>
+        </div>
+      </div>`,
+  });
+  gudangIconCache.set(key, icon);
+  return icon;
+}
+
 /** Restart animasi "pop" di elemen dalam marker (dipanggil tiap klik). */
 function playPopAnimation(marker: L.Marker | null) {
   const el = marker?.getElement()?.querySelector<HTMLElement>(".marker-visual");
@@ -1342,7 +1385,7 @@ function LiveMapView({
                 key={`gudang-${g.id_gudang}`}
                 poiKey={`gudang:${g.id_gudang}`}
                 position={[g.latitude, g.longitude]}
-                icon={isOutgoing ? OUTGOING_ICON : DC_ICON}
+                icon={getGudangIcon(isOutgoing ? "#0ea5e9" : "#7c3aed", g.sisa_barang ?? g.jumlah_barang ?? 0)}
                 focusKey={focusKey}
               >
                 <Popup autoPan={false}>   {/* ⬅️ INI — tambahkan autoPan={false} di sini */}
@@ -1355,6 +1398,14 @@ function LiveMapView({
                         {isOutgoing
                           ? "Titik muat keberangkatan — acuan jarak \"Outgoing\" tiap seller."
                           : "Gudang DC (Buaran Indah) — acuan jarak \"DC\" tiap seller."}
+                      </p>
+                    )}
+                    {(g.jumlah_barang ?? 0) > 0 && (
+                      <p className="mt-1 text-xs font-medium text-amber-600">
+                        Muatan: <b>{g.jumlah_barang} AWB</b>
+                        {(g.sisa_barang ?? 0) !== (g.jumlah_barang ?? 0) && (
+                          <> · Sisa <b>{g.sisa_barang ?? 0}</b></>
+                        )}
                       </p>
                     )}
                   </div>
@@ -1508,6 +1559,18 @@ function LiveMapView({
                         </div>
                       )}
                       {s.kapten && <p className="mt-1 text-xs">Kapten: <b>{s.kapten}</b></p>}
+                      {(s.jumlah_barang != null || s.sisa_barang != null) && (
+                        <p className="mt-1 text-xs">
+                          Total: <b>{s.jumlah_barang ?? 0} AWB</b>
+                          <span className="text-slate-400"> · </span>
+                          Sisa: <b className="text-amber-600">{s.sisa_barang ?? 0} AWB</b>
+                        </p>
+                      )}
+                      {(s.anggota?.length ?? 0) > 1 && (
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          Gabungan: {s.anggota!.join(", ")}
+                        </p>
+                      )}
                       {(s.total_koli != null && s.total_koli! > 0) || (s.total_ecer != null && s.total_ecer! > 0) || (s.total_high_value != null && s.total_high_value! > 0) ? (
                         <p className="mt-1 text-xs font-medium text-amber-600">
                           Muatan: <b>{s.total_koli ?? 0} koli</b>

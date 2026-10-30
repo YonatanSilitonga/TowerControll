@@ -13,13 +13,14 @@ interface ManifestPhotoFilter {
   search?: string;
   jenis_ritase?: string;
   ritase_ke?: number | null;
+  input_by?: string;
 }
 
 export function useManifestPhotos(filter?: ManifestPhotoFilter) {
   const token = useAuthStore(tokenSelector);
 
   return useQuery({
-    queryKey: ["manifest-photos", filter?.tanggal, filter?.driver_id, filter?.search, filter?.jenis_ritase, filter?.ritase_ke],
+    queryKey: ["manifest-photos", filter?.tanggal, filter?.driver_id, filter?.search, filter?.jenis_ritase, filter?.ritase_ke, filter?.input_by],
     queryFn: () =>
       get<ManifestPhotoItem[]>("/manifest-photos", {
         token,
@@ -29,6 +30,7 @@ export function useManifestPhotos(filter?: ManifestPhotoFilter) {
           search: filter?.search || undefined,
           jenis_ritase: filter?.jenis_ritase || undefined,
           ritase_ke: filter?.ritase_ke ?? undefined,
+          input_by: filter?.input_by || undefined,
         },
       }),
     enabled: !!token,

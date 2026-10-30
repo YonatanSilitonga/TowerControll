@@ -23,6 +23,12 @@ export interface MasterOptions {
   drop_points: Array<{ id_drop_point: number; nama_drop_point: string; kode_dp: string }>;
   sellers: Array<{ id_seller: number; nama_seller: string; kode_seller: string }>;
   implants: Array<{ id_implant: number; nama_implant: string; kode_implant: string }>;
+  implant_points?: Array<{
+    id_implant: number;
+    nama_implant: string;
+    kode_implant: string;
+    has_coordinate?: boolean;
+  }>;
   gudangs: Array<{ id_gudang: number; nama_gudang: string }>;
   driver_jenis: Array<{ id_driver: number; ritase_ke: number; jenis: string }>;
   jam_ritase: Array<{ jenis: string; ritase_ke: number; jam_mulai: string; jam_selesai: string }>;
