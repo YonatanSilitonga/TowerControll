@@ -482,10 +482,11 @@ function VehicleMarker({
     else markerRef.current?.closePopup();
   }, [selected, hidePopup]);
 
+  const hasSession = Boolean(v.session_online) || hasActiveSession(v.last_login);
   const isLive =
     v.role_driver === "driver_pickup"
-      ? !v.offline || hasActiveSession(v.last_login) || (Date.now() - lastT < 2 * 3600 * 1000)
-      : !v.offline && hasActiveSession(v.last_login);
+      ? !v.offline || hasSession || (Date.now() - lastT < 2 * 3600 * 1000)
+      : !v.offline && hasSession;
   const awbCount = v.total_awb ?? v.total_koli ?? 0;
   const truckIcon = getTruckIcon(selected, v.role_driver, isLive, awbCount);
 
@@ -527,7 +528,7 @@ function VehicleMarker({
               )}
               <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold", v.offline || stale ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700")}>
                 <i className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
-                {!hasActiveSession(v.last_login) ? "Logout" : v.offline ? "Offline" : displayTrackingStatus(v.status, v.kecepatan, v.last_update)}
+                {!hasSession ? "Logout" : v.offline ? "Offline" : displayTrackingStatus(v.status, v.kecepatan, v.last_update)}
               </span>
             </div>
             <div className="space-y-2">
@@ -535,7 +536,7 @@ function VehicleMarker({
                 <div>
                   <Gauge className="mb-1.5 h-4 w-4 text-blue-600" aria-hidden="true" />
                   <p className="text-[10px] text-slate-500">Kecepatan</p>
-                  <div className="mt-1 break-words font-semibold text-[#0c1e3a]">{!stale && !v.offline && hasActiveSession(v.last_login) ? (v.kecepatan ?? 0) + " km/h" : "—"}</div>
+                  <div className="mt-1 break-words font-semibold text-[#0c1e3a]">{!stale && !v.offline && hasSession ? (v.kecepatan ?? 0) + " km/h" : "—"}</div>
                 </div>
                 <div>
                   <MapPin className="mb-1.5 h-4 w-4 text-emerald-600" aria-hidden="true" />
@@ -571,7 +572,7 @@ function VehicleMarker({
 
             {isCompleted ? (
               <div className="border-t border-slate-100 pt-3 text-emerald-700">Rute selesai</div>
-            ) : eta && !v.offline && hasActiveSession(v.last_login) ? (
+            ) : eta && !v.offline && hasSession ? (
               <div className="flex items-start gap-2.5 border-t border-slate-100 pt-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
                   <MapPin className="h-4 w-4" aria-hidden="true" />
@@ -1084,30 +1085,48 @@ function LiveMapView({
 
   // Hanya tampilkan kendaraan yang AKTIF di map (driver yang sedang login / memiliki sesi aktif).
   // Driver yang sudah LOGOUT tidak boleh muncul di map.
+  // PENCEGAHAN (PREVENTION): Jangan pernah sembunyikan icon armada/driver yang masih aktif/login
+  // hanya karena berhenti lama, macet, atau statusnya 'selesai'.
+  // Gunakan koordinat terakhir (last known position) armada tersebut di peta.
   // Jika 1 driver terhubung ke lebih dari 1 kendaraan (misal baru ganti armada), hanya tampilkan armada dengan update terbaru.
   const activeVehicles = useMemo(() => {
     const filtered = uniqueVehicles.filter((v) => {
-      if (!v.latitude || !v.longitude) return false;
-      const isOnline = v.session_online ?? hasActiveSession(v.last_login);
-      if (!isOnline) return false;
+      if (!v.latitude || !v.longitude || !Number.isFinite(v.latitude) || !Number.isFinite(v.longitude)) return false;
+      if (v.latitude === 0 && v.longitude === 0) return false;
+
+      const lastT = v.last_update ? Date.parse(v.last_update) : 0;
+      const isGpsActive = !v.offline && lastT > 0 && (Date.now() - lastT < 15 * 60 * 1000);
+      const isOnline = isGpsActive || Boolean(v.session_online) || hasActiveSession(v.last_login);
 
       const statusLower = (v.status || "").toLowerCase();
-      const lastT = v.last_update ? Date.parse(v.last_update) : 0;
-      const isStale = !lastT || Date.now() - lastT > 10 * 60 * 1000;
 
-      // Filter kendaraan yang sudah 'selesai' dan offline / tidak ada update > 10 menit
-      if (statusLower === "selesai" && (v.offline || isStale)) {
+      // Driver pickup dengan status aktif (menuju seller / gudang) selalu lolos filter online
+      const activePickupStatuses = ["menuju_seller", "menuju_gudang", "sedang menuju", "menuju seller"];
+      const isActivePickupDriver = v.role_driver === "driver_pickup" && activePickupStatuses.includes(statusLower);
+
+      // KHUSUS STATUS SUDAH SAMPAI GUDANG / SELESAI:
+      // Armada otomatis hilang dari peta live tracking karena perjalanan telah tuntas sampai di gudang/tujuan akhir.
+      const ritaseStatusLower = (v.status_ritase || "").toLowerCase();
+      const isSampaiGudang =
+        statusLower === "selesai" ||
+        statusLower === "sampai gudang" ||
+        statusLower === "sampai di gudang" ||
+        statusLower === "selesai perjalanan" ||
+        ritaseStatusLower === "selesai";
+
+      if (isSampaiGudang) {
         return false;
       }
 
-      // Driver pickup: sembunyikan dari map jika GPS sudah > 15 menit tidak update.
-      // last_open mungkin masih fresh (background service) tapi GPS tidak terkirim
-      // artinya driver sudah tidak aktif di lapangan.
-      if (v.role_driver === "driver_pickup") {
-        const pickupStale = !lastT || Date.now() - lastT > 15 * 60 * 1000;
-        if (pickupStale) return false;
+      // Sembunyikan kendaraan HANYA jika driver benar-benar sudah LOGOUT dari sistem (tidak ada sesi aktif)
+      if (!isOnline && !isActivePickupDriver) {
+        return false;
       }
 
+      // UNTUK SELURUH STATUS LAINNYA YANG BELUM SAMPAI GUDANG (menuju seller, muat barang, kembali ke gudang, standby, dll):
+      // PENCEGAHAN (PREVENTION): Icon armada TIDAK BOLEH HILANG dari peta meskipun berhenti terlalu lama,
+      // macet, sinyal GPS hilang/stale, atau terjadi kendala di jalan.
+      // Posisi icon tetap dipertahankan pada titik koordinat terakhir (last known position).
       return true;
     });
 

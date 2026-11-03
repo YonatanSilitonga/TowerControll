@@ -233,6 +233,7 @@ export interface DriverPickupItem {
   id_user: number;
   username: string;
   nama_driver: string;
+  plat_nomor?: string;
   no_hp: string;
   jumlah_barang: number; // AWB
   koli?: number;
@@ -250,6 +251,7 @@ export interface DriverPickupLog {
   id_log: number;
   id_user?: number | null;
   nama_driver: string;
+  plat_nomor?: string;
   tanggal: string;
   jumlah_barang: number;
   koli?: number;

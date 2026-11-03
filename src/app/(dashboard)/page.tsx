@@ -742,9 +742,9 @@ export default function DashboardPage() {
                   <span className="font-bold text-slate-900 text-xs tracking-tight capitalize truncate">
                     {d.nama_driver}
                   </span>
-                  {targetVeh?.plat_nomor && (
+                  {(targetVeh?.plat_nomor || d.plat_nomor) && (
                     <span className="inline-flex items-center rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[9.5px] font-bold tracking-wider text-white shadow-2xs">
-                      {targetVeh.plat_nomor}
+                      {targetVeh?.plat_nomor || d.plat_nomor}
                     </span>
                   )}
                 </div>

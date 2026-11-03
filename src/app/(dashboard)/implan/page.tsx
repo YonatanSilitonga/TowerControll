@@ -219,7 +219,10 @@ export default function ImplanPage() {
   const [loadingDriverHistory, setLoadingDriverHistory] = useState(false);
 
   // Form Input Muatan Multi-Seller Driver Pickup (Operator/Whisnu)
+  const [quickDriverType, setQuickDriverType] = useState<"internal" | "vendor">("internal");
   const [quickDriverId, setQuickDriverId] = useState<string>("");
+  const [quickVendorName, setQuickVendorName] = useState<string>("");
+  const [quickPlatNomor, setQuickPlatNomor] = useState<string>("");
   const [quickStatus, setQuickStatus] = useState<string>("menuju_gudang");
   const [quickCatatan, setQuickCatatan] = useState<string>("");
   const [sellerRows, setSellerRows] = useState<QuickSellerRow[]>([
@@ -331,10 +334,32 @@ export default function ImplanPage() {
 
   // Handler Form Input Muatan Multi-Seller Driver
   const handleQuickInput = async () => {
-    const selected = driverPickups.find((d) => String(d.id_user) === quickDriverId);
-    if (!selected) {
-      alert("Pilih driver terlebih dahulu.");
-      return;
+    let targetIdUser: number | undefined = undefined;
+    let targetDriverName = "";
+    let targetPlatNomor = quickPlatNomor.trim().toUpperCase();
+
+    if (quickDriverType === "vendor") {
+      if (!quickVendorName.trim()) {
+        alert("Mohon isi Nama Driver Luar / Vendor.");
+        return;
+      }
+      if (!targetPlatNomor) {
+        alert("Mohon isi Plat Nomor Kendaraan untuk driver luar / vendor.");
+        return;
+      }
+      targetIdUser = 0;
+      targetDriverName = quickVendorName.trim();
+    } else {
+      const selected = driverPickups.find((d) => String(d.id_user) === quickDriverId);
+      if (!selected) {
+        alert("Pilih driver pickup terlebih dahulu.");
+        return;
+      }
+      targetIdUser = selected.id_user;
+      targetDriverName = selected.nama_driver || selected.username;
+      if (!targetPlatNomor && selected.plat_nomor) {
+        targetPlatNomor = selected.plat_nomor;
+      }
     }
 
     const validItems = sellerRows
@@ -355,8 +380,9 @@ export default function ImplanPage() {
     setQuickSaving(true);
     try {
       await saveDriverPickupBatchMutation.mutateAsync({
-        id_user: selected.id_user,
-        nama_driver: selected.nama_driver || selected.username,
+        id_user: targetIdUser,
+        nama_driver: targetDriverName,
+        plat_nomor: targetPlatNomor || undefined,
         status: quickStatus,
         catatan: quickCatatan.trim(),
         items: validItems,
@@ -364,6 +390,10 @@ export default function ImplanPage() {
       setQuickSuccess(true);
       setSellerRows([{ id: "1", sellerName: "", awb: "", koli: "" }]);
       setQuickCatatan("");
+      if (quickDriverType === "vendor") {
+        setQuickVendorName("");
+        setQuickPlatNomor("");
+      }
       setTimeout(() => setQuickSuccess(false), 3000);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : "Gagal menyimpan muatan. Silakan coba lagi.";
@@ -929,57 +959,141 @@ export default function ImplanPage() {
 
             <CardContent className="p-4 space-y-4">
               {/* BARIS PENGATURAN DRIVER & STATUS */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50/80 p-3 rounded-xl border border-slate-200/60">
-                {/* 1. Pilih Driver */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1">
-                    <Users className="h-3.5 w-3.5 text-emerald-600" />
-                    1. Pilih Nama Driver <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    value={quickDriverId}
-                    onChange={(e) => setQuickDriverId(e.target.value)}
-                    className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
-                  >
-                    <option value="">-- Pilih Driver Pickup --</option>
-                    {(driverPickups ?? []).map((d) => (
-                      <option key={d.id_user} value={String(d.id_user)}>
-                        {d.nama_driver || d.username} ({d.username})
-                      </option>
-                    ))}
-                  </select>
+              <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/60 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 pb-2.5">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                    <Users className="h-4 w-4 text-emerald-600" />
+                    <span>Tipe Driver Pickup:</span>
+                  </div>
+                  <div className="flex items-center rounded-lg border border-slate-200 bg-white p-0.5 text-xs shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => setQuickDriverType("internal")}
+                      className={cn(
+                        "rounded-md px-3 py-1 font-semibold transition-all",
+                        quickDriverType === "internal"
+                          ? "bg-emerald-600 text-white shadow-2xs"
+                          : "text-slate-500 hover:text-slate-900"
+                      )}
+                    >
+                      🏢 Driver Internal (Akun Kantor)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQuickDriverType("vendor")}
+                      className={cn(
+                        "rounded-md px-3 py-1 font-semibold transition-all",
+                        quickDriverType === "vendor"
+                          ? "bg-amber-600 text-white shadow-2xs"
+                          : "text-slate-500 hover:text-slate-900"
+                      )}
+                    >
+                      🚚 Driver Luar / Vendor (Tanpa Akun)
+                    </button>
+                  </div>
                 </div>
 
-                {/* 2. Status Perjalanan */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5 text-emerald-600" />
-                    2. Status Perjalanan
-                  </label>
-                  <select
-                    value={quickStatus}
-                    onChange={(e) => setQuickStatus(e.target.value)}
-                    className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
-                  >
-                    <option value="menuju_gudang">🚚 Menuju Gudang</option>
-                    <option value="menuju_seller">🏬 Menuju Seller Selanjutnya</option>
-                    <option value="selesai">✅ Selesai (Sampai Gudang)</option>
-                    <option value="standby">⏸️ Standby / Menunggu</option>
-                  </select>
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  {/* 1. Driver Name & Plat */}
+                  {quickDriverType === "internal" ? (
+                    <>
+                      <div className="flex flex-col gap-1 md:col-span-1">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1">
+                          1. Pilih Nama Driver <span className="text-rose-500">*</span>
+                        </label>
+                        <select
+                          value={quickDriverId}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setQuickDriverId(val);
+                            const found = driverPickups.find((d) => String(d.id_user) === val);
+                            if (found?.plat_nomor) {
+                              setQuickPlatNomor(found.plat_nomor);
+                            }
+                          }}
+                          className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
+                        >
+                          <option value="">-- Pilih Driver Pickup --</option>
+                          {(driverPickups ?? []).map((d) => (
+                            <option key={d.id_user} value={String(d.id_user)}>
+                              {d.nama_driver || d.username} ({d.username})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1 md:col-span-1">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                          Plat Nomor Armada
+                        </label>
+                        <input
+                          type="text"
+                          value={quickPlatNomor}
+                          onChange={(e) => setQuickPlatNomor(e.target.value.toUpperCase())}
+                          placeholder="Misal: B 9278 PDD"
+                          className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs font-mono font-bold uppercase text-slate-900 outline-none placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex flex-col gap-1 md:col-span-1">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1">
+                          Nama Driver Luar / Vendor <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={quickVendorName}
+                          onChange={(e) => setQuickVendorName(e.target.value)}
+                          placeholder="Misal: Pak Joko (Vendor)"
+                          className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold text-slate-900 outline-none placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 shadow-2xs"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1 md:col-span-1">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1">
+                          Plat Nomor Kendaraan <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={quickPlatNomor}
+                          onChange={(e) => setQuickPlatNomor(e.target.value.toUpperCase())}
+                          placeholder="Misal: B 1234 XYZ"
+                          className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs font-mono font-bold uppercase text-slate-900 outline-none placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 shadow-2xs"
+                        />
+                      </div>
+                    </>
+                  )}
 
-                {/* 3. Catatan Opsional */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                    3. Catatan (Opsional)
-                  </label>
-                  <input
-                    type="text"
-                    value={quickCatatan}
-                    onChange={(e) => setQuickCatatan(e.target.value)}
-                    placeholder="Contoh: Rute Barat, jemputan sore..."
-                    className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs text-slate-800 outline-none placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
-                  />
+                  {/* 2. Status Perjalanan */}
+                  <div className="flex flex-col gap-1 md:col-span-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5 text-emerald-600" />
+                      Status Perjalanan
+                    </label>
+                    <select
+                      value={quickStatus}
+                      onChange={(e) => setQuickStatus(e.target.value)}
+                      className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
+                    >
+                      <option value="menuju_gudang">🚚 Menuju Gudang</option>
+                      <option value="menuju_seller">🏬 Menuju Seller Selanjutnya</option>
+                      <option value="selesai">✅ Selesai (Sampai Gudang)</option>
+                      <option value="standby">⏸️ Standby / Menunggu</option>
+                    </select>
+                  </div>
+
+                  {/* 3. Catatan Opsional */}
+                  <div className="flex flex-col gap-1 md:col-span-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                      Catatan (Opsional)
+                    </label>
+                    <input
+                      type="text"
+                      value={quickCatatan}
+                      onChange={(e) => setQuickCatatan(e.target.value)}
+                      placeholder="Contoh: Rute Barat, vendor sore..."
+                      className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-xs text-slate-800 outline-none placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1328,19 +1442,35 @@ export default function ImplanPage() {
                                   {(d.username || d.nama_driver || "DP").slice(0, 2)}
                                 </div>
                                 <div>
-                                  <p className="font-bold text-slate-900 capitalize flex items-center gap-1.5">
-                                    {d.username || d.nama_driver}
-                                  </p>
-                                  {d.no_hp ? (
-                                    <a
-                                      href={`tel:${d.no_hp.replace(/[^+\d]/g, "")}`}
-                                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:underline mt-0.5"
-                                    >
-                                      <Phone className="h-3 w-3" /> {d.no_hp}
-                                    </a>
-                                  ) : (
-                                    <p className="text-[10px] text-slate-400 mt-0.5">Driver Pickup</p>
-                                  )}
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <p className="font-bold text-slate-900 capitalize">
+                                      {d.nama_driver || d.username}
+                                    </p>
+                                    {!d.id_user || d.id_user === 0 ? (
+                                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800 border border-amber-200">
+                                        Vendor Luar
+                                      </span>
+                                    ) : (
+                                      <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-800 border border-emerald-200">
+                                        Internal
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                    {d.plat_nomor && (
+                                      <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                        🚙 {d.plat_nomor}
+                                      </span>
+                                    )}
+                                    {d.no_hp ? (
+                                      <a
+                                        href={`tel:${d.no_hp.replace(/[^+\d]/g, "")}`}
+                                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:underline"
+                                      >
+                                        <Phone className="h-3 w-3" /> {d.no_hp}
+                                      </a>
+                                    ) : null}
+                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -1728,6 +1858,14 @@ export default function ImplanPage() {
                       <span>Tanggal: <b>{log.tanggal}</b></span>
                       <span>Diinput oleh: <b>{log.created_by || "user"}</b></span>
                     </div>
+                    {log.plat_nomor && (
+                      <div className="mt-1 flex items-center gap-1.5 text-[11px]">
+                        <span className="text-slate-500">Armada:</span>
+                        <span className="font-mono font-bold text-slate-800 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                          🚙 {log.plat_nomor}
+                        </span>
+                      </div>
+                    )}
                     {log.asal_seller && (
                       <p className="mt-1 text-[11px] text-slate-600">
                         Asal Toko/Seller: <span className="font-semibold text-slate-800">{log.asal_seller}</span>

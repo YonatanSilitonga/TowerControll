@@ -7,6 +7,7 @@ import { LiveMapsLauncher } from "@/components/layout/live-maps-launcher";
 import { LIVE_MAP_PATH } from "@/lib/live-map-navigation";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
+import { RitaseGatewayAlertBanner } from "@/components/layout/ritase-gateway-alert-banner";
 import { ALLOWED_WEB_ROLES } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth-store";
 import { RealtimeSync } from "@/hooks/use-realtime";
@@ -126,7 +127,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return <BootLoader />;
   }
 
-  if (pathname.replace(/\/$/, "") === LIVE_MAP_PATH) return <main className="h-[100dvh] overflow-hidden"><RealtimeSync />{children}</main>;
+  if (pathname.replace(/\/$/, "") === LIVE_MAP_PATH) {
+    return (
+      <main className="h-[100dvh] overflow-hidden relative">
+        <RealtimeSync />
+        <div className="absolute top-2 left-16 right-4 z-[1000] pointer-events-none">
+          <div className="pointer-events-auto">
+            <RitaseGatewayAlertBanner compact />
+          </div>
+        </div>
+        {children}
+      </main>
+    );
+  }
 
   const role = useAuthStore.getState().user?.role;
   const isKoorGudang = role === "koor_gudang";
@@ -136,6 +149,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />
+        <RitaseGatewayAlertBanner />
         <main className={cn("flex-1 overflow-x-hidden", isKoorGudang ? "p-2 lg:p-3" : "p-4 pb-12 lg:p-5 lg:pb-12")}>
           {children}
         </main>

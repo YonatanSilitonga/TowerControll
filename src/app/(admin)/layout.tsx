@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
+import { RitaseGatewayAlertBanner } from "@/components/layout/ritase-gateway-alert-banner";
 import { useAuthStore } from "@/stores/auth-store";
 
 function BootLoader() {
@@ -66,6 +67,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />
+        <RitaseGatewayAlertBanner />
         <main className="flex-1 overflow-x-hidden p-4 lg:p-5">{children}</main>
       </div>
     </div>

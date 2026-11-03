@@ -69,16 +69,26 @@ export function useTrackingMap() {
               matchedVehicle.total_koli = dp.koli ?? matchedVehicle.total_koli;
               matchedVehicle.total_eceran = dp.ecer ?? matchedVehicle.total_eceran;
               matchedVehicle.total_high_value = dp.high_value ?? matchedVehicle.total_high_value;
-              if (dp.session_online !== undefined) matchedVehicle.session_online = dp.session_online;
-              if (dp.last_login !== undefined) matchedVehicle.last_login = dp.last_login;
+              matchedVehicle.session_online = Boolean(matchedVehicle.session_online) || Boolean(dp.session_online);
+              if (dp.last_login) matchedVehicle.last_login = dp.last_login;
+              if (dp.status && (!matchedVehicle.status || matchedVehicle.status.toLowerCase() === "selesai")) {
+                matchedVehicle.status = dp.status;
+              }
+              if (dp.updated_at && (!matchedVehicle.last_update || Date.parse(dp.updated_at) > Date.parse(matchedVehicle.last_update))) {
+                matchedVehicle.last_update = dp.updated_at;
+              }
               if (isAtSeller) {
                 matchedVehicle.latitude = baseLat + offsetLat;
                 matchedVehicle.longitude = baseLng + offsetLng;
               }
             } else if (!existingDriverNames.has(nameLower)) {
-              // HANYA buat marker jika driver pickup BENAR-BENAR SEDANG LOGIN (bukan logout)
+              // Buat marker jika driver pickup SEDANG LOGIN, ATAU statusnya masih aktif
+              // (menuju_seller / menuju_gudang) — agar icon selalu muncul di peta
+              // meskipun session_online false / GPS stale.
               const isDpOnline = dp.session_online || hasActiveSession(dp.last_login);
-              if (isDpOnline) {
+              const dpStatusLower = (dp.status || "").toLowerCase();
+              const isActivePickupStatus = ["menuju_seller", "menuju_gudang", "sedang menuju"].includes(dpStatusLower);
+              if (isDpOnline || isActivePickupStatus) {
                 const syntheticId = 9000 + (dp.id_user || (idx + 1));
                 if (!existingVehicleIds.has(syntheticId)) {
                   existingVehicleIds.add(syntheticId);
@@ -86,7 +96,7 @@ export function useTrackingMap() {
 
                   data.vehicles.push({
                     id_kendaraan: syntheticId,
-                    plat_nomor: dp.nama_driver?.toLowerCase() === "pickup" ? "B 9278 PDD" : `B 9${String(dp.id_user || idx + 1).padStart(3, "0")} PDD`,
+                    plat_nomor: dp.plat_nomor || (dp.nama_driver?.toLowerCase() === "pickup" ? "B 9278 PDD" : `B 9${String(dp.id_user || idx + 1).padStart(3, "0")} PDD`),
                     tipe: "pickup",
                     id_driver: dp.id_user,
                     nama_driver: dp.nama_driver || dp.username,
@@ -95,10 +105,10 @@ export function useTrackingMap() {
                     latitude: baseLat + offsetLat,
                     longitude: baseLng + offsetLng,
                     kecepatan: 0,
-                    offline: false,
+                    offline: !isDpOnline,
                     last_update: dp.updated_at || new Date().toISOString(),
                     last_login: dp.last_login ?? new Date().toISOString(),
-                    session_online: true,
+                    session_online: isDpOnline || isActivePickupStatus,
                     total_awb: dp.jumlah_barang || 0,
                     total_koli: dp.koli || 0,
                     total_eceran: dp.ecer || 0,
@@ -161,8 +171,9 @@ export function useSaveDriverPickup() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: {
-      id_user: number;
+      id_user?: number;
       nama_driver: string;
+      plat_nomor?: string;
       jumlah_barang: number;
       koli?: number;
       ecer?: number;
@@ -185,8 +196,9 @@ export function useSaveDriverPickupBatch() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: {
-      id_user: number;
+      id_user?: number;
       nama_driver: string;
+      plat_nomor?: string;
       status: string;
       catatan?: string;
       items: Array<{
