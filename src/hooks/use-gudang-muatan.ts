@@ -55,7 +55,7 @@ export interface GudangRiwayatItem {
   nama_driver: string;
 }
 
-/** Kandidat ritase pengambil (start di Outgoing hari ini + berdriver). */
+/** Kandidat ritase pengambil (punya titik muat Outgoing hari ini + berdriver). */
 export interface GudangRitaseCandidate {
   id_ritase: number;
   kode_ritase: string;
@@ -66,6 +66,8 @@ export interface GudangRitaseCandidate {
   jenis_ritase: string | null;
   nama_driver: string;
   plat_nomor: string;
+  id_stop: number;
+  urutan: number;
 }
 
 /** Payload input muatan (mirror kapten; HV via alias bila region 0). */
@@ -90,6 +92,7 @@ export interface GudangConfirmPayload {
   jenis_ritase: string;
   ritase_ke: number;
   id_ritase: number;
+  id_stop?: number;
   diambil_awb: number;
   diambil_koli_jkt: number;
   diambil_koli_seg: number;
