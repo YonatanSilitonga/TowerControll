@@ -551,21 +551,20 @@ function VehicleMarker({
               </div>
 
               {v.role_driver === "driver_pickup" ? (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
-                  <div className="flex items-center justify-between">
-                    <span>📦 Muatan: {v.total_awb ?? 0} AWB</span>
-                    <span className="text-[10px] text-amber-700 capitalize">{v.status || "Standby"}</span>
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-amber-950">Muatan: {v.total_awb ?? 0} AWB</span>
+                    <span className="rounded bg-amber-200/70 px-2 py-0.5 text-[10px] font-bold text-amber-800 capitalize shrink-0">
+                      {v.status || "Standby"}
+                    </span>
                   </div>
-                  <div className="text-[10px] text-amber-700 font-normal mt-0.5">
-                    {v.total_koli ?? 0} koli{v.total_eceran ? " · " + v.total_eceran + " ecer" : ""}{v.total_high_value ? " · " + v.total_high_value + " HV" : ""}
-                  </div>
-                  <a href={"/riwayat-pickup?driver=" + encodeURIComponent(v.nama_driver || "")} className="mt-1.5 block text-center text-[10px] font-bold text-amber-800 hover:underline">
+                  <a href={"/riwayat-pickup?driver=" + encodeURIComponent(v.nama_driver || "")} className="block text-center text-[10px] font-bold text-amber-800 hover:underline pt-0.5">
                     Lihat Riwayat Pickup Driver &rarr;
                   </a>
                 </div>
               ) : v.session_online !== false && ((v.total_koli ?? 0) > 0 || (v.total_eceran ?? 0) > 0 || (v.total_high_value ?? 0) > 0) ? (
                 <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-800">
-                  📦 {[(v.total_koli ?? 0) > 0 ? v.total_koli + " koli" : null, (v.total_eceran ?? 0) > 0 ? v.total_eceran + " ecer" : null, (v.total_high_value ?? 0) > 0 ? v.total_high_value + " HV" : null].filter(Boolean).join(" · ")}
+                  Muatan: {[(v.total_koli ?? 0) > 0 ? v.total_koli + " koli" : null, (v.total_eceran ?? 0) > 0 ? v.total_eceran + " ecer" : null, (v.total_high_value ?? 0) > 0 ? v.total_high_value + " HV" : null].filter(Boolean).join(" · ")}
                 </div>
               ) : null}
             </div>
@@ -1749,7 +1748,7 @@ function SellerPopupContent({
                 isDiambil ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
               )}
             >
-              {isDiambil ? "✓ Sudah Diambil" : "⏳ Menunggu"}
+              {isDiambil ? "Sudah Diambil" : "Menunggu"}
             </span>
           </div>
           {(seller.koli != null && seller.koli > 0) && (

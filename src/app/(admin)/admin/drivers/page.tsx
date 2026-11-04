@@ -345,8 +345,10 @@ export default function AdminDriversPage() {
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     if (!form.nama_driver.trim()) errs.nama_driver = "Nama driver wajib diisi";
-    if (!form.no_hp.trim()) errs.no_hp = "No HP wajib diisi";
-    else if (!/^08\d{8,11}$/.test(form.no_hp.replace(/[- ]/g, ""))) errs.no_hp = "Nomor HP harus diawali '08' (10–13 digit)";
+    let cleanHp = form.no_hp.replace(/[- ]/g, "").replace(/^\+/, "");
+    if (cleanHp.startsWith("0")) cleanHp = "62" + cleanHp.slice(1);
+    if (!cleanHp) errs.no_hp = "No HP wajib diisi";
+    else if (!/^628\d{8,11}$/.test(cleanHp)) errs.no_hp = "Nomor HP harus berformat '628...' (11–14 digit)";
     if (!editing) {
       if (!form.no_sim.trim()) errs.no_sim = "No SIM wajib diisi";
       if (!form.jenis_sim) errs.jenis_sim = "Jenis SIM wajib dipilih";
@@ -372,7 +374,11 @@ export default function AdminDriversPage() {
     try {
       const payload: Partial<DriverAdmin> = {
         nama_driver: form.nama_driver.trim(),
-        no_hp: form.no_hp.trim() || undefined,
+        no_hp: (() => {
+          let h = form.no_hp.replace(/[- ]/g, "").replace(/^\+/, "").trim();
+          if (h.startsWith("0")) h = "62" + h.slice(1);
+          return h || undefined;
+        })(),
         no_sim: form.no_sim.trim() ? form.no_sim.trim() : undefined,
         jenis_sim: form.jenis_sim || undefined,
         jabatan: form.jabatan?.trim() || undefined,
@@ -473,10 +479,10 @@ export default function AdminDriversPage() {
       />
 
       {/* ── Control Bar ── */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative w-full sm:w-56">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:w-64 shrink-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari driver..." className="min-h-[44px] pl-9 sm:min-h-[32px]" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari driver..." className="min-h-[36px] h-9 pl-9 text-xs" />
         </div>
         <div className="flex flex-1 items-center gap-1.5 overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800 sm:ml-auto sm:flex-none">
           <Filter className="ml-1 h-3.5 w-3.5 shrink-0 text-slate-400" />
@@ -503,26 +509,26 @@ export default function AdminDriversPage() {
         </div>
       )}
 
-      {/* ── Table ── */}
-      <div className="rounded-md border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
-        <div className="overflow-x-auto">
+      {/* ── Table with Max Height Scroll ── */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-2xs dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
+        <div className="overflow-x-auto max-h-[calc(100vh-250px)] min-h-[350px] overflow-y-auto">
           <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b-2 border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500 select-none dark:border-slate-800">
-                <th className="w-10 px-4 py-2.5 text-center">#</th>
+            <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200 dark:bg-slate-800/95 dark:border-slate-700">
+              <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500 select-none">
+                <th className="w-12 px-4 py-2.5 text-center font-bold select-none">#</th>
                 {[
                   { key: "id_driver", label: "ID", cls: "w-16" },
                   { key: "nama_driver", label: "Nama Driver" },
                   { key: "no_hp", label: "No HP / Telepon" },
                   { key: "status_driver", label: "Status" },
                 ].map((col) => (
-                  <th key={col.key} className={cn("px-4 py-2.5 font-semibold select-none", col.cls)}>
+                  <th key={col.key} className={cn("px-4 py-2.5 font-bold select-none", col.cls)}>
                     <button onClick={() => handleSort(col.key)} className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-white">
                       {col.label}<ArrowUpDown className="h-3 w-3 text-slate-400" />
                     </button>
                   </th>
                 ))}
-                <th className="w-24 px-4 py-2.5 text-right font-semibold select-none">Aksi</th>
+                <th className="w-28 px-4 py-2.5 text-right font-bold select-none">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -574,9 +580,12 @@ export default function AdminDriversPage() {
             </tbody>
           </table>
         </div>
-        <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500 dark:border-slate-800">
+        <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-800/40">
           Menampilkan <span className="font-semibold text-slate-800 dark:text-white">{processed.length}</span> dari{" "}
           <span className="font-semibold text-slate-800 dark:text-white">{data.length}</span> total driver
+          {(statusFilter !== "ALL" || search) && (
+            <span className="ml-1 text-[#FEA103] font-semibold">(difilter)</span>
+          )}
         </div>
       </div>
 
@@ -621,11 +630,16 @@ export default function AdminDriversPage() {
               className={cn("h-11 rounded-lg text-sm", formErrors.nama_driver && "border-rose-400 bg-rose-50/50 dark:bg-rose-500/5")} />
           </FieldWrapper>
 
-          <FieldWrapper label="No HP" required error={formErrors.no_hp} hint="Untuk verifikasi reset password di aplikasi">
+          <FieldWrapper label="No HP" required error={formErrors.no_hp} hint="Format 628... (11–14 digit) untuk verifikasi di aplikasi">
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input value={form.no_hp} onChange={(e) => setField("no_hp", e.target.value)}
-                placeholder="081234567890"
+              <Input value={form.no_hp} onChange={(e) => {
+                let val = e.target.value;
+                let digits = val.replace(/[- ]/g, "").replace(/^\+/, "");
+                if (digits.startsWith("0")) digits = "62" + digits.slice(1);
+                setField("no_hp", digits);
+              }}
+                placeholder="6281234567890"
                 className={cn("h-11 rounded-lg pl-9 font-mono text-sm", formErrors.no_hp && "border-rose-400 bg-rose-50/50 dark:bg-rose-500/5")} />
             </div>
           </FieldWrapper>

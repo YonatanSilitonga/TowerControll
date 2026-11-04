@@ -18,6 +18,9 @@ import {
   ChevronDown,
   Filter,
   UserPlus,
+  FileSpreadsheet,
+  ArrowUpDown,
+  Phone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -283,6 +286,43 @@ export default function AdminKaptenPage() {
   const [implants, setImplants] = useState<ImplantAdmin[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<string>("nama");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (filtered.length === 0) {
+      swal.info("Ekspor Dibatalkan", "Tidak ada data untuk diekspor");
+      return;
+    }
+    const headersHTML = "<th>#</th><th>Nama Kapten</th><th>Username</th><th>No HP</th><th>Implant</th><th>Status</th>";
+    const rowsHTML = filtered
+      .map((row, idx) => {
+        const imp = (row.implants ?? []).map((s) => s.nama_implant).join(", ") || "-";
+        return `<tr><td>${idx + 1}</td><td>${row.nama}</td><td>${row.username || "-"}</td><td>${row.no_hp || "-"}</td><td>${imp}</td><td>${row.status}</td></tr>`;
+      })
+      .join("");
+    const excelTemplate = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="utf-8"/><style>body{font-family:Arial,sans-serif;}table{border-collapse:collapse;width:100%;}th{background-color:#0c1e3a;color:#ffffff;font-weight:bold;padding:8px 12px;text-align:left;}td{border:1px solid #cbd5e1;padding:6px 10px;font-size:12px;}</style></head>
+      <body><h2>Data Kapten — Tower Control System</h2><p>Tanggal Ekspor: ${new Date().toLocaleDateString("id-ID")}</p><table><thead><tr>${headersHTML}</tr></thead><tbody>${rowsHTML}</tbody></table></body></html>
+    `;
+    const blob = new Blob([excelTemplate], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Data_Kapten_${new Date().toISOString().slice(0, 10)}.xls`;
+    link.click();
+    swal.success("Ekspor Excel Berhasil", "File Data_Kapten.xls telah diunduh.");
+  };
   const [statusFilter, setStatusFilter] = useState("ALL");
 
   const [formOpen, setFormOpen] = useState(false);
@@ -322,6 +362,14 @@ export default function AdminKaptenPage() {
     const q = search.toLowerCase();
     const inImplants = (row.implants ?? []).some((s) => s.nama_implant.toLowerCase().includes(q));
     return inImplants || [row.nama, row.username ?? "", row.no_hp ?? ""].some((v) => String(v).toLowerCase().includes(q));
+  }).sort((a, b) => {
+    let va = (a as any)[sortKey] ?? "";
+    let vb = (b as any)[sortKey] ?? "";
+    if (typeof va === "string") va = va.toLowerCase();
+    if (typeof vb === "string") vb = vb.toLowerCase();
+    if (va < vb) return sortDir === "asc" ? -1 : 1;
+    if (va > vb) return sortDir === "asc" ? 1 : -1;
+    return 0;
   });
 
   const setField = (key: string, val: any) => {
@@ -383,6 +431,16 @@ export default function AdminKaptenPage() {
   const validateForm = () => {
     const errors: Record<string, string> = {};
     if (!form.nama.trim()) errors.nama = "Nama kapten wajib diisi";
+    if (form.no_hp.trim()) {
+      let clean = form.no_hp.replace(/[- ]/g, "").replace(/^\+/, "");
+      if (clean.startsWith("0")) {
+        clean = "62" + clean.slice(1);
+        form.no_hp = clean;
+      }
+      if (!/^628\d{8,11}$/.test(clean)) {
+        errors.no_hp = "Nomor HP harus berformat '628...' (11–14 digit)";
+      }
+    }
     if (form.status === "aktif" && form.implant_ids.length === 0) {
       errors.implant_ids = "Kapten aktif wajib memegang minimal 1 implant";
     }
@@ -399,7 +457,11 @@ export default function AdminKaptenPage() {
     try {
       const payload = {
         nama: form.nama.trim(),
-        no_hp: form.no_hp.trim() || undefined,
+        no_hp: (() => {
+          let h = form.no_hp.replace(/[- ]/g, "").replace(/^\+/, "").trim();
+          if (h.startsWith("0")) h = "62" + h.slice(1);
+          return h || undefined;
+        })(),
         status: form.status,
         implant_ids: form.implant_ids,
         implant_peran: form.implant_ids.length > 0 ? form.implant_peran : undefined,
@@ -443,24 +505,34 @@ export default function AdminKaptenPage() {
         title={`Kapten (${data.length})`}
         description="Kelola master data kapten seller implant beserta akun loginnya."
         actions={
-          <Button
-            onClick={openCreate}
-            className="bg-[#FEA103] text-xs font-semibold text-white shadow-sm hover:bg-[#E09102]"
-          >
-            <Plus className="mr-1.5 h-4 w-4 text-white" />
-            Tambah Kapten
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleExportExcel}
+              className="border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400"
+            >
+              <FileSpreadsheet className="mr-1.5 h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Ekspor Excel
+            </Button>
+            <Button
+              onClick={openCreate}
+              className="bg-[#FEA103] text-xs font-semibold text-white shadow-sm hover:bg-[#E09102]"
+            >
+              <Plus className="mr-1.5 h-4 w-4 text-white" />
+              Tambah Kapten
+            </Button>
+          </div>
         }
       />
 
-      <div className="mb-4 flex flex-col gap-3">
-        <div className="relative w-full sm:w-56">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:w-64 shrink-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari kapten..."
-            className="min-h-[44px] pl-9 sm:min-h-[32px]"
+            className="min-h-[36px] h-9 pl-9 text-xs"
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -488,17 +560,29 @@ export default function AdminKaptenPage() {
         </div>
       </div>
 
-      <div className="rounded-md border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
-        <div className="overflow-x-auto">
+      <div className="rounded-xl border border-slate-200 bg-white shadow-2xs dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
+        <div className="overflow-x-auto max-h-[calc(100vh-250px)] min-h-[350px] overflow-y-auto">
           <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b-2 border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500 select-none dark:border-slate-800">
-                <th className="w-12 px-4 py-2.5 text-center">#</th>
-                <th className="px-4 py-2.5">Nama Kapten</th>
-                <th className="px-4 py-2.5">No HP</th>
-                <th className="px-4 py-2.5">Implant</th>
-                <th className="w-24 px-4 py-2.5">Status</th>
-                <th className="w-28 px-4 py-2.5 text-right">Aksi</th>
+            <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200 dark:bg-slate-800/95 dark:border-slate-700">
+              <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500 select-none">
+                <th className="w-12 px-4 py-2.5 text-center font-bold select-none">#</th>
+                <th className="px-4 py-2.5 font-bold select-none">
+                  <button onClick={() => handleSort("nama")} className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-white">
+                    Nama Kapten <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                  </button>
+                </th>
+                <th className="px-4 py-2.5 font-bold select-none">
+                  <button onClick={() => handleSort("no_hp")} className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-white">
+                    No HP <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                  </button>
+                </th>
+                <th className="px-4 py-2.5 font-bold select-none">Implant</th>
+                <th className="w-24 px-4 py-2.5 font-bold select-none">
+                  <button onClick={() => handleSort("status")} className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-white">
+                    Status <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                  </button>
+                </th>
+                <th className="w-28 px-4 py-2.5 text-right font-bold select-none">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -581,9 +665,12 @@ export default function AdminKaptenPage() {
             </tbody>
           </table>
         </div>
-        <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500 dark:border-slate-800">
+        <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-800/40">
           Menampilkan <span className="font-semibold text-slate-800 dark:text-white">{filtered.length}</span> dari{" "}
           <span className="font-semibold text-slate-800 dark:text-white">{data.length}</span> total kapten
+          {(statusFilter !== "ALL" || search) && (
+            <span className="ml-1 text-[#FEA103] font-semibold">(difilter)</span>
+          )}
         </div>
       </div>
 
@@ -651,11 +738,16 @@ export default function AdminKaptenPage() {
                   className={cn("h-11 rounded-lg text-sm", formErrors.nama && "border-rose-400 bg-rose-50/50 focus:border-rose-500 dark:bg-rose-500/5")}
                 />
               </FieldWrapper>
-              <FieldWrapper label="No HP" hint="Untuk verifikasi reset password">
+              <FieldWrapper label="No HP" error={formErrors.no_hp} hint="Format 628... (11–14 digit) untuk verifikasi reset password">
                 <Input
                   value={form.no_hp}
-                  onChange={(e) => setField("no_hp", e.target.value)}
-                  placeholder="081234567890"
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    let digits = val.replace(/[- ]/g, "").replace(/^\+/, "");
+                    if (digits.startsWith("0")) digits = "62" + digits.slice(1);
+                    setField("no_hp", digits);
+                  }}
+                  placeholder="6281234567890"
                   className="h-11 rounded-lg text-sm"
                 />
               </FieldWrapper>

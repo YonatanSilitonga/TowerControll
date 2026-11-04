@@ -1,21 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
 import {
   AlertTriangle,
   ArrowDownToLine,
+  ArrowRight,
   ArrowUpFromLine,
   Boxes,
   CalendarDays,
   CalendarRange,
   CheckCircle2,
   Clock,
+  Download,
   Gem,
   Package,
   PackageCheck,
   Percent,
   Route as RouteIcon,
+  Store,
   Truck,
   Sparkles,
   Gift,
@@ -49,7 +53,7 @@ const ImplantBarChart = dynamic(
   { ssr: false, loading: ChartSkeleton }
 );
 import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable } from "@/components/ui/data-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -60,9 +64,10 @@ import {
   useAnalyticsSellers,
   useAnalyticsTrend,
 } from "@/hooks/use-analytics";
+import { useAllDriverPickupHistory } from "@/hooks/use-tracking";
 import { useDashboardAnalisis } from "@/hooks/use-dashboard";
 import { AlertCard, BottleneckCard } from "@/components/dashboard/analisis-cards";
-import { cn, formatNumber } from "@/lib/utils";
+import { cn, formatNumber, exportCsv } from "@/lib/utils";
 import type {
   DriverPerformance,
   ImplantAnalytics,
@@ -244,15 +249,21 @@ export default function AnalitikPage() {
   const sellers = useAnalyticsSellers(from, to);
   const implants = useAnalyticsImplants(from, to);
   const analisis = useDashboardAnalisis();
+  const pickupHistoryQuery = useAllDriverPickupHistory({
+    start_date: from,
+    end_date: to,
+  });
 
   const trendData = trend.data ?? [];
   const driverData = drivers.data ?? [];
   const sellerData = sellers.data ?? [];
   const implantData = implants.data ?? [];
+  const pickupLogs = pickupHistoryQuery.data ?? [];
   const bottlenecks = analisis.data?.bottleneck ?? [];
   const alerts = analisis.data?.alerts ?? [];
 
   const loading = trend.isLoading || drivers.isLoading || sellers.isLoading || implants.isLoading;
+  const loadingPickup = pickupHistoryQuery.isLoading;
   const errorMsg =
     trend.error?.message ?? drivers.error?.message ?? sellers.error?.message ?? implants.error?.message ?? null;
 
@@ -301,17 +312,218 @@ export default function AnalitikPage() {
     [implantData]
   );
 
+  interface PickupDriverPerf {
+    id_user: number;
+    nama_driver: string;
+    total_sesi: number;
+    sesi_selesai: number;
+    total_koli: number;
+    total_awb: number;
+    total_ecer: number;
+    total_hv: number;
+    total_seller: number;
+    rata_koli: number;
+  }
+
+  const { pickupDriverData, totalPickupKoli, totalPickupAwb } = useMemo(() => {
+    const map = new Map<string, {
+      id_user: number;
+      nama_driver: string;
+      total_sesi: number;
+      sesi_selesai: number;
+      total_koli: number;
+      total_awb: number;
+      total_ecer: number;
+      total_hv: number;
+      sellers: Set<string>;
+    }>();
+
+    let sumKoli = 0;
+    let sumAwb = 0;
+
+    for (const log of pickupLogs) {
+      const name = (log.nama_driver || "Driver Pickup").trim();
+      sumKoli += log.koli || 0;
+      sumAwb += log.jumlah_barang || 0;
+
+      if (!map.has(name)) {
+        map.set(name, {
+          id_user: log.id_user || 0,
+          nama_driver: name,
+          total_sesi: 0,
+          sesi_selesai: 0,
+          total_koli: 0,
+          total_awb: 0,
+          total_ecer: 0,
+          total_hv: 0,
+          sellers: new Set<string>(),
+        });
+      }
+
+      const d = map.get(name)!;
+      d.total_sesi += 1;
+      const st = (log.status || "").toLowerCase();
+      if (st === "selesai" || st === "menuju_gudang") {
+        d.sesi_selesai += 1;
+      }
+      d.total_koli += log.koli || 0;
+      d.total_awb += log.jumlah_barang || 0;
+      d.total_ecer += log.ecer || 0;
+      d.total_hv += log.high_value || 0;
+      if (log.asal_seller) {
+        d.sellers.add(log.asal_seller);
+      }
+    }
+
+    const list: PickupDriverPerf[] = Array.from(map.values()).map((d) => ({
+      id_user: d.id_user,
+      nama_driver: d.nama_driver,
+      total_sesi: d.total_sesi,
+      sesi_selesai: d.sesi_selesai,
+      total_koli: d.total_koli,
+      total_awb: d.total_awb,
+      total_ecer: d.total_ecer,
+      total_hv: d.total_hv,
+      total_seller: d.sellers.size,
+      rata_koli: d.total_sesi > 0 ? Math.round(d.total_koli / d.total_sesi) : 0,
+    })).sort((a, b) => b.total_koli - a.total_koli);
+
+    return { pickupDriverData: list, totalPickupKoli: sumKoli, totalPickupAwb: sumAwb };
+  }, [pickupLogs]);
+
   const setPreset = (days: number) => {
     setFrom(daysAgo(days - 1));
     setTo(todayLocal());
+  };
+
+  const handleExportDriversCsv = () => {
+    const headers = [
+      "Nama Driver",
+      "Total Ritase",
+      "Ritase Selesai",
+      "Total AWB",
+      "Total Koli",
+      "High Value",
+      "Eceran",
+      "Outgoing (JKT)",
+      "Incoming (SEG)",
+      "Rata Loading (menit)",
+      "Rata Perjalanan (menit)",
+    ];
+    const rows = driverData.map((d) => [
+      d.nama_driver,
+      d.ritase_total,
+      d.ritase_selesai,
+      d.total_awb,
+      d.total_koli,
+      d.total_high_value,
+      d.total_eceran,
+      d.outgoing,
+      d.incoming,
+      d.rata_loading != null ? Math.round(d.rata_loading / 60) : 0,
+      d.rata_perjalanan != null ? Math.round(d.rata_perjalanan / 60) : 0,
+    ]);
+    exportCsv(`performa_driver_${from}_sd_${to}`, headers, rows);
+  };
+
+  const handleExportSellersCsv = () => {
+    const headers = [
+      "Kode Seller",
+      "Nama Seller",
+      "Kota",
+      "Kunjungan",
+      "Ritase Selesai",
+      "Total AWB",
+      "Total Koli",
+      "High Value",
+      "Eceran",
+      "Jarak Tempuh (km)",
+    ];
+    const rows = sellerData.map((s) => [
+      s.kode_seller || "-",
+      s.nama_seller,
+      s.kota || "-",
+      s.kunjungan,
+      s.ritase_selesai,
+      s.total_awb,
+      s.total_koli,
+      s.total_high_value,
+      s.total_eceran,
+      s.jarak_tempuh_km != null ? s.jarak_tempuh_km.toFixed(1) : "-",
+    ]);
+    exportCsv(`kunjungan_seller_${from}_sd_${to}`, headers, rows);
+  };
+
+  const handleExportPickupDriversCsv = () => {
+    const headers = [
+      "Nama Driver Pickup",
+      "Total Sesi / Log",
+      "Sesi Selesai",
+      "Toko/Seller Terlayani",
+      "Total Koli",
+      "Total AWB",
+      "Eceran",
+      "High Value",
+      "Rata-rata Koli / Sesi",
+    ];
+    const rows = pickupDriverData.map((d) => [
+      d.nama_driver,
+      d.total_sesi,
+      d.sesi_selesai,
+      d.total_seller,
+      d.total_koli,
+      d.total_awb,
+      d.total_ecer,
+      d.total_hv,
+      d.rata_koli,
+    ]);
+    exportCsv(`performa_driver_pickup_${from}_sd_${to}`, headers, rows);
+  };
+
+  const handleExportImplantsCsv = () => {
+    const headers = [
+      "Kode Implant",
+      "Nama Implant",
+      "Kota",
+      "Kunjungan",
+      "Ritase Selesai",
+      "Total AWB",
+      "Total Koli",
+      "High Value",
+      "Eceran",
+      "Jarak Tempuh (km)",
+    ];
+    const rows = implantData.map((s) => [
+      s.kode_implant || "-",
+      s.nama_implant,
+      s.kota || "-",
+      s.kunjungan,
+      s.ritase_selesai,
+      s.total_awb,
+      s.total_koli,
+      s.total_high_value,
+      s.total_eceran,
+      s.jarak_tempuh_km != null ? s.jarak_tempuh_km.toFixed(1) : "-",
+    ]);
+    exportCsv(`kunjungan_implant_${from}_sd_${to}`, headers, rows);
   };
 
   return (
     <div className="space-y-4">
       <PageHeader
         title="Analitik"
-        description="Analisis data operasional berdasarkan tanggal jadwal ritase."
+        description="Analisis data ritase driver dorong dan arus muatan koli ke Gateway (JKT/SEG)."
         crumbs={[{ label: "Analitik" }]}
+        actions={
+          <Link
+            href="/analitik/efektivitas-armada"
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            <Truck className="h-4 w-4 text-[#0c1e3a]" />
+            <span>Dasbor Efektivitas Armada</span>
+            <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
+          </Link>
+        }
       />
 
       {/* ── Filter Bar ── */}
@@ -335,7 +547,7 @@ export default function AnalitikPage() {
             className={cn(
               "flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-bold transition-colors",
               from === todayLocal() && to === todayLocal()
-                ? "bg-[#FEA103] text-white"
+                ? "bg-slate-900 text-white shadow-xs"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700",
             )}
           >
@@ -405,15 +617,16 @@ export default function AnalitikPage() {
 
       <Tabs defaultValue="ringkasan">
         <TabsList>
-          <TabsTrigger value="ringkasan" className="data-[state=active]:bg-[#FEA103] data-[state=active]:text-white">Ringkasan</TabsTrigger>
-          <TabsTrigger value="driver" className="data-[state=active]:bg-[#FEA103] data-[state=active]:text-white">Driver</TabsTrigger>
-          <TabsTrigger value="seller" className="data-[state=active]:bg-[#FEA103] data-[state=active]:text-white">Seller</TabsTrigger>
-          <TabsTrigger value="implant" className="data-[state=active]:bg-[#FEA103] data-[state=active]:text-white">Implant</TabsTrigger>
+          <TabsTrigger value="ringkasan" className="data-[state=active]:bg-slate-900 data-[state=active]:text-white">Ringkasan</TabsTrigger>
+          <TabsTrigger value="driver_linehaul" className="data-[state=active]:bg-slate-900 data-[state=active]:text-white">Driver Dorong (Gateway)</TabsTrigger>
+          <TabsTrigger value="driver_pickup" className="data-[state=active]:bg-slate-900 data-[state=active]:text-white">Driver Pickup</TabsTrigger>
+          <TabsTrigger value="seller" className="data-[state=active]:bg-slate-900 data-[state=active]:text-white">Seller</TabsTrigger>
+          <TabsTrigger value="implant" className="data-[state=active]:bg-slate-900 data-[state=active]:text-white">Implant</TabsTrigger>
         </TabsList>
 
         {/* ===== RINGKASAN ===== */}
         <TabsContent value="ringkasan" className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
             <KpiCard label="Total Ritase" value={kpi.ritase} icon={Truck} loading={loading} info="Jumlah ritase pada periode (tanggal jadwal)." sub={insight.days > 0 ? `${insight.rataHari.toFixed(1)}/hari` : undefined} />
             <KpiCard label="Selesai" value={kpi.selesai} icon={CheckCircle2} loading={loading} info="Ritase berstatus selesai." sub={`${insight.pctSelesai}% dari total`} progress={insight.pctSelesai} infoAlign="right" />
             <KpiCard label="Total AWB" value={kpi.awb} icon={Boxes} loading={loading} sub={kpi.ritase > 0 ? `${Math.round(kpi.awb / kpi.ritase)} AWB/ritase` : undefined} />
@@ -468,6 +681,46 @@ export default function AnalitikPage() {
             </div>
           </div>
 
+          {/* Perbandingan First-Mile (Pickup Toko) vs Middle-Mile (Gateway Linehaul) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-blue-50 text-blue-700">
+                <Store className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-[11px] font-medium text-slate-500">Total Koli Dijemput (First-Mile Pickup)</p>
+                <p className="text-lg font-bold text-slate-900 tabular-nums">
+                  {formatNumber(totalPickupKoli)} <span className="text-xs font-normal text-slate-500">koli ({pickupDriverData.length} driver)</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-700">
+                <Truck className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-[11px] font-medium text-slate-500">Total Koli Didorong (Driver Gateway)</p>
+                <p className="text-lg font-bold text-slate-900 tabular-nums">
+                  {formatNumber(kpi.koli)} <span className="text-xs font-normal text-slate-500">koli ({kpi.ritase} ritase)</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-700">
+                <Percent className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-[11px] font-medium text-slate-500">Rasio Distribusi Pickup ke Gateway</p>
+                <p className="text-lg font-bold text-slate-900 tabular-nums">
+                  {totalPickupKoli > 0 ? `${Math.round((kpi.koli / totalPickupKoli) * 100)}%` : "100%"}
+                  <span className="text-xs font-normal text-slate-500 ml-1.5">terdistribusi</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid gap-4 lg:grid-cols-2">
             <Card className="rounded-lg border-slate-200">
               <CardHeader className="pb-2">
@@ -517,12 +770,12 @@ export default function AnalitikPage() {
           </div>
         </TabsContent>
 
-        {/* ===== DRIVER ===== */}
-        <TabsContent value="driver" className="space-y-4">
+        {/* ===== DRIVER DORONG (GATEWAY) ===== */}
+        <TabsContent value="driver_linehaul" className="space-y-4">
           <Card className="rounded-lg border-slate-200">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                <Truck className="h-4 w-4 text-[#0c1e3a]" /> Ritase per Driver (Top 10)
+                <Truck className="h-4 w-4 text-[#0c1e3a]" /> Ritase per Driver Dorong Gateway (Top 10)
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -540,12 +793,19 @@ export default function AnalitikPage() {
 
           <Card className="rounded-lg border-slate-200">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                <Truck className="h-4 w-4 text-[#0c1e3a]" /> Detail Performa Driver
-                <span className="ml-auto text-xs font-normal text-slate-400">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                    <Truck className="h-4 w-4 text-[#0c1e3a]" /> Detail Performa Driver Dorong
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Akumulasi ritase dan muatan koli driver dorong Gateway pada periode terpilih.
+                  </CardDescription>
+                </div>
+                <span className="text-xs font-normal text-slate-400">
                   {driverData.length} driver
                 </span>
-              </CardTitle>
+              </div>
             </CardHeader>
             <CardContent>
               <DataTable<DriverPerformance>
@@ -555,6 +815,17 @@ export default function AnalitikPage() {
                 searchPlaceholder="Cari nama driver..."
                 searchFilter={(d, q) =>
                   d.nama_driver.toLowerCase().includes(q.toLowerCase())
+                }
+                toolbar={
+                  <button
+                    type="button"
+                    onClick={handleExportDriversCsv}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+                    title="Unduh data performa driver ke format CSV"
+                  >
+                    <Download className="h-3.5 w-3.5 text-slate-500" />
+                    <span>Ekspor CSV</span>
+                  </button>
                 }
                 emptyText="Belum ada data driver pada periode ini"
                 columns={[
@@ -569,6 +840,61 @@ export default function AnalitikPage() {
                   { header: "In", render: (d) => <ArahBadge n={d.incoming} arah="inc" /> },
                   { header: "Loading", render: (d) => <span className="tabular-nums text-slate-500">{fmtDur(d.rata_loading)}</span> },
                   { header: "Jalan", render: (d) => <span className="tabular-nums text-slate-500">{fmtDur(d.rata_perjalanan)}</span> },
+                ]}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ===== DRIVER PICKUP ===== */}
+        <TabsContent value="driver_pickup" className="space-y-4">
+          <Card className="rounded-lg border-slate-200">
+            <CardHeader className="pb-2">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                    <Store className="h-4 w-4 text-[#0c1e3a]" /> Detail Performa Driver Pickup
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Akumulasi penjemputan paket dari seller/implan toko ke gudang transit pada periode terpilih.
+                  </CardDescription>
+                </div>
+                <span className="text-xs font-normal text-slate-400">
+                  {pickupDriverData.length} driver pickup
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <DataTable<PickupDriverPerf>
+                loading={loadingPickup}
+                rows={pickupDriverData}
+                rowKey={(d) => String(d.nama_driver)}
+                searchPlaceholder="Cari nama driver pickup..."
+                searchFilter={(d, q) =>
+                  d.nama_driver.toLowerCase().includes(q.toLowerCase())
+                }
+                toolbar={
+                  <button
+                    type="button"
+                    onClick={handleExportPickupDriversCsv}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+                    title="Unduh data performa driver pickup ke format CSV"
+                  >
+                    <Download className="h-3.5 w-3.5 text-slate-500" />
+                    <span>Ekspor CSV</span>
+                  </button>
+                }
+                emptyText="Belum ada data driver pickup pada periode ini"
+                columns={[
+                  { header: "Driver Pickup", render: (d) => <span className="font-medium text-slate-800">{d.nama_driver}</span> },
+                  { header: "Total Sesi", render: (d) => <span className="tabular-nums font-semibold">{formatNumber(d.total_sesi)}</span> },
+                  { header: "Selesai", render: (d) => <span className="tabular-nums text-[#0c1e3a]">{formatNumber(d.sesi_selesai)}</span> },
+                  { header: "Toko Dikunjungi", render: (d) => <span className="tabular-nums">{formatNumber(d.total_seller)}</span> },
+                  { header: "Total Koli", render: (d) => <span className="tabular-nums font-bold text-slate-900">{formatNumber(d.total_koli)}</span> },
+                  { header: "Total AWB", render: (d) => <span className="tabular-nums">{formatNumber(d.total_awb)}</span> },
+                  { header: "HV", render: (d) => <span className="tabular-nums text-amber-500">{formatNumber(d.total_hv)}</span> },
+                  { header: "Ecer", render: (d) => <span className="tabular-nums text-violet-500">{formatNumber(d.total_ecer)}</span> },
+                  { header: "Rata² Koli/Sesi", render: (d) => <span className="tabular-nums font-medium text-slate-700">{d.rata_koli} koli</span> },
                 ]}
               />
             </CardContent>
@@ -598,12 +924,19 @@ export default function AnalitikPage() {
 
           <Card className="rounded-lg border-slate-200">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                <Truck className="h-4 w-4 text-[#0c1e3a]" /> Detail Kunjungan Seller
-                <span className="ml-auto text-xs font-normal text-slate-400">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                    <Truck className="h-4 w-4 text-[#0c1e3a]" /> Detail Kunjungan Seller
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Statistik volume koli dan frekuensi kunjungan seller dorong Gateway pada periode terpilih.
+                  </CardDescription>
+                </div>
+                <span className="text-xs font-normal text-slate-400">
                   {sellerData.length} seller
                 </span>
-              </CardTitle>
+              </div>
             </CardHeader>
             <CardContent>
               <DataTable<SellerAnalytics>
@@ -615,6 +948,17 @@ export default function AnalitikPage() {
                   `${s.nama_seller} ${s.kode_seller ?? ""} ${s.kota ?? ""}`
                     .toLowerCase()
                     .includes(q.toLowerCase())
+                }
+                toolbar={
+                  <button
+                    type="button"
+                    onClick={handleExportSellersCsv}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+                    title="Unduh data kunjungan seller ke format CSV"
+                  >
+                    <Download className="h-3.5 w-3.5 text-slate-500" />
+                    <span>Ekspor CSV</span>
+                  </button>
                 }
                 emptyText="Belum ada data seller pada periode ini"
                 columns={[
@@ -671,12 +1015,19 @@ export default function AnalitikPage() {
 
           <Card className="rounded-lg border-slate-200">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                <Truck className="h-4 w-4 text-[#0c1e3a]" /> Detail Kunjungan Implant
-                <span className="ml-auto text-xs font-normal text-slate-400">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                    <Truck className="h-4 w-4 text-[#0c1e3a]" /> Detail Kunjungan Implant
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Statistik volume koli dan frekuensi kunjungan implant dorong Gateway pada periode terpilih.
+                  </CardDescription>
+                </div>
+                <span className="text-xs font-normal text-slate-400">
                   {implantData.length} implant
                 </span>
-              </CardTitle>
+              </div>
             </CardHeader>
             <CardContent>
               <DataTable<ImplantAnalytics>
@@ -688,6 +1039,17 @@ export default function AnalitikPage() {
                   `${s.nama_implant} ${s.kode_implant ?? ""} ${s.kota ?? ""}`
                     .toLowerCase()
                     .includes(q.toLowerCase())
+                }
+                toolbar={
+                  <button
+                    type="button"
+                    onClick={handleExportImplantsCsv}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+                    title="Unduh data kunjungan implant ke format CSV"
+                  >
+                    <Download className="h-3.5 w-3.5 text-slate-500" />
+                    <span>Ekspor CSV</span>
+                  </button>
                 }
                 emptyText="Belum ada data implant pada periode ini"
                 columns={[
@@ -742,7 +1104,7 @@ function DatePill({
       className={cn(
         "rounded-md px-2.5 py-1 text-[11px] font-bold transition-colors",
         active
-          ? "bg-[#FEA103] text-white"
+          ? "bg-slate-900 text-white shadow-xs"
           : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700",
       )}
     >

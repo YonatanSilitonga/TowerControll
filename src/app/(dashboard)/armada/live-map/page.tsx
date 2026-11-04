@@ -206,13 +206,44 @@ function LiveMapBody() {
   return (
     <div className="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-slate-100">
       <div className="absolute inset-0"><LiveMap fullscreen controlsContainer={controlsContainer} onFilterOpenChange={setFilterOpen} vehicles={vehicles} sellers={sellers} implants={implants} gudang={data?.gudang ?? []} dropPoints={data?.drop_points ?? []} initialFocus={sellerParam ? { type: "seller", id: Number(sellerParam) } : undefined} selectedVehicleId={selectedId} onSelectVehicle={handleSelectVehicle} />{isLoading && <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70 text-sm">Memuat peta...</div>}</div>
-      <div className="pointer-events-none absolute left-14 right-44 top-3 z-30 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={goBack} className="pointer-events-auto inline-flex items-center gap-1 rounded-lg border bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm"><ArrowLeft className="h-4 w-4" />Kembali</button>
-        <div className="hidden rounded-lg border bg-white px-3 py-2 text-xs text-slate-600 shadow-sm lg:block"><b className="mr-2 text-[#0c1e3a]">Live Maps</b>{allVehicles.length} armada ({gatewayCount} Gateway · {pickupCount} Pickup) · {liveVehicles.length} GPS online</div>
+      {/* ── Top Header Navigation ── */}
+      <div className="pointer-events-none absolute left-3 sm:left-14 top-3 z-30 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={goBack}
+          className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white/95 backdrop-blur-sm px-3.5 py-2 text-xs font-bold text-slate-700 shadow-md transition-all active:scale-95"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Kembali
+        </button>
+        <div className="hidden rounded-xl border border-slate-200/90 bg-white/95 backdrop-blur-sm px-3 py-2 text-xs text-slate-600 shadow-md lg:block">
+          <b className="mr-2 text-[#0c1e3a]">Live Maps</b>
+          {allVehicles.length} armada ({gatewayCount} Gateway · {pickupCount} Pickup) · {liveVehicles.length} GPS online
+        </div>
       </div>
+
+      {/* ── Mobile Backdrop Overlay ── */}
+      {(listOpen || (selectedVehicle && detailOpen && !filterOpen)) && (
+        <div
+          onClick={() => {
+            setListOpen(false);
+            setDetailOpen(false);
+          }}
+          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs transition-opacity lg:hidden"
+        />
+      )}
       {mapError && <div role="alert" className="absolute left-14 top-14 z-[70] rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs text-rose-700">Pembaruan peta gagal; posisi mungkin belum terkini. <button onClick={() => reloadMap()} className="underline">Coba lagi</button></div>}
-      {listOpen && <aside aria-label="Daftar armada" className={cn("absolute left-3 right-3 z-30 min-h-0 lg:right-auto lg:w-[280px]", "top-20 bottom-20")}>
-        <Card className="flex h-full min-h-0 flex-col overflow-hidden">
+      {listOpen && (
+        <aside
+          aria-label="Daftar armada"
+          className={cn(
+            "z-50 flex flex-col overflow-hidden bg-white shadow-2xl transition-all",
+            "fixed inset-x-0 bottom-0 max-h-[80dvh] rounded-t-3xl border-t border-slate-200 animate-in slide-in-from-bottom duration-200",
+            "lg:absolute lg:inset-auto lg:top-16 lg:left-3 lg:bottom-4 lg:w-[360px] lg:rounded-2xl lg:border lg:border-slate-200/90 lg:max-h-none lg:shadow-xl"
+          )}
+        >
+          <div className="mx-auto mt-2.5 h-1.5 w-12 rounded-full bg-slate-300 lg:hidden shrink-0" />
+        <Card className="flex h-full min-h-0 flex-col overflow-hidden shadow-lg">
             <CardHeader className="pb-3 shrink-0">
               <CardTitle className="flex items-center gap-2 text-base">
                 <RadioTower className="h-4 w-4 text-[#0c1e3a]" />
@@ -300,8 +331,18 @@ function LiveMapBody() {
               )}
             </CardContent>
           </Card>
-      </aside>}
-      {selectedVehicle && detailOpen && !filterOpen && <aside aria-label="Detail armada" className={cn("absolute left-3 right-3 z-30 min-h-0 lg:left-auto lg:w-[300px]", "top-20 max-h-[calc(100dvh-170px)]")}>
+        </aside>
+      )}
+      {selectedVehicle && detailOpen && !filterOpen && (
+        <aside
+          aria-label="Detail armada"
+          className={cn(
+            "z-50 flex flex-col overflow-hidden bg-white shadow-2xl transition-all",
+            "fixed inset-x-0 bottom-0 max-h-[85dvh] rounded-t-3xl border-t border-slate-200 animate-in slide-in-from-bottom duration-200",
+            "lg:absolute lg:inset-auto lg:top-16 lg:right-3 lg:w-[350px] lg:rounded-2xl lg:border lg:border-slate-200/90 lg:max-h-[calc(100dvh-100px)] lg:shadow-xl"
+          )}
+        >
+          <div className="mx-auto mt-2.5 h-1.5 w-12 rounded-full bg-slate-300 lg:hidden shrink-0" />
         <Card className="flex max-h-[inherit] min-h-0 flex-col overflow-hidden shadow-lg">
               <CardHeader className="pb-3 shrink-0">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -398,11 +439,12 @@ function LiveMapBody() {
                 <button type="button" className="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700" onClick={() => { setLogOpen(true); if (window.innerWidth < 1024) setDetailOpen(false); }}>Lihat log perjalanan</button>
               </CardContent>
             </Card>
-      </aside>}
+        </aside>
+      )}
       <Dialog.Root open={logOpen && !!selectedVehicle} onOpenChange={setLogOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-[100] bg-slate-950/40 backdrop-blur-[2px]" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-[101] flex h-[75dvh] max-h-[720px] w-[calc(100%-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl focus:outline-none">
+          <Dialog.Content className="fixed inset-x-0 bottom-0 top-12 z-[101] flex flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl focus:outline-none sm:top-1/2 sm:left-1/2 sm:h-[75dvh] sm:max-h-[720px] sm:w-[calc(100%-24px)] sm:max-w-[900px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl">
             <div className="shrink-0 border-b p-4 sm:p-5">
               <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_210px] sm:pr-10">
                 <div className="min-w-0 pr-10 sm:pr-0"><Dialog.Title className="break-words text-lg font-semibold text-slate-900">Log perjalanan · {selectedVehicle?.plat_nomor}</Dialog.Title><Dialog.Description className="mt-1 text-sm text-slate-500">Driver saat ini: {selectedVehicle?.nama_driver || "—"}</Dialog.Description><p className="mt-2 text-xs text-slate-400">Riwayat kendaraan · seluruh waktu dalam WIB</p></div>
@@ -565,10 +607,92 @@ function LiveMapBody() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
-      <div className="absolute bottom-[calc(1rem+env(safe-area-inset-bottom))] right-3 z-50 flex flex-wrap justify-end gap-2 rounded-xl bg-white/95 p-2 shadow-lg lg:bottom-auto lg:right-3 lg:top-3">
-        <button type="button" aria-expanded={listOpen} onClick={() => { setListOpen(!listOpen); if (window.innerWidth < 1024) { setDetailOpen(false); setLogOpen(false); } }} className="inline-flex items-center gap-1 rounded-md border px-2 py-2 text-xs font-semibold text-[#0c1e3a]"><List className="h-4 w-4" />Armada</button>
-        {selectedVehicle && <><button type="button" aria-expanded={detailOpen} onClick={() => { setDetailOpen(!detailOpen); if (window.innerWidth < 1024) { setListOpen(false); setLogOpen(false); } }} className="rounded-md border px-2 py-2 text-xs font-semibold text-[#0c1e3a]">Detail</button><button type="button" aria-expanded={logOpen} onClick={() => { setLogOpen(!logOpen); if (window.innerWidth < 1024) { setListOpen(false); setDetailOpen(false); } }} className="inline-flex items-center gap-1 rounded-md border px-2 py-2 text-xs font-semibold text-[#0c1e3a]"><ChevronUp className="h-4 w-4" />Log</button></>}
+      {/* ── Desktop Controls (Pojok Kanan Atas) ── */}
+      <div className="hidden lg:flex absolute top-3 right-3 z-30 items-center gap-2 rounded-xl border border-slate-200/90 bg-white/95 p-2 shadow-lg backdrop-blur-sm">
+        <button
+          type="button"
+          aria-expanded={listOpen}
+          onClick={() => setListOpen(!listOpen)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-[#0c1e3a] transition-colors hover:bg-slate-50"
+        >
+          <List className="h-4 w-4" />
+          Armada ({allVehicles.length})
+        </button>
+        {selectedVehicle && (
+          <>
+            <button
+              type="button"
+              aria-expanded={detailOpen}
+              onClick={() => setDetailOpen(!detailOpen)}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-[#0c1e3a] transition-colors hover:bg-slate-50"
+            >
+              Detail
+            </button>
+            <button
+              type="button"
+              aria-expanded={logOpen}
+              onClick={() => setLogOpen(!logOpen)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-[#0c1e3a] transition-colors hover:bg-slate-50"
+            >
+              <ChevronUp className="h-4 w-4" />
+              Log
+            </button>
+          </>
+        )}
         <div ref={setControlsContainer} />
+      </div>
+
+      {/* ── Mobile Floating Bottom Dock (Khusus Mobile di Bawah Layar) ── */}
+      <div className="lg:hidden fixed bottom-3 left-3 right-3 z-30 flex items-center justify-between gap-2 rounded-2xl border border-slate-200/90 bg-white/95 p-2 shadow-2xl backdrop-blur-md">
+        <button
+          type="button"
+          onClick={() => {
+            setListOpen(!listOpen);
+            setDetailOpen(false);
+          }}
+          className={cn(
+            "flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all active:scale-95",
+            listOpen
+              ? "bg-[#0c1e3a] text-white shadow-md"
+              : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+          )}
+        >
+          <List className="h-4 w-4" />
+          Armada ({allVehicles.length})
+        </button>
+
+        {selectedVehicle && (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setDetailOpen(!detailOpen);
+                setListOpen(false);
+              }}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all active:scale-95",
+                detailOpen
+                  ? "bg-amber-600 text-white shadow-md"
+                  : "bg-amber-50 text-amber-800 hover:bg-amber-100"
+              )}
+            >
+              <MapPin className="h-4 w-4" />
+              Detail
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLogOpen(true);
+                setDetailOpen(false);
+                setListOpen(false);
+              }}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-blue-50 px-3.5 py-2.5 text-xs font-bold text-blue-700 transition-all hover:bg-blue-100 active:scale-95"
+            >
+              <ChevronUp className="h-4 w-4" />
+              Log
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

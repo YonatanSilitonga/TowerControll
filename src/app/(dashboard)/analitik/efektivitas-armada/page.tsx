@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
 import {
   CalendarDays,
@@ -18,16 +19,20 @@ import {
   Sparkles,
   Store,
   ArrowRight,
+  ArrowLeft,
+  Download,
   AlertTriangle,
   Lightbulb,
   CheckCircle2,
   AlertCircle,
+  Search,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useRitase, useKendaraan } from "@/hooks/use-armada";
-import { cn } from "@/lib/utils";
+import { useAllDriverPickupHistory } from "@/hooks/use-tracking";
+import { cn, exportCsv, formatNumber } from "@/lib/utils";
 import type { Kendaraan, Ritase } from "@/types/armada";
 import dynamic from "next/dynamic";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -149,6 +154,8 @@ export default function EfektivitasArmadaPage() {
   const [selectedArmadaForHistory, setSelectedArmadaForHistory] = useState<VehicleMetrics | null>(null);
   const [showEvaluationModal, setShowEvaluationModal] = useState<boolean>(false);
   const [evaluationFilter, setEvaluationFilter] = useState<"all" | "under" | "overload">("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [tableStatusFilter, setTableStatusFilter] = useState<"all" | "aktif" | "under" | "optimal" | "overload" | "tanpa_ritase">("all");
 
   /** Format jam tanpa detik. Handle both HH:MM string dan ISO timestamp. */
   const fmtTime = (val?: string | null) => {
@@ -245,9 +252,14 @@ export default function EfektivitasArmadaPage() {
         vm.avgUtilKoliPercent = (vm.avgKoli / vm.maxKoli) * 100;
         vm.avgUtilEcerPercent = (vm.avgEcer / vm.maxEcer) * 100;
 
-        const maxUtil = Math.max(vm.avgUtilKoliPercent, vm.avgUtilEcerPercent);
-        if (maxUtil < 50) vm.statusKapasitas = "Under";
-        else if (maxUtil > 100) vm.statusKapasitas = "Overload";
+        // Acuan utama kargo logistik Gateway adalah keterisian koli fisik.
+        // Bila unit tidak membawa koli (0 koli) tetapi membawa eceran, gunakan eceran.
+        const primaryUtil = vm.avgKoli > 0 || vm.avgEcer === 0
+          ? vm.avgUtilKoliPercent
+          : vm.avgUtilEcerPercent;
+
+        if (primaryUtil < 50) vm.statusKapasitas = "Under";
+        else if (primaryUtil > 100) vm.statusKapasitas = "Overload";
         else vm.statusKapasitas = "Optimal";
       }
     });
@@ -296,6 +308,185 @@ export default function EfektivitasArmadaPage() {
     });
   }, [vehicleMetricsMap, evaluationFilter]);
 
+  // Filtered vehicles untuk tabel
+  const filteredTableVehicles = useMemo(() => {
+    return vehicleMetricsMap.filter((v) => {
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchPlate = v.platNomor.toLowerCase().includes(q);
+        const matchType = (v.jenisKendaraan || "").toLowerCase().includes(q);
+        if (!matchPlate && !matchType) return false;
+      }
+
+      if (tableStatusFilter === "aktif") return v.ritaseCount > 0;
+      if (tableStatusFilter === "tanpa_ritase") return v.ritaseCount === 0 || v.statusKapasitas === "NoData";
+      if (tableStatusFilter === "under") return v.statusKapasitas === "Under";
+      if (tableStatusFilter === "optimal") return v.statusKapasitas === "Optimal";
+      if (tableStatusFilter === "overload") return v.statusKapasitas === "Overload";
+
+      return true;
+    });
+  }, [vehicleMetricsMap, searchQuery, tableStatusFilter]);
+
+  const handleExportCsv = () => {
+    const headers = [
+      "Plat Nomor",
+      "Jenis Kendaraan",
+      "Total Ritase",
+      "Rata-rata Koli",
+      "Kapasitas Maks Koli",
+      "Utilisasi Koli (%)",
+      "Rata-rata Eceran",
+      "Kapasitas Maks Eceran",
+      "Utilisasi Eceran (%)",
+      "Status Kapasitas",
+    ];
+    const rows = filteredTableVehicles.map((v) => [
+      v.platNomor,
+      v.jenisKendaraan,
+      v.ritaseCount,
+      Math.round(v.avgKoli),
+      v.maxKoli,
+      v.avgUtilKoliPercent.toFixed(1),
+      Math.round(v.avgEcer),
+      v.maxEcer,
+      v.avgUtilEcerPercent.toFixed(1),
+      v.statusKapasitas,
+    ]);
+    exportCsv(`efektivitas_armada_${startDate}_sd_${endDate}`, headers, rows);
+  };
+
+  // ── SEGMEN PICKUP DATA & LOGIC ──
+  const [fleetSegment, setFleetSegment] = useState<"linehaul" | "pickup">("linehaul");
+  const [pickupSearchQuery, setPickupSearchQuery] = useState("");
+  const [pickupStatusFilter, setPickupStatusFilter] = useState<"all" | "optimal" | "overload" | "under">("all");
+
+  const pickupHistoryQuery = useAllDriverPickupHistory({
+    start_date: startDate,
+    end_date: endDate,
+  });
+  const pickupLogs = pickupHistoryQuery.data ?? [];
+  const loadingPickup = pickupHistoryQuery.isLoading;
+
+  interface PickupFleetMetric {
+    namaDriver: string;
+    totalSesi: number;
+    totalKoli: number;
+    totalAwb: number;
+    avgKoli: number;
+    statusEfisiensi: "Optimal" | "Overload" | "Under";
+    rekomendasiArmada: string;
+  }
+
+  const { pickupMetricsList, pickupKpis } = useMemo(() => {
+    const map = new Map<string, {
+      namaDriver: string;
+      totalSesi: number;
+      totalKoli: number;
+      totalAwb: number;
+    }>();
+
+    for (const l of pickupLogs) {
+      const name = (l.nama_driver || "Driver Pickup").trim();
+      if (!map.has(name)) {
+        map.set(name, {
+          namaDriver: name,
+          totalSesi: 0,
+          totalKoli: 0,
+          totalAwb: 0,
+        });
+      }
+      const item = map.get(name)!;
+      item.totalSesi += 1;
+      item.totalKoli += l.koli || 0;
+      item.totalAwb += l.jumlah_barang || 0;
+    }
+
+    let countOver = 0;
+    let countUnder = 0;
+    let countOptimal = 0;
+    let totalAllKoli = 0;
+    let totalAllSesi = 0;
+
+    const list: PickupFleetMetric[] = Array.from(map.values()).map((p) => {
+      const avg = p.totalSesi > 0 ? p.totalKoli / p.totalSesi : 0;
+      totalAllKoli += p.totalKoli;
+      totalAllSesi += p.totalSesi;
+
+      let statusEfisiensi: "Optimal" | "Overload" | "Under" = "Optimal";
+      let rekomendasiArmada = "Muatan proporsional untuk penjemputan harian.";
+
+      if (avg > 25) {
+        statusEfisiensi = "Overload";
+        rekomendasiArmada = "Muatan berat (>25 koli). Disarankan alokasi mobil Blindvan/Pickup, bukan motor.";
+        countOver += 1;
+      } else if (avg < 5) {
+        statusEfisiensi = "Under";
+        rekomendasiArmada = "Muatan minim (<5 koli). Evaluasi penggabungan rute penjemputan toko.";
+        countUnder += 1;
+      } else {
+        countOptimal += 1;
+      }
+
+      return {
+        ...p,
+        avgKoli: avg,
+        statusEfisiensi,
+        rekomendasiArmada,
+      };
+    }).sort((a, b) => b.totalKoli - a.totalKoli);
+
+    const avgKoliPerSesi = totalAllSesi > 0 ? (totalAllKoli / totalAllSesi).toFixed(1) : "0";
+
+    return {
+      pickupMetricsList: list,
+      pickupKpis: {
+        totalDrivers: list.length,
+        totalAllKoli,
+        totalAllSesi,
+        avgKoliPerSesi,
+        countOver,
+        countUnder,
+        countOptimal,
+      },
+    };
+  }, [pickupLogs]);
+
+  const filteredPickupMetrics = useMemo(() => {
+    return pickupMetricsList.filter((p) => {
+      if (pickupSearchQuery.trim()) {
+        const q = pickupSearchQuery.toLowerCase().trim();
+        if (!p.namaDriver.toLowerCase().includes(q)) return false;
+      }
+      if (pickupStatusFilter === "overload") return p.statusEfisiensi === "Overload";
+      if (pickupStatusFilter === "under") return p.statusEfisiensi === "Under";
+      if (pickupStatusFilter === "optimal") return p.statusEfisiensi === "Optimal";
+      return true;
+    });
+  }, [pickupMetricsList, pickupSearchQuery, pickupStatusFilter]);
+
+  const handleExportPickupCsv = () => {
+    const headers = [
+      "Nama Driver Pickup",
+      "Total Sesi Penjemputan",
+      "Total Koli Dijemput",
+      "Total AWB",
+      "Rata-rata Koli / Sesi",
+      "Status Keterisian",
+      "Rekomendasi Armada",
+    ];
+    const rows = filteredPickupMetrics.map((p) => [
+      p.namaDriver,
+      p.totalSesi,
+      p.totalKoli,
+      p.totalAwb,
+      Math.round(p.avgKoli),
+      p.statusEfisiensi,
+      p.rekomendasiArmada,
+    ]);
+    exportCsv(`efektivitas_pickup_${startDate}_sd_${endDate}`, headers, rows);
+  };
+
   // Prepare Chart Data
   const stackedChartDataDriver = useMemo(() => {
     return vehicleMetricsMap
@@ -333,13 +524,22 @@ export default function EfektivitasArmadaPage() {
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8 bg-[#f8fafc] min-h-screen text-slate-900 font-sans antialiased">
       {/* ── HEADER ── */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between pb-2 border-b border-slate-200">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between pb-3 border-b border-slate-200">
         <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Link
+              href="/analitik"
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+            >
+              <ArrowLeft className="h-3.5 w-3.5 text-slate-400" />
+              <span>Ke Analitik Operasional</span>
+            </Link>
+          </div>
           <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
             Dasbor Efektivitas Armada
           </h1>
           <p className="text-xs md:text-sm text-slate-500 mt-1 font-normal">
-            Pemantauan optimalisasi kapasitas koli, keterisian armada, dan evaluasi operasional pengiriman.
+            Pemantauan optimalisasi kapasitas koli pada armada truk yang bertugas mendorong muatan ke Gateway (JKT/SEG).
           </p>
         </div>
 
@@ -388,6 +588,38 @@ export default function EfektivitasArmadaPage() {
         </div>
       </div>
 
+      {/* ── SEGMEN ARMADA SWITCHER ── */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
+        <button
+          type="button"
+          onClick={() => setFleetSegment("linehaul")}
+          className={cn(
+            "flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all",
+            fleetSegment === "linehaul"
+              ? "bg-slate-900 text-white shadow-xs"
+              : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+          )}
+        >
+          <Truck className="h-4 w-4" />
+          <span>Armada Dorong (Gateway)</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setFleetSegment("pickup")}
+          className={cn(
+            "flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all",
+            fleetSegment === "pickup"
+              ? "bg-slate-900 text-white shadow-xs"
+              : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+          )}
+        >
+          <Store className="h-4 w-4" />
+          <span>Armada &amp; Tim Pickup (Penjemputan Seller)</span>
+        </button>
+      </div>
+
+      {fleetSegment === "linehaul" ? (
+        <>
       {/* ── ROW 1: KPI SUMMARY CARDS ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* KPI 1: TINGKAT KEAKTIFAN ARMADA */}
@@ -476,91 +708,101 @@ export default function EfektivitasArmadaPage() {
             </div>
           </CardHeader>
           <CardContent className="p-5 space-y-4">
-            {vehicleMetricsMap.filter(v => v.ritaseCount > 0).slice(0, 5).map(v => {
-              const maxUtilPct = Math.max(v.avgUtilKoliPercent, v.avgUtilEcerPercent);
-              const renderPct = Math.min(100, maxUtilPct);
-              const roundedKoli = Math.round(v.avgKoli);
-              const roundedEcer = Math.round(v.avgEcer);
-              
-              let barColor = "bg-emerald-500";
-              let labelText = "Optimal (50-100%)";
-              let labelBadgeClass = "bg-emerald-50 text-emerald-700 border-emerald-200";
-              
-              if (maxUtilPct < 50) {
-                barColor = "bg-rose-500";
-                labelText = "Kurang Maksimal (<50%)";
-                labelBadgeClass = "bg-rose-50 text-rose-700 border-rose-200";
-              } else if (maxUtilPct > 100) {
-                barColor = "bg-amber-500";
-                labelText = "Kelebihan Muatan (>100%)";
-                labelBadgeClass = "bg-amber-50 text-amber-800 border-amber-200";
-              }
+            {vehicleMetricsMap.filter((v) => v.ritaseCount > 0).length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center text-slate-400">
+                <Truck className="h-8 w-8 mb-2 text-slate-300 stroke-[1.5]" />
+                <p className="text-xs font-semibold text-slate-700">Belum ada armada beroperasi</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Tidak ditemukan data ritase koli pada rentang tanggal ini.</p>
+              </div>
+            ) : (
+              vehicleMetricsMap.filter(v => v.ritaseCount > 0).slice(0, 5).map(v => {
+                const primaryUtil = v.avgKoli > 0 || v.avgEcer === 0
+                  ? v.avgUtilKoliPercent
+                  : v.avgUtilEcerPercent;
+                const renderPct = Math.min(100, Math.max(0, primaryUtil));
+                const roundedKoli = Math.round(v.avgKoli);
+                const roundedEcer = Math.round(v.avgEcer);
+                
+                let barColor = "bg-emerald-500";
+                let labelText = "Optimal (50-100%)";
+                let labelBadgeClass = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                
+                if (primaryUtil < 50) {
+                  barColor = "bg-rose-500";
+                  labelText = "Kurang Maksimal (<50%)";
+                  labelBadgeClass = "bg-rose-50 text-rose-700 border-rose-200";
+                } else if (primaryUtil > 100) {
+                  barColor = "bg-amber-500";
+                  labelText = "Kelebihan Muatan (>100%)";
+                  labelBadgeClass = "bg-amber-50 text-amber-800 border-amber-200";
+                }
 
-              return (
-                <TooltipPrimitive.Provider key={v.idKendaraan} delayDuration={100}>
-                  <TooltipPrimitive.Root>
-                    <TooltipPrimitive.Trigger asChild>
-                      <div 
-                        onClick={() => setSelectedArmadaForHistory(v)}
-                        className="cursor-pointer group p-2.5 -mx-2 rounded-md hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all"
-                      >
-                        <div className="flex justify-between items-center mb-1.5">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-900 text-xs group-hover:text-blue-600 transition-colors font-mono">
-                              {v.platNomor}
-                            </span>
-                            <span className="text-[11px] text-slate-500 font-medium">({v.jenisKendaraan})</span>
+                return (
+                  <TooltipPrimitive.Provider key={v.idKendaraan} delayDuration={100}>
+                    <TooltipPrimitive.Root>
+                      <TooltipPrimitive.Trigger asChild>
+                        <div 
+                          onClick={() => setSelectedArmadaForHistory(v)}
+                          className="cursor-pointer group p-2.5 -mx-2 rounded-md hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all"
+                        >
+                          <div className="flex justify-between items-center mb-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-900 text-xs group-hover:text-blue-600 transition-colors font-mono">
+                                {v.platNomor}
+                              </span>
+                              <span className="text-[11px] text-slate-500 font-medium">({v.jenisKendaraan})</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={cn("text-[10px] font-bold border px-1.5 py-0.5 rounded", labelBadgeClass)}>
+                                {labelText}
+                              </span>
+                              <span className="font-bold text-xs text-slate-900 font-mono">
+                                {Math.round(primaryUtil)}%
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className={cn("text-[10px] font-bold border px-1.5 py-0.5 rounded", labelBadgeClass)}>
-                              {labelText}
-                            </span>
-                            <span className="font-bold text-xs text-slate-900 font-mono">
-                              {Math.round(maxUtilPct)}%
-                            </span>
+                          {/* Traffic Light Bar */}
+                          <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden relative">
+                            <div 
+                              className={cn("h-full rounded-full transition-all duration-700", barColor)} 
+                              style={{ width: `${renderPct}%` }}
+                            />
                           </div>
-                        </div>
-                        {/* Traffic Light Bar */}
-                        <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden relative">
-                          <div 
-                            className={cn("h-full rounded-full transition-all duration-700", barColor)} 
-                            style={{ width: `${renderPct}%` }}
-                          />
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1 font-mono">
-                          <span>Muatan: {roundedKoli} Koli / {v.maxKoli} Max</span>
-                          <span>{v.ritaseCount} Ritase</span>
-                        </div>
-                      </div>
-                    </TooltipPrimitive.Trigger>
-                    <TooltipPrimitive.Portal>
-                      <TooltipPrimitive.Content
-                        className="z-50 overflow-hidden rounded-md border border-slate-200 bg-white px-3.5 py-2.5 shadow-lg text-xs animate-in fade-in-0 zoom-in-95"
-                        sideOffset={6}
-                      >
-                        <div className="space-y-1.5 font-sans">
-                          <p className="text-xs font-bold text-slate-900 border-b border-slate-100 pb-1 font-mono">
-                            {v.platNomor} ({v.jenisKendaraan})
-                          </p>
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-slate-600">
-                            <span>Rata-rata Koli:</span>
-                            <span className="font-bold text-slate-900 text-right font-mono">{roundedKoli} / {v.maxKoli}</span>
-                            <span>Rata-rata Ecer:</span>
-                            <span className="font-bold text-slate-900 text-right font-mono">{roundedEcer} / {v.maxEcer}</span>
-                            <span>Total Ritase:</span>
-                            <span className="font-bold text-slate-900 text-right font-mono">{v.ritaseCount} Rit</span>
-                          </div>
-                          <div className="mt-1 pt-1 border-t border-slate-100 text-[10px] text-blue-600 font-medium">
-                            Klik untuk membuka riwayat ritase
+                          <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1 font-mono">
+                            <span>Muatan: {roundedKoli} Koli / {v.maxKoli} Max</span>
+                            <span>{v.ritaseCount} Ritase</span>
                           </div>
                         </div>
-                        <TooltipPrimitive.Arrow className="fill-slate-200" />
-                      </TooltipPrimitive.Content>
-                    </TooltipPrimitive.Portal>
-                  </TooltipPrimitive.Root>
-                </TooltipPrimitive.Provider>
-              );
-            })}
+                      </TooltipPrimitive.Trigger>
+                      <TooltipPrimitive.Portal>
+                        <TooltipPrimitive.Content
+                          className="z-50 overflow-hidden rounded-md border border-slate-200 bg-white px-3.5 py-2.5 shadow-lg text-xs animate-in fade-in-0 zoom-in-95"
+                          sideOffset={6}
+                        >
+                          <div className="space-y-1.5 font-sans">
+                            <p className="text-xs font-bold text-slate-900 border-b border-slate-100 pb-1 font-mono">
+                              {v.platNomor} ({v.jenisKendaraan})
+                            </p>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-slate-600">
+                              <span>Rata-rata Koli:</span>
+                              <span className="font-bold text-slate-900 text-right font-mono">{roundedKoli} / {v.maxKoli}</span>
+                              <span>Rata-rata Ecer:</span>
+                              <span className="font-bold text-slate-900 text-right font-mono">{roundedEcer} / {v.maxEcer}</span>
+                              <span>Total Ritase:</span>
+                              <span className="font-bold text-slate-900 text-right font-mono">{v.ritaseCount} Rit</span>
+                            </div>
+                            <div className="mt-1 pt-1 border-t border-slate-100 text-[10px] text-blue-600 font-medium">
+                              Klik untuk membuka riwayat ritase
+                            </div>
+                          </div>
+                          <TooltipPrimitive.Arrow className="fill-slate-200" />
+                        </TooltipPrimitive.Content>
+                      </TooltipPrimitive.Portal>
+                    </TooltipPrimitive.Root>
+                  </TooltipPrimitive.Provider>
+                );
+              })
+            )}
           </CardContent>
         </Card>
 
@@ -601,19 +843,119 @@ export default function EfektivitasArmadaPage() {
       {/* ── ROW 3: TABEL DATA MENTAH ── */}
       <div className="grid grid-cols-1 gap-6">
         <Card className="border border-slate-200 bg-white rounded-lg shadow-xs overflow-hidden">
-          <CardHeader className="p-4 bg-white border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+          <CardHeader className="p-4 bg-white border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
-              <CardTitle className="text-sm font-bold text-slate-900">
+              <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 Tabel Optimalisasi &amp; Keterisian Armada
               </CardTitle>
-              <CardDescription className="text-xs text-slate-500 font-normal">
-                Daftar lengkap seluruh armada terdaftar dan catatan keterisian koli aktual.
+              <CardDescription className="text-xs text-slate-500 font-normal mt-0.5">
+                Daftar armada terdaftar dengan catatan keterisian koli aktual dan status efisiensi.
               </CardDescription>
             </div>
-            <span className="text-xs font-mono text-slate-500">
-              {vehicleMetricsMap.length} Total Unit
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="hidden sm:inline-block text-xs font-mono text-slate-500">
+                Menampilkan {filteredTableVehicles.length} dari {vehicleMetricsMap.length} Unit
+              </span>
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+                title="Unduh data tabel armada ke format CSV"
+              >
+                <Download className="h-3.5 w-3.5 text-slate-500" />
+                <span>Ekspor CSV</span>
+              </button>
+            </div>
           </CardHeader>
+
+          {/* Table Controls / Filter Toolbar */}
+          <div className="p-3 bg-slate-50/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2.5">
+            {/* Search Input */}
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Cari plat nomor atau tipe armada..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 w-full rounded-md border border-slate-200 bg-white pl-8 pr-7 text-xs text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Quick Status Filter Pills */}
+            <div className="flex flex-wrap items-center rounded-md border border-slate-200 bg-white p-0.5 shadow-2xs text-xs">
+              <button
+                type="button"
+                onClick={() => setTableStatusFilter("all")}
+                className={cn(
+                  "rounded px-2.5 py-1 text-[11px] font-semibold transition-all",
+                  tableStatusFilter === "all" ? "bg-slate-900 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                Semua
+              </button>
+              <button
+                type="button"
+                onClick={() => setTableStatusFilter("aktif")}
+                className={cn(
+                  "rounded px-2.5 py-1 text-[11px] font-semibold transition-all",
+                  tableStatusFilter === "aktif" ? "bg-slate-900 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                Aktif Ritase ({kpis.activeCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTableStatusFilter("under")}
+                className={cn(
+                  "rounded px-2.5 py-1 text-[11px] font-semibold transition-all",
+                  tableStatusFilter === "under" ? "bg-rose-500 text-white shadow-2xs" : "text-slate-600 hover:text-rose-700"
+                )}
+              >
+                Kurang Maksimal ({kpis.underCapacity})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTableStatusFilter("optimal")}
+                className={cn(
+                  "rounded px-2.5 py-1 text-[11px] font-semibold transition-all",
+                  tableStatusFilter === "optimal" ? "bg-emerald-600 text-white shadow-2xs" : "text-slate-600 hover:text-emerald-700"
+                )}
+              >
+                Optimal
+              </button>
+              <button
+                type="button"
+                onClick={() => setTableStatusFilter("overload")}
+                className={cn(
+                  "rounded px-2.5 py-1 text-[11px] font-semibold transition-all",
+                  tableStatusFilter === "overload" ? "bg-amber-600 text-white shadow-2xs" : "text-slate-600 hover:text-amber-700"
+                )}
+              >
+                Overload ({kpis.overCapacity})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTableStatusFilter("tanpa_ritase")}
+                className={cn(
+                  "rounded px-2.5 py-1 text-[11px] font-semibold transition-all",
+                  tableStatusFilter === "tanpa_ritase" ? "bg-slate-700 text-white shadow-2xs" : "text-slate-500 hover:text-slate-800"
+                )}
+              >
+                Tanpa Ritase
+              </button>
+            </div>
+          </div>
+
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
@@ -628,89 +970,372 @@ export default function EfektivitasArmadaPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {vehicleMetricsMap.map((v) => {
-                    const roundedKoli = Math.round(v.avgKoli);
-                    const roundedEcer = Math.round(v.avgEcer);
-                    const isNoData = v.ritaseCount === 0 || v.statusKapasitas === "NoData";
+                  {filteredTableVehicles.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400">
+                        <Truck className="h-7 w-7 mx-auto mb-1.5 text-slate-300 stroke-[1.5]" />
+                        <p className="text-xs font-semibold text-slate-600">Tidak ada armada yang sesuai filter</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Coba ubah kata kunci pencarian atau reset filter status.</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredTableVehicles.map((v) => {
+                      const roundedKoli = Math.round(v.avgKoli);
+                      const roundedEcer = Math.round(v.avgEcer);
+                      const isNoData = v.ritaseCount === 0 || v.statusKapasitas === "NoData";
 
-                    return (
-                      <tr 
-                        key={v.idKendaraan} 
-                        onClick={() => setSelectedArmadaForHistory(v)}
-                        className="hover:bg-slate-50/80 cursor-pointer transition-colors group"
-                      >
-                        {/* NOPOL & TIPE */}
-                        <td className="py-3 px-5">
-                          <div className="font-bold text-xs text-slate-900 group-hover:text-blue-600 transition-colors font-mono whitespace-nowrap">
-                            {v.platNomor}
-                          </div>
-                          <div className="text-slate-400 text-[10px] font-medium whitespace-nowrap">{v.jenisKendaraan}</div>
-                        </td>
+                      return (
+                        <tr 
+                          key={v.idKendaraan} 
+                          onClick={() => setSelectedArmadaForHistory(v)}
+                          className="hover:bg-slate-50/80 cursor-pointer transition-colors group"
+                        >
+                          {/* NOPOL & TIPE */}
+                          <td className="py-3 px-5">
+                            <div className="font-bold text-xs text-slate-900 group-hover:text-blue-600 transition-colors font-mono whitespace-nowrap">
+                              {v.platNomor}
+                            </div>
+                            <div className="text-slate-400 text-[10px] font-medium whitespace-nowrap">{v.jenisKendaraan}</div>
+                          </td>
 
-                        {/* TOTAL RITASE */}
-                        <td className="py-3 px-4 text-center">
-                          <span className={cn("font-bold text-xs font-mono", isNoData ? "text-slate-400" : "text-slate-900")}>
-                            {v.ritaseCount}
-                          </span>
-                        </td>
-
-                        {/* RATA2 KOLI / MAX */}
-                        <td className="py-3 px-4 text-right font-mono">
-                          <span className={cn("font-bold text-xs", isNoData ? "text-slate-400" : "text-slate-900")}>
-                            {isNoData ? 0 : roundedKoli}
-                          </span>
-                          <span className="text-slate-400 text-[10px] ml-1">/ {v.maxKoli}</span>
-                        </td>
-
-                        {/* RATA2 ECER / MAX */}
-                        <td className="py-3 px-4 text-right font-mono">
-                          <span className={cn("font-bold text-xs", isNoData ? "text-slate-400" : "text-slate-900")}>
-                            {isNoData ? 0 : roundedEcer}
-                          </span>
-                          <span className="text-slate-400 text-[10px] ml-1">/ {v.maxEcer}</span>
-                        </td>
-
-                        {/* STATUS OPTIMALISASI */}
-                        <td className="py-3 px-6 text-center">
-                          {isNoData ? (
-                            <span className="inline-block bg-slate-100 text-slate-500 border border-slate-200/80 text-[10px] font-medium px-2 py-0.5 rounded">
-                              Tanpa Ritase
+                          {/* TOTAL RITASE */}
+                          <td className="py-3 px-4 text-center">
+                            <span className={cn("font-bold text-xs font-mono", isNoData ? "text-slate-400" : "text-slate-900")}>
+                              {v.ritaseCount}
                             </span>
-                          ) : v.statusKapasitas === "Under" ? (
-                            <span className="inline-block bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold px-2 py-0.5 rounded">
-                              Kurang Maksimal (&lt;50%)
-                            </span>
-                          ) : v.statusKapasitas === "Overload" ? (
-                            <span className="inline-block bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded">
-                              Kelebihan Muatan (&gt;100%)
-                            </span>
-                          ) : (
-                            <span className="inline-block bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded">
-                              Optimal (50-100%)
-                            </span>
-                          )}
-                        </td>
+                          </td>
 
-                        {/* AKSI */}
-                        <td className="py-3 px-5 text-center" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedArmadaForHistory(v)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-semibold transition-colors shadow-2xs"
-                          >
-                            <History className="h-3 w-3 text-slate-500" />
-                            Riwayat
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          {/* RATA2 KOLI / MAX */}
+                          <td className="py-3 px-4 text-right font-mono">
+                            <span className={cn("font-bold text-xs", isNoData ? "text-slate-400" : "text-slate-900")}>
+                              {isNoData ? 0 : roundedKoli}
+                            </span>
+                            <span className="text-slate-400 text-[10px] ml-1">/ {v.maxKoli}</span>
+                          </td>
+
+                          {/* RATA2 ECER / MAX */}
+                          <td className="py-3 px-4 text-right font-mono">
+                            <span className={cn("font-bold text-xs", isNoData ? "text-slate-400" : "text-slate-900")}>
+                              {isNoData ? 0 : roundedEcer}
+                            </span>
+                            <span className="text-slate-400 text-[10px] ml-1">/ {v.maxEcer}</span>
+                          </td>
+
+                          {/* STATUS OPTIMALISASI */}
+                          <td className="py-3 px-6 text-center">
+                            {isNoData ? (
+                              <span className="inline-block bg-slate-100 text-slate-500 border border-slate-200/80 text-[10px] font-medium px-2 py-0.5 rounded">
+                                Tanpa Ritase
+                              </span>
+                            ) : v.statusKapasitas === "Under" ? (
+                              <span className="inline-block bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold px-2 py-0.5 rounded">
+                                Kurang Maksimal (&lt;50%)
+                              </span>
+                            ) : v.statusKapasitas === "Overload" ? (
+                              <span className="inline-block bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded">
+                                Kelebihan Muatan (&gt;100%)
+                              </span>
+                            ) : (
+                              <span className="inline-block bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded">
+                                Optimal (50-100%)
+                              </span>
+                            )}
+                          </td>
+
+                          {/* AKSI */}
+                          <td className="py-3 px-5 text-center" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedArmadaForHistory(v)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-semibold transition-colors shadow-2xs"
+                            >
+                              <History className="h-3 w-3 text-slate-500" />
+                              Riwayat
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
           </CardContent>
         </Card>
       </div>
+      </>
+      ) : (
+        <div className="space-y-6">
+          {/* ── ROW 1: KPI SUMMARY PICKUP ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border border-slate-200 bg-white rounded-lg shadow-xs overflow-hidden">
+              <CardContent className="p-5">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Total Koli Dijemput
+                    </p>
+                    <div className="flex items-baseline gap-2">
+                      <h2 className="text-3xl font-bold text-slate-900">
+                        {loadingPickup ? <Skeleton className="h-9 w-20" /> : formatNumber(pickupKpis.totalAllKoli)}
+                      </h2>
+                      <span className="text-xs font-normal text-slate-500">koli</span>
+                    </div>
+                  </div>
+                  <div className="p-2.5 bg-blue-50 text-blue-700 rounded-md">
+                    <Package className="h-5 w-5" />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
+                  <Activity className="h-3.5 w-3.5 text-slate-400" />
+                  <span>Dari {pickupKpis.totalAllSesi} sesi penjemputan ({pickupKpis.totalDrivers} driver)</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-slate-200 bg-white rounded-lg shadow-xs overflow-hidden">
+              <CardContent className="p-5">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Rata² Muatan / Sesi
+                    </p>
+                    <div className="flex items-baseline gap-2">
+                      <h2 className="text-3xl font-bold text-slate-900">
+                        {loadingPickup ? <Skeleton className="h-9 w-16" /> : pickupKpis.avgKoliPerSesi}
+                      </h2>
+                      <span className="text-xs font-normal text-slate-500">koli/sesi</span>
+                    </div>
+                  </div>
+                  <div className="p-2.5 bg-slate-100 text-slate-700 rounded-md">
+                    <Truck className="h-5 w-5" />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-700 font-medium">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>{pickupKpis.countOptimal} driver muatan proporsional</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-amber-200 bg-amber-50/30 rounded-lg shadow-xs overflow-hidden">
+              <CardContent className="p-5">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-[11px] font-bold text-amber-900 uppercase tracking-wider mb-1">
+                      Muatan Berat (&gt;25 Koli)
+                    </p>
+                    <div className="flex items-baseline gap-2">
+                      <h2 className="text-3xl font-bold text-amber-700">
+                        {loadingPickup ? <Skeleton className="h-9 w-12" /> : pickupKpis.countOver}
+                      </h2>
+                      <span className="text-xs font-normal text-amber-700/80">Driver</span>
+                    </div>
+                  </div>
+                  <div className="p-2.5 bg-amber-100 text-amber-800 rounded-md">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center gap-1.5 text-xs text-amber-800 font-medium">
+                  <span>Perlu alokasi unit mobil/Blindvan</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-rose-200 bg-rose-50/30 rounded-lg shadow-xs overflow-hidden">
+              <CardContent className="p-5">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-[11px] font-bold text-rose-900 uppercase tracking-wider mb-1">
+                      Muatan Rendah (&lt;5 Koli)
+                    </p>
+                    <div className="flex items-baseline gap-2">
+                      <h2 className="text-3xl font-bold text-rose-700">
+                        {loadingPickup ? <Skeleton className="h-9 w-12" /> : pickupKpis.countUnder}
+                      </h2>
+                      <span className="text-xs font-normal text-rose-700/80">Driver</span>
+                    </div>
+                  </div>
+                  <div className="p-2.5 bg-rose-100 text-rose-800 rounded-md">
+                    <Info className="h-5 w-5" />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center gap-1.5 text-xs text-rose-700 font-medium">
+                  <span>Evaluasi konsolidasi rute toko</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ── TABEL TIM & ARMADA PICKUP ── */}
+          <Card className="border border-slate-200 bg-white rounded-lg shadow-xs overflow-hidden">
+            <CardHeader className="p-4 bg-white border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div>
+                <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Store className="h-4 w-4 text-[#0c1e3a]" />
+                  Tabel Optimalisasi Armada &amp; Tim Penjemputan (Pickup)
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500 font-normal mt-0.5">
+                  Daftar driver penjemputan dari seller/implan toko dengan rata-rata muatan dan rekomendasi jenis armada.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="hidden sm:inline-block text-xs font-mono text-slate-500">
+                  Menampilkan {filteredPickupMetrics.length} Driver
+                </span>
+                <button
+                  type="button"
+                  onClick={handleExportPickupCsv}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+                  title="Unduh data efektivitas pickup ke format CSV"
+                >
+                  <Download className="h-3.5 w-3.5 text-slate-500" />
+                  <span>Ekspor CSV</span>
+                </button>
+              </div>
+            </CardHeader>
+
+            {/* Toolbar: Search + Status Filter */}
+            <div className="p-3 bg-slate-50/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2.5">
+              <div className="relative flex-1 min-w-[200px] max-w-sm">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Cari nama driver pickup..."
+                  value={pickupSearchQuery}
+                  onChange={(e) => setPickupSearchQuery(e.target.value)}
+                  className="h-8 w-full rounded-md border border-slate-200 bg-white pl-8 pr-7 text-xs text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none"
+                />
+                {pickupSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setPickupSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center rounded-md border border-slate-200 bg-white p-0.5 shadow-2xs text-xs">
+                <button
+                  type="button"
+                  onClick={() => setPickupStatusFilter("all")}
+                  className={cn(
+                    "rounded px-2.5 py-1 text-[11px] font-semibold transition-all",
+                    pickupStatusFilter === "all" ? "bg-slate-900 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  Semua ({pickupMetricsList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPickupStatusFilter("overload")}
+                  className={cn(
+                    "rounded px-2.5 py-1 text-[11px] font-semibold transition-all",
+                    pickupStatusFilter === "overload" ? "bg-amber-600 text-white shadow-2xs" : "text-slate-600 hover:text-amber-700"
+                  )}
+                >
+                  Beban Berat ({pickupKpis.countOver})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPickupStatusFilter("optimal")}
+                  className={cn(
+                    "rounded px-2.5 py-1 text-[11px] font-semibold transition-all",
+                    pickupStatusFilter === "optimal" ? "bg-emerald-600 text-white shadow-2xs" : "text-slate-600 hover:text-emerald-700"
+                  )}
+                >
+                  Optimal ({pickupKpis.countOptimal})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPickupStatusFilter("under")}
+                  className={cn(
+                    "rounded px-2.5 py-1 text-[11px] font-semibold transition-all",
+                    pickupStatusFilter === "under" ? "bg-rose-500 text-white shadow-2xs" : "text-slate-600 hover:text-rose-700"
+                  )}
+                >
+                  Muatan Rendah ({pickupKpis.countUnder})
+                </button>
+              </div>
+            </div>
+
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
+                    <tr>
+                      <th className="py-3 px-5 whitespace-nowrap">Driver Pickup</th>
+                      <th className="py-3 px-4 text-center">Total Sesi</th>
+                      <th className="py-3 px-4 text-right">Total Koli</th>
+                      <th className="py-3 px-4 text-right">Total AWB</th>
+                      <th className="py-3 px-4 text-right">Rata² Koli/Sesi</th>
+                      <th className="py-3 px-6 text-center">Status Beban</th>
+                      <th className="py-3 px-5">Rekomendasi Armada</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {loadingPickup ? (
+                      <tr>
+                        <td colSpan={7} className="py-12 text-center text-slate-400">
+                          <Skeleton className="h-5 w-48 mx-auto" />
+                        </td>
+                      </tr>
+                    ) : filteredPickupMetrics.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-12 text-center text-slate-400">
+                          <Store className="h-7 w-7 mx-auto mb-1.5 text-slate-300 stroke-[1.5]" />
+                          <p className="text-xs font-semibold text-slate-600">Tidak ada data driver pickup</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">Belum ada aktivitas penjemputan pada filter periode ini.</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredPickupMetrics.map((p) => (
+                        <tr key={p.namaDriver} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-3 px-5 font-bold text-slate-900 whitespace-nowrap">
+                            {p.namaDriver}
+                          </td>
+                          <td className="py-3 px-4 text-center font-mono font-semibold">
+                            {p.totalSesi}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
+                            {formatNumber(p.totalKoli)}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono text-slate-600">
+                            {formatNumber(p.totalAwb)}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono font-bold text-slate-800">
+                            {Math.round(p.avgKoli)} koli
+                          </td>
+                          <td className="py-3 px-6 text-center">
+                            {p.statusEfisiensi === "Overload" ? (
+                              <span className="inline-block bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded">
+                                Beban Berat (&gt;25 koli)
+                              </span>
+                            ) : p.statusEfisiensi === "Under" ? (
+                              <span className="inline-block bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold px-2 py-0.5 rounded">
+                                Muatan Rendah (&lt;5 koli)
+                              </span>
+                            ) : (
+                              <span className="inline-block bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded">
+                                Optimal (5-25 koli)
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-5 text-slate-600 text-[11px]">
+                            {p.rekomendasiArmada}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* ── MODAL 1: KESIMPULAN & EVALUASI KAPASITAS ARMADA ── */}
       {showEvaluationModal && (

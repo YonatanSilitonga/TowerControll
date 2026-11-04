@@ -1723,7 +1723,7 @@ export default function DashboardPage() {
                   <>
                     <div className="flex items-center gap-2 rounded-md border border-amber-200/80 bg-amber-50/60 px-2.5 py-1.5 text-xs">
                       <span className="shrink-0 font-bold text-amber-800">
-                        {isSelectedPickup ? "📦 Muatan Hari Ini" : "📦 Muatan"}
+                        {isSelectedPickup ? "Muatan Hari Ini" : "Muatan"}
                       </span>
                       <span className="ml-auto flex items-center gap-2.5 text-slate-700">
                         {isSelectedPickup ? (
@@ -1805,7 +1805,6 @@ export default function DashboardPage() {
                         <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs space-y-1">
                           <p className="font-semibold text-slate-700">Status Operasional Pickup:</p>
                           <p className="text-slate-500 capitalize">Status: <b className="text-slate-800">{selectedVehicle.status || "Standby"}</b></p>
-                          <p className="text-slate-500">Toko dikunjungi: <b className="text-slate-800">{(selectedPickupLogs ?? []).length} seller</b></p>
                         </div>
                         <a href={"/riwayat-pickup?driver=" + encodeURIComponent(selectedVehicle.nama_driver || "")} className="block text-center text-xs font-semibold text-blue-600 hover:underline py-1">
                           Lihat Riwayat Lengkap di Menu Pickup &rarr;

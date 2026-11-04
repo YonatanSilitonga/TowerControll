@@ -482,6 +482,14 @@ export function AdminCrudPage<T extends Record<string, any>>({
     setLoading(true);
     setError(null);
     try {
+      const payload = { ...form };
+      for (const f of fields) {
+        if ((f.key.includes("hp") || f.key.includes("telepon")) && payload[f.key]) {
+          let cleanStr = String(payload[f.key]).replace(/[- ]/g, "").replace(/^\+/, "").trim();
+          if (cleanStr.startsWith("0")) cleanStr = "62" + cleanStr.slice(1);
+          payload[f.key] = cleanStr || undefined;
+        }
+      }
       setData(await listFn());
     } catch (e: any) {
       setError(e?.message || "Gagal memuat data. Periksa koneksi atau server.");
@@ -568,8 +576,13 @@ export function AdminCrudPage<T extends Record<string, any>>({
       }
 
       if (f.key.includes("hp") || f.key.includes("telepon")) {
-        if (val && !/^08\d{8,11}$/.test(String(val).replace(/[- ]/g, ""))) {
-          errors[f.key] = "Nomor HP harus diawali '08' (10–13 digit)";
+        let clean = val ? String(val).replace(/[- ]/g, "").replace(/^\+/, "") : "";
+        if (clean.startsWith("0")) {
+          clean = "62" + clean.slice(1);
+          form[f.key] = clean;
+        }
+        if (clean && !/^628\d{8,11}$/.test(clean)) {
+          errors[f.key] = "Nomor HP harus berformat '628...' (11–14 digit)";
         }
       }
     }
@@ -582,11 +595,19 @@ export function AdminCrudPage<T extends Record<string, any>>({
     if (!validateForm()) return;
     setSaving(true);
     try {
+      const payload = { ...form };
+      for (const f of fields) {
+        if ((f.key.includes("hp") || f.key.includes("telepon")) && payload[f.key]) {
+          let cleanStr = String(payload[f.key]).replace(/[- ]/g, "").replace(/^\+/, "").trim();
+          if (cleanStr.startsWith("0")) cleanStr = "62" + cleanStr.slice(1);
+          payload[f.key] = cleanStr || undefined;
+        }
+      }
       if (editing) {
-        await updateFn(Number(editing[idKey]), form);
+        await updateFn(Number(editing[idKey]), payload);
         swal.success("Berhasil Disimpan", `Data ${title.toLowerCase()} telah diperbarui.`);
       } else {
-        await createFn(form);
+        await createFn(payload);
         swal.success("Berhasil Ditambahkan", `Data ${title.toLowerCase()} baru berhasil dibuat.`);
       }
       setModalOpen(false);
@@ -609,6 +630,14 @@ export function AdminCrudPage<T extends Record<string, any>>({
     setDeleteTargetId(id);
     setSaving(true);
     try {
+      const payload = { ...form };
+      for (const f of fields) {
+        if ((f.key.includes("hp") || f.key.includes("telepon")) && payload[f.key]) {
+          let cleanStr = String(payload[f.key]).replace(/[- ]/g, "").replace(/^\+/, "").trim();
+          if (cleanStr.startsWith("0")) cleanStr = "62" + cleanStr.slice(1);
+          payload[f.key] = cleanStr || undefined;
+        }
+      }
       await deleteFn(id);
       swal.success("Data Dinonaktifkan", "Data berhasil dinonaktifkan.");
       await refresh();
@@ -684,6 +713,14 @@ export function AdminCrudPage<T extends Record<string, any>>({
   const formatDate = (val?: string | null) => {
     if (!val) return "—";
     try {
+      const payload = { ...form };
+      for (const f of fields) {
+        if ((f.key.includes("hp") || f.key.includes("telepon")) && payload[f.key]) {
+          let cleanStr = String(payload[f.key]).replace(/[- ]/g, "").replace(/^\+/, "").trim();
+          if (cleanStr.startsWith("0")) cleanStr = "62" + cleanStr.slice(1);
+          payload[f.key] = cleanStr || undefined;
+        }
+      }
       return new Date(val).toLocaleString("id-ID", {
         day: "2-digit", month: "2-digit", year: "2-digit",
         hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
@@ -725,13 +762,13 @@ export function AdminCrudPage<T extends Record<string, any>>({
 
       {/* ── Control Bar ── */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-xs sm:flex-1">
+        <div className="relative w-full sm:w-64 shrink-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={`Cari ${title.toLowerCase()}...`}
-            className="min-h-[44px] pl-9 sm:min-h-[32px]"
+            className="min-h-[36px] h-9 pl-9 text-xs"
           />
         </div>
 
@@ -784,15 +821,15 @@ export function AdminCrudPage<T extends Record<string, any>>({
         </div>
       )}
 
-      {/* ── Table ── */}
-      <div className="rounded-md border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
-        <div className="overflow-x-auto">
+      {/* ── Table with Max Height Scroll ── */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-2xs dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
+        <div className="overflow-x-auto max-h-[calc(100vh-250px)] min-h-[350px] overflow-y-auto">
           <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b-2 border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500 select-none dark:border-slate-800">
-                <th className="w-10 px-4 py-2.5 text-center font-semibold select-none">#</th>
+            <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200 dark:bg-slate-800/95 dark:border-slate-700">
+              <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500 select-none">
+                <th className="w-12 px-4 py-2.5 text-center font-bold select-none">#</th>
                 {columns.map((col) => (
-                  <th key={col.header} className={cn("px-4 py-2.5 font-semibold select-none", col.className)}>
+                  <th key={col.header} className={cn("px-4 py-2.5 font-bold select-none", col.className)}>
                     {col.accessorKey ? (
                       <button
                         onClick={() => handleSort(String(col.accessorKey))}
@@ -806,7 +843,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
                     )}
                   </th>
                 ))}
-                <th className="w-24 px-4 py-2.5 text-right font-semibold select-none">Aksi</th>
+                <th className="w-28 px-4 py-2.5 text-right font-bold select-none">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -867,10 +904,13 @@ export function AdminCrudPage<T extends Record<string, any>>({
             </tbody>
           </table>
         </div>
-        <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500 dark:border-slate-800">
+        <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-800/40">
           Menampilkan{" "}
           <span className="font-semibold text-slate-800 dark:text-white">{processedData.length}</span> dari{" "}
           <span className="font-semibold text-slate-800 dark:text-white">{data.length}</span> total item
+          {(statusFilter !== "ALL" || search) && (
+            <span className="ml-1 text-[#FEA103] font-semibold">(difilter)</span>
+          )}
         </div>
       </div>
 
@@ -954,7 +994,12 @@ export function AdminCrudPage<T extends Record<string, any>>({
                     ) : /* ── TEXTAREA ── */ f.type === "textarea" ? (
                       <textarea
                         value={form[f.key] ?? ""}
-                        onChange={(e) => setField(f.key, e.target.value)}
+                        onChange={(e) => {
+                            let val = e.target.value;
+                            let digits = val.replace(/[- ]/g, "").replace(/^\+/, "");
+                            if (digits.startsWith("0")) digits = "62" + digits.slice(1);
+                            setField(f.key, digits);
+                          }}
                         rows={3}
                         placeholder={f.placeholder}
                         className={cn(
@@ -1103,8 +1148,13 @@ export function AdminCrudPage<T extends Record<string, any>>({
                         <Input
                           type="text"
                           value={form[f.key] ?? ""}
-                          onChange={(e) => setField(f.key, e.target.value)}
-                          placeholder={f.placeholder ?? "08xxxxxxxxxx"}
+                          onChange={(e) => {
+                            let val = e.target.value;
+                            let digits = val.replace(/[- ]/g, "").replace(/^\+/, "");
+                            if (digits.startsWith("0")) digits = "62" + digits.slice(1);
+                            setField(f.key, digits);
+                          }}
+                          placeholder={f.placeholder ?? "628xxxxxxxxxx"}
                           className={cn(
                             "h-11 rounded-lg pl-9 font-mono text-sm",
                             hasError ? inputError : ""

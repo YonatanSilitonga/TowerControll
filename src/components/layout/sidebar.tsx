@@ -75,7 +75,6 @@ const NAV: NavItem[] = [
 
 export const ADMIN_NAV: NavItem[] = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard, key: "admin-dashboard" },
-  { label: "Live Maps", href: "/armada/live-map", icon: MapPin, key: "admin-live-map" },
   { label: "Driver", href: "/admin/drivers", icon: Users, key: "admin-drivers" },
   { label: "Kendaraan", href: "/admin/vehicles", icon: Car, key: "admin-vehicles" },
   { label: "Seller", href: "/admin/sellers", icon: Store, key: "admin-sellers" },

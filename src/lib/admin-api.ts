@@ -75,10 +75,10 @@ export type DriverAdmin = {
 };
 
 const defaultDrivers: DriverAdmin[] = [
-  { id_driver: 1, nama_driver: "Budi Santoso", no_hp: "081234567890", no_sim: "810112345678", jenis_sim: "B1", status_driver: "aktif" },
-  { id_driver: 2, nama_driver: "Agus Wijaya", no_hp: "081398765432", no_sim: "810298765432", jenis_sim: "B2", status_driver: "aktif" },
-  { id_driver: 3, nama_driver: "Awaludin", no_hp: "082111112222", no_sim: "810312345679", jenis_sim: "A", status_driver: "aktif" },
-  { id_driver: 4, nama_driver: "Slamet Riyadi", no_hp: "085733334444", no_sim: "810498765433", jenis_sim: "B1", status_driver: "nonaktif" },
+  { id_driver: 1, nama_driver: "Budi Santoso", no_hp: "6281234567890", no_sim: "810112345678", jenis_sim: "B1", status_driver: "aktif" },
+  { id_driver: 2, nama_driver: "Agus Wijaya", no_hp: "6281398765432", no_sim: "810298765432", jenis_sim: "B2", status_driver: "aktif" },
+  { id_driver: 3, nama_driver: "Awaludin", no_hp: "628211112222", no_sim: "810312345679", jenis_sim: "A", status_driver: "aktif" },
+  { id_driver: 4, nama_driver: "Slamet Riyadi", no_hp: "6285733334444", no_sim: "810498765433", jenis_sim: "B1", status_driver: "nonaktif" },
 ];
 
 export const adminDriver = {
@@ -91,7 +91,7 @@ export const adminDriver = {
     const payload = {
       ...data,
       no_sim: data.no_sim && data.no_sim.trim() ? data.no_sim.trim() : null,
-      no_hp: data.no_hp && data.no_hp.trim() ? data.no_hp.trim() : null,
+      no_hp: data.no_hp ? data.no_hp.replace(/[- ]/g, "").replace(/^\+/, "").trim() || null : null,
       jabatan: data.jabatan && data.jabatan.trim() ? data.jabatan.trim() : null,
       jenis_sim: data.jenis_sim || null,
     };
@@ -114,7 +114,7 @@ export const adminDriver = {
     const payload = {
       ...data,
       no_sim: data.no_sim && data.no_sim.trim() ? data.no_sim.trim() : null,
-      no_hp: data.no_hp && data.no_hp.trim() ? data.no_hp.trim() : null,
+      no_hp: data.no_hp ? data.no_hp.replace(/[- ]/g, "").replace(/^\+/, "").trim() || null : null,
       jabatan: data.jabatan && data.jabatan.trim() ? data.jabatan.trim() : null,
       jenis_sim: data.jenis_sim || null,
     };
@@ -223,9 +223,9 @@ export type SellerAdmin = {
 };
 
 const defaultSellers: SellerAdmin[] = [
-  { id_seller: 1, kode_seller: "SLR-001", nama_seller: "Gudang Shopee Cikupa", alamat: "Kawasan Industri Cikupa Mas", kota: "Tangerang", area: "Banten", pic: "Hendra", no_hp: "081299887766", forecast_harian: 1500, status: "aktif", latitude: -6.2402, longitude: 106.5856 },
-  { id_seller: 2, kode_seller: "SLR-002", nama_seller: "Tokopedia Hub Balaraja", alamat: "Jl. Raya Serang Km 24", kota: "Tangerang", area: "Banten", pic: "Dian", no_hp: "081344556677", forecast_harian: 2400, status: "aktif", latitude: -6.1836, longitude: 106.5952 },
-  { id_seller: 3, kode_seller: "SLR-003", nama_seller: "Lazada Transit SKI", alamat: "Jl. Daan Mogot Km 11", kota: "Jakarta Barat", area: "DKI Jakarta", pic: "Roni", no_hp: "081711223344", forecast_harian: 900, status: "aktif", latitude: -6.1616, longitude: 106.6311 },
+  { id_seller: 1, kode_seller: "SLR-001", nama_seller: "Gudang Shopee Cikupa", alamat: "Kawasan Industri Cikupa Mas", kota: "Tangerang", area: "Banten", pic: "Hendra", no_hp: "6281299887766", forecast_harian: 1500, status: "aktif", latitude: -6.2402, longitude: 106.5856 },
+  { id_seller: 2, kode_seller: "SLR-002", nama_seller: "Tokopedia Hub Balaraja", alamat: "Jl. Raya Serang Km 24", kota: "Tangerang", area: "Banten", pic: "Dian", no_hp: "6281344556677", forecast_harian: 2400, status: "aktif", latitude: -6.1836, longitude: 106.5952 },
+  { id_seller: 3, kode_seller: "SLR-003", nama_seller: "Lazada Transit SKI", alamat: "Jl. Daan Mogot Km 11", kota: "Jakarta Barat", area: "DKI Jakarta", pic: "Roni", no_hp: "6281711223344", forecast_harian: 900, status: "aktif", latitude: -6.1616, longitude: 106.6311 },
 ];
 
 export const adminSeller = {

@@ -22,6 +22,8 @@ import {
   ToggleLeft,
   ToggleRight,
   RefreshCw,
+  FileSpreadsheet,
+  ArrowUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -262,6 +264,42 @@ export default function AdminUsersPage() {
   // Filter: "ALL" | role value | "aktif" | "nonaktif"
   const [roleFilter, setRoleFilter]     = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [sortKey, setSortKey] = useState<string>("username");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (filtered.length === 0) {
+      swal.info("Ekspor Dibatalkan", "Tidak ada data untuk diekspor");
+      return;
+    }
+    const headersHTML = "<th>#</th><th>Username</th><th>Nama Lengkap</th><th>Role</th><th>Driver ID</th><th>Status</th>";
+    const rowsHTML = filtered
+      .map((row, idx) => {
+        return `<tr><td>${idx + 1}</td><td>${row.username}</td><td>${row.name}</td><td>${row.role}</td><td>${row.id_driver || "-"}</td><td>${row.status}</td></tr>`;
+      })
+      .join("");
+    const excelTemplate = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="utf-8"/><style>body{font-family:Arial,sans-serif;}table{border-collapse:collapse;width:100%;}th{background-color:#0c1e3a;color:#ffffff;font-weight:bold;padding:8px 12px;text-align:left;}td{border:1px solid #cbd5e1;padding:6px 10px;font-size:12px;}</style></head>
+      <body><h2>Data Users & Roles — Tower Control System</h2><p>Tanggal Ekspor: ${new Date().toLocaleDateString("id-ID")}</p><table><thead><tr>${headersHTML}</tr></thead><tbody>${rowsHTML}</tbody></table></body></html>
+    `;
+    const blob = new Blob([excelTemplate], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Data_Users_${new Date().toISOString().slice(0, 10)}.xls`;
+    link.click();
+    swal.success("Ekspor Excel Berhasil", "File Data_Users.xls telah diunduh.");
+  };
 
   const [createOpen, setCreateOpen]   = useState(false);
   const [resetOpen, setResetOpen]     = useState(false);
@@ -294,6 +332,14 @@ export default function AdminUsersPage() {
     if (!search) return true;
     const q = search.toLowerCase();
     return [row.username, row.name, row.role].some((v) => String(v ?? "").toLowerCase().includes(q));
+  }).sort((a, b) => {
+    let va = (a as any)[sortKey] ?? "";
+    let vb = (b as any)[sortKey] ?? "";
+    if (typeof va === "string") va = va.toLowerCase();
+    if (typeof vb === "string") vb = vb.toLowerCase();
+    if (va < vb) return sortDir === "asc" ? -1 : 1;
+    if (va > vb) return sortDir === "asc" ? 1 : -1;
+    return 0;
   });
 
   // ── Validate & Save ──
@@ -358,34 +404,44 @@ export default function AdminUsersPage() {
         title={`Users & Roles (${data.length})`}
         description="Kelola akun pengguna sistem dan hak akses jabatan."
         actions={
-          <Button
-            onClick={() => {
-              setFormState({ username: "", password: "", name: "", role: "driver", id_driver: "" });
-              setFormErrors({});
-              setCreateOpen(true);
-            }}
-            className="bg-[#FEA103] text-xs font-semibold text-white shadow-sm hover:bg-[#E09102]"
-          >
-            <Plus className="mr-1.5 h-4 w-4 text-white" />
-            Tambah User
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleExportExcel}
+              className="border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400"
+            >
+              <FileSpreadsheet className="mr-1.5 h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Ekspor Excel
+            </Button>
+            <Button
+              onClick={() => {
+                setFormState({ username: "", password: "", name: "", role: "driver", id_driver: "" });
+                setFormErrors({});
+                setCreateOpen(true);
+              }}
+              className="bg-[#FEA103] text-xs font-semibold text-white shadow-sm hover:bg-[#E09102]"
+            >
+              <Plus className="mr-1.5 h-4 w-4 text-white" />
+              Tambah User
+            </Button>
+          </div>
         }
       />
 
-      {/* ── Control Bar: Search + Filter chips ── */}
-      <div className="mb-4 flex flex-col gap-3">
+      {/* ── Control Bar: Search + Filter in 1 Single Line ── */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* Search */}
-        <div className="relative w-full sm:w-56">
+        <div className="relative w-full sm:w-64 shrink-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari username, nama..."
-            className="min-h-[44px] pl-9 sm:min-h-[32px]"
+            className="min-h-[36px] h-9 pl-9 text-xs"
           />
         </div>
 
-        {/* Filter chips row */}
+        {/* Filter chips inline */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Filter Role chips */}
           <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800 sm:flex-none">
@@ -465,19 +521,39 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* ── Table ── */}
-      <div className="rounded-md border border-slate-200 bg-white shadow-none dark:border-slate-800 dark:bg-slate-900">
-        <div className="overflow-x-auto">
+      {/* ── Table with Max Height Scroll ── */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-2xs dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
+        <div className="overflow-x-auto max-h-[calc(100vh-250px)] min-h-[350px] overflow-y-auto">
           <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b-2 border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500 select-none dark:border-slate-800">
-                <th className="w-12 px-4 py-2.5 text-center">#</th>
-                <th className="px-4 py-2.5">Username</th>
-                <th className="px-4 py-2.5">Nama Lengkap</th>
-                <th className="w-44 px-4 py-2.5">Role</th>
-                <th className="w-28 px-4 py-2.5 text-right">Driver ID</th>
-                <th className="w-24 px-4 py-2.5">Status</th>
-                <th className="w-28 px-4 py-2.5 text-right">Aksi</th>
+            <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs border-b border-slate-200 dark:bg-slate-800/95 dark:border-slate-700">
+              <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500 select-none">
+                <th className="w-12 px-4 py-2.5 text-center font-bold select-none">#</th>
+                <th className="px-4 py-2.5 font-bold select-none">
+                  <button onClick={() => handleSort("username")} className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-white">
+                    Username <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                  </button>
+                </th>
+                <th className="px-4 py-2.5 font-bold select-none">
+                  <button onClick={() => handleSort("name")} className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-white">
+                    Nama Lengkap <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                  </button>
+                </th>
+                <th className="w-44 px-4 py-2.5 font-bold select-none">
+                  <button onClick={() => handleSort("role")} className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-white">
+                    Role <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                  </button>
+                </th>
+                <th className="w-28 px-4 py-2.5 text-right font-bold select-none">
+                  <button onClick={() => handleSort("id_driver")} className="inline-flex items-center gap-1 hover:text-slate-800 dark:hover:text-white">
+                    Driver ID <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                  </button>
+                </th>
+                <th className="w-24 px-4 py-2.5 font-bold select-none">
+                  <button onClick={() => handleSort("status")} className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-white">
+                    Status <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                  </button>
+                </th>
+                <th className="w-28 px-4 py-2.5 text-right font-bold select-none">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -506,7 +582,7 @@ export default function AdminUsersPage() {
                     className="border-b border-slate-100 text-sm transition-colors last:border-0 hover:bg-slate-50 dark:border-slate-800/80 dark:hover:bg-slate-800/50"
                   >
                     <td className="px-4 py-3 text-center text-xs font-medium text-slate-400 tabular-nums">{i + 1}</td>
-                    <td className="px-4 py-3 font-mono text-xs font-bold text-slate-900 dark:text-white">{row.username}</td>
+                    <td className="px-4 py-3 text-sm font-semibold text-slate-800 dark:text-slate-100">{row.username}</td>
                     <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{row.name}</td>
                     <td className="px-4 py-3">
                       <span className={cn(
@@ -517,7 +593,7 @@ export default function AdminUsersPage() {
                         {ROLE_OPTIONS.find((o) => o.value === row.role)?.label ?? row.role}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-xs tabular-nums text-slate-500">{row.id_driver ?? "—"}</td>
+                    <td className="px-4 py-3 text-right text-xs text-slate-500">{row.id_driver ?? "—"}</td>
                     <td className="px-4 py-3"><StatusBadge status={row.status} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
@@ -558,11 +634,11 @@ export default function AdminUsersPage() {
             </tbody>
           </table>
         </div>
-        <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500 dark:border-slate-800">
+        <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-800/40">
           Menampilkan{" "}
           <span className="font-semibold text-slate-800 dark:text-white">{filtered.length}</span> dari{" "}
           <span className="font-semibold text-slate-800 dark:text-white">{data.length}</span> total user
-          {(roleFilter !== "ALL" || statusFilter !== "ALL") && (
+          {(roleFilter !== "ALL" || statusFilter !== "ALL" || search) && (
             <span className="ml-1 text-[#FEA103] font-semibold">(difilter)</span>
           )}
         </div>

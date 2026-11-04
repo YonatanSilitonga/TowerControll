@@ -141,7 +141,7 @@ function TimelineList({
                       )}
                       {!compact && ((ev.jumlah_koli ?? 0) > 0 || (ev.jumlah_ecer ?? 0) > 0 || (ev.jumlah_high_value ?? 0) > 0) && (
                         <span className="rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
-                          📦 {(ev.jumlah_koli ?? 0) > 0 && `${ev.jumlah_koli} Koli`}
+                          {(ev.jumlah_koli ?? 0) > 0 && `${ev.jumlah_koli} Koli`}
                           {(ev.jumlah_ecer ?? 0) > 0 && ` • ${ev.jumlah_ecer} Ecer`}
                           {(ev.jumlah_high_value ?? 0) > 0 && ` • ${ev.jumlah_high_value} HV`}
                         </span>

@@ -106,8 +106,8 @@ const fields: FieldConfig[] = [
   {
     key: "no_hp",
     label: "No HP PIC",
-    placeholder: "081234567890",
-    hint: "Nomor yang bisa dihubungi saat pengiriman",
+    placeholder: "6281234567890",
+    hint: "Format 628... (11–14 digit) untuk koordinasi saat pengiriman",
   },
   {
     key: "forecast_harian",

@@ -139,58 +139,91 @@ export function VehicleItem({ vehicle, selected, onSelect, durasi, variant, phon
   );
 
   return (
-    <div className="flex min-w-0 items-center"><div className="min-w-0 flex-1"><button
-      type="button"
-      onClick={onSelect}
+    <div
       className={cn(
-        "w-full border-b border-slate-100 py-2.5 text-left transition-colors last:border-0",
-        selected ? "bg-slate-50" : "hover:bg-slate-50"
+        "group relative flex items-stretch rounded-xl border transition-all p-2.5 mb-1.5",
+        selected
+          ? "border-blue-500/50 bg-blue-50/70 shadow-sm ring-1 ring-blue-500/20"
+          : "border-slate-200/80 bg-white hover:border-slate-300 hover:bg-slate-50/70 shadow-sm"
       )}
     >
-      <div className="flex items-center justify-between gap-2 px-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className={cn("h-2 w-2 shrink-0 rounded-full", dot)} />
-          <p className="truncate font-mono text-[13px] font-semibold text-slate-800">
-            {vehicle.plat_nomor || "-"}
-          </p>
-          {isPickup && (
-            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">
-              PICKUP
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex min-w-0 flex-1 flex-col text-left focus-visible:outline-none"
+      >
+        {/* Baris 1: Plat Nomor, Badge Pickup, Status Badge */}
+        <div className="flex items-center justify-between gap-1.5">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className={cn("h-2 w-2 shrink-0 rounded-full", dot)} />
+            <span className="font-mono text-xs font-bold tracking-tight text-slate-800 shrink-0">
+              {vehicle.plat_nomor || "Tanpa Plat"}
             </span>
-          )}
-        </div>
-        {/* Status badge */}
-        <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold", badgeStyle)}>
-          <span className={cn("h-1.5 w-1.5 rounded-full", badgeDotColor)} />
-          {statusText}
-        </span>
-      </div>
-      <div className="mt-0.5 flex items-center justify-between gap-2 pl-[22px] pr-3">
-        <p className="min-w-0 truncate text-xs text-slate-500">
-          {vehicle.nama_driver || "-"}
-        </p>
-        {/* Location + speed */}
-        <div className="flex shrink-0 items-center gap-2 text-[11px] tabular-nums text-slate-400">
-          {vehicle.nama_lokasi && (
-            <span className="truncate max-w-[100px]">{vehicle.nama_lokasi}</span>
-          )}
-          {live && <span>{vehicle.kecepatan ?? 0} km/h</span>}
-        </div>
-      </div>
-      <div className="mt-0.5 flex items-center justify-between gap-2 pl-[22px] pr-3">
-        {isPickup ? (
-          <span className="text-[11px] font-medium text-amber-700">
-            Muatan: {vehicle.total_awb ?? 0} AWB ({vehicle.total_koli ?? 0} koli)
+            {isPickup && (
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800 shrink-0">
+                PICKUP
+              </span>
+            )}
+          </div>
+          {/* Status badge */}
+          <span
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
+              badgeStyle
+            )}
+          >
+            <span className={cn("h-1.5 w-1.5 rounded-full", badgeDotColor)} />
+            {statusText}
           </span>
-        ) : durasi ? (
-          <span className="text-[11px] tabular-nums text-slate-400">{durasi}</span>
-        ) : (
-          <span className="text-[11px] text-slate-400" />
-        )}
-        <span className="shrink-0 text-[11px] tabular-nums text-slate-400">
-          {live ? minutesAgo(vehicle.last_update) : ""}
-        </span>
-      </div>
-    </button></div>{phone !== undefined && <WhatsAppContact phone={phone} name={vehicle.nama_driver} compact />}</div>
+        </div>
+
+        {/* Baris 2: Nama Driver & Kecepatan / Lokasi */}
+        <div className="mt-1 flex items-center justify-between gap-2 text-xs">
+          <span className="truncate font-medium text-slate-600">
+            {vehicle.nama_driver || "Tanpa Driver"}
+          </span>
+          <div className="flex shrink-0 items-center gap-1.5 text-[11px] tabular-nums text-slate-500">
+            {vehicle.nama_lokasi && (
+              <span className="max-w-[110px] truncate text-slate-400" title={vehicle.nama_lokasi}>
+                {vehicle.nama_lokasi}
+              </span>
+            )}
+            {live && (
+              <span className="font-semibold text-slate-600">
+                {vehicle.kecepatan ?? 0} km/h
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Baris 3: Muatan & Waktu Terakhir */}
+        <div className="mt-1 flex items-center justify-between gap-2 text-[11px]">
+          {isPickup ? (
+            <span className="font-medium text-amber-700">
+              Muatan: <strong className="font-semibold">{vehicle.total_awb ?? 0} AWB</strong>
+            </span>
+          ) : vehicle.total_koli != null && vehicle.total_koli > 0 ? (
+            <span className="font-medium text-slate-600">
+              Muatan: <strong className="font-semibold text-slate-800">{vehicle.total_koli} koli</strong>
+            </span>
+          ) : durasi ? (
+            <span className="text-slate-400 tabular-nums">{durasi}</span>
+          ) : (
+            <span className="text-slate-400">—</span>
+          )}
+
+          <span className="shrink-0 text-slate-400 tabular-nums">
+            {live ? minutesAgo(vehicle.last_update) : ""}
+          </span>
+        </div>
+      </button>
+
+      {/* WhatsApp Contact Button */}
+      {phone !== undefined && (
+        <div className="flex shrink-0 items-center border-l border-slate-100 pl-1 ml-1.5">
+          <WhatsAppContact phone={phone} name={vehicle.nama_driver} compact />
+        </div>
+      )}
+    </div>
   );
 }

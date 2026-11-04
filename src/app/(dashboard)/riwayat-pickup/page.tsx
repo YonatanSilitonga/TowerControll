@@ -945,23 +945,17 @@ function RiwayatPickupContent() {
                       </div>
 
                       {/* Breakdown Stats */}
-                      <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-center text-xs">
                         <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800">
-                          <span className="text-[10px] text-slate-400 block">Koli</span>
+                          <span className="text-[10px] text-slate-400 block">Sesi Pickup</span>
                           <span className="font-bold text-slate-800 dark:text-slate-200">
-                            {driver.totalKoli}
+                            {driver.totalSesi} Sesi
                           </span>
                         </div>
                         <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800">
-                          <span className="text-[10px] text-slate-400 block">Ecer</span>
+                          <span className="text-[10px] text-slate-400 block">Rata-rata/Toko</span>
                           <span className="font-bold text-slate-800 dark:text-slate-200">
-                            {driver.totalEcer}
-                          </span>
-                        </div>
-                        <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800">
-                          <span className="text-[10px] text-slate-400 block">HV</span>
-                          <span className="font-bold text-slate-800 dark:text-slate-200">
-                            {driver.totalHv}
+                            {driver.sellersCount > 0 ? Math.round(driver.totalAwb / driver.sellersCount) : 0} AWB
                           </span>
                         </div>
                       </div>
