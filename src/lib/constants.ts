@@ -15,6 +15,10 @@ export function getFullPhotoUrl(url: string): string {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
   const base = API_URL.replace(/\/api\/v1\/?$/, "");
+  // Jika sedang dev di localhost, arahkan ke VPS produksi agar foto bukti manifest/pickup tetap bisa tampil di browser
+  if (base.includes("localhost") || base.includes("127.0.0.1")) {
+    return `https://api.controltowerslb.tech${url.startsWith("/") ? "" : "/"}${url}`;
+  }
   return `${base}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 

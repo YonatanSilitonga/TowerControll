@@ -24,7 +24,13 @@ import {
   Layers,
   ShieldCheck,
   TrendingUp,
+  Camera,
+  ZoomIn,
+  Download,
+  ExternalLink,
+  Image as ImageIcon,
 } from "lucide-react";
+import { getFullPhotoUrl } from "@/lib/constants";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -90,9 +96,24 @@ function RiwayatPickupContent() {
   // Tampilan Mode: 'analytics' (Driver Cards) vs 'raw' (Audit Logs)
   const [viewMode, setViewMode] = useState<"analytics" | "raw">("analytics");
 
-  // State Modal Drill-down Driver
+  // State Modal Drill-down Driver (Slide-Over Drawer)
   const [modalDriver, setModalDriver] = useState<DriverAggregated | null>(null);
   const [modalLogDetail, setModalLogDetail] = useState<DriverPickupLog | null>(null);
+
+  // State Pencarian & Filter di dalam Slide-Over Drawer
+  const [drawerSearch, setDrawerSearch] = useState("");
+  const [drawerOnlyPhotos, setDrawerOnlyPhotos] = useState(false);
+
+  // State Modal Lightbox Preview Foto Bukti
+  const [lightboxPhoto, setLightboxPhoto] = useState<{
+    url: string;
+    title: string;
+    subtitle?: string;
+    awb?: number;
+    koli?: number;
+    ecer?: number;
+    hv?: number;
+  } | null>(null);
 
   // Rentang tanggal aktif yang dipakai query
   const activeDateRange = useMemo<{
@@ -440,6 +461,57 @@ function RiwayatPickupContent() {
       return matchName || matchSeller;
     });
   }, [driverSummaryList, search]);
+
+  // Buka Slide-Over Drawer Driver tertentu
+  const openDriverDrawer = useCallback((driverId?: number | null, driverName?: string) => {
+    if (!driverSummaryList || driverSummaryList.length === 0) return;
+    let target = driverSummaryList.find((d) => driverId && d.idUser === driverId);
+    if (!target && driverName) {
+      target = driverSummaryList.find((d) => d.namaDriver.toLowerCase() === driverName.toLowerCase());
+    }
+    if (target) {
+      setModalDriver(target);
+      setDrawerSearch("");
+      setDrawerOnlyPhotos(false);
+    }
+  }, [driverSummaryList]);
+
+  // Otomatis sinkronkan driver terpilih jika driverParam dari URL tersedia
+  useEffect(() => {
+    if (driverParam && driverSummaryList.length > 0 && !modalDriver) {
+      const parsedId = parseInt(driverParam, 10);
+      if (!isNaN(parsedId)) {
+        openDriverDrawer(parsedId);
+      } else {
+        openDriverDrawer(null, driverParam);
+      }
+    }
+  }, [driverParam, driverSummaryList, modalDriver, openDriverDrawer]);
+
+  // Filter list log di dalam Slide-Over Drawer
+  const drawerFilteredLogs = useMemo(() => {
+    if (!modalDriver) return [];
+    return modalDriver.logs.filter((log) => {
+      if (drawerOnlyPhotos && !log.foto_url) {
+        return false;
+      }
+      if (drawerSearch.trim()) {
+        const q = drawerSearch.toLowerCase().trim();
+        const matchSeller = (log.asal_seller || "").toLowerCase().includes(q);
+        const matchNote = (log.catatan || "").toLowerCase().includes(q);
+        const matchStatus = (log.status || "").toLowerCase().includes(q);
+        const matchId = String(log.id_log).includes(q);
+        return matchSeller || matchNote || matchStatus || matchId;
+      }
+      return true;
+    });
+  }, [modalDriver, drawerSearch, drawerOnlyPhotos]);
+
+  // Hitung jumlah log dengan foto bukti pada driver aktif
+  const drawerPhotoCount = useMemo(() => {
+    if (!modalDriver) return 0;
+    return modalDriver.logs.filter((l) => Boolean(l.foto_url)).length;
+  }, [modalDriver]);
 
   // Export to CSV helper
   const handleExportCSV = useCallback(() => {
@@ -821,6 +893,30 @@ function RiwayatPickupContent() {
               )}
             </div>
 
+            {/* Quick Driver Selector Dropdown */}
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <select
+                  value={modalDriver ? modalDriver.idUser : ""}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (val) {
+                      openDriverDrawer(val);
+                    }
+                  }}
+                  className="px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/60 text-slate-800 dark:text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  aria-label="Pilih driver untuk melihat riwayat"
+                >
+                  <option value="">🔍 Buka Riwayat Driver...</option>
+                  {driverSummaryList.map((d) => (
+                    <option key={d.idUser} value={d.idUser}>
+                      {d.namaDriver} ({d.totalAwb} AWB - {d.totalSesi} Sesi)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             {/* View Mode Toggle */}
             <div className="flex items-center rounded-lg bg-slate-100 dark:bg-slate-800 p-1 border border-slate-200 dark:border-slate-700 text-xs">
               <button
@@ -894,7 +990,8 @@ function RiwayatPickupContent() {
                 return (
                   <div
                     key={driver.idUser}
-                    className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all flex flex-col justify-between overflow-hidden"
+                    onClick={() => openDriverDrawer(driver.idUser, driver.namaDriver)}
+                    className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between overflow-hidden cursor-pointer group"
                   >
                     {/* Driver Card Header */}
                     <div className="p-5 pb-4">
@@ -990,10 +1087,13 @@ function RiwayatPickupContent() {
                         {driver.totalTripSelesai}x Selesai di Gudang
                       </span>
                       <button
-                        onClick={() => setModalDriver(driver)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDriverDrawer(driver.idUser, driver.namaDriver);
+                        }}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 transition-all shadow-sm"
                       >
-                        <span>Lihat Riwayat</span>
+                        <span>Buka Riwayat</span>
                         <ChevronRight className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -1117,9 +1217,10 @@ function RiwayatPickupContent() {
                   <th className="py-3 px-4">Asal Seller / Titik</th>
                   <th className="py-3 px-4 text-center">Total AWB</th>
                   <th className="py-3 px-4">Rincian Paket</th>
+                  <th className="py-3 px-4 text-center">Foto Bukti</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Catatan</th>
-                  <th className="py-3 px-4 text-right">Detail</th>
+                  <th className="py-3 px-4 text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -1144,8 +1245,19 @@ function RiwayatPickupContent() {
                           : "-"}
                       </div>
                     </td>
-                    <td className="py-3 px-4 whitespace-nowrap font-bold text-slate-800 dark:text-slate-200">
-                      {item.nama_driver}
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDriverDrawer(item.id_user, item.nama_driver);
+                        }}
+                        className="font-bold text-slate-800 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1.5 transition-colors group/d"
+                        title="Klik untuk membuka slide panel riwayat driver"
+                      >
+                        <User className="h-3.5 w-3.5 text-slate-400 group-hover/d:text-blue-500" />
+                        <span>{item.nama_driver}</span>
+                      </button>
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
                       <span className="inline-flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-0.5 text-[11px] font-mono font-bold border border-slate-200 dark:border-slate-700">
@@ -1162,16 +1274,52 @@ function RiwayatPickupContent() {
                     <td className="py-3 px-4 whitespace-nowrap text-slate-500">
                       {item.koli || 0} Koli • {item.ecer || 0} Ecer • {item.high_value || 0} HV
                     </td>
+                    <td className="py-3 px-4 text-center whitespace-nowrap">
+                      {item.foto_url ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setLightboxPhoto({
+                              url: item.foto_url!,
+                              title: `${item.asal_seller || "Gudang"} - ${item.nama_driver}`,
+                              subtitle: `${item.tanggal || ""} ${item.updated_at ? new Date(item.updated_at).toLocaleTimeString("id-ID") : ""}`,
+                              awb: item.jumlah_barang,
+                              koli: item.koli,
+                              ecer: item.ecer,
+                              hv: item.high_value,
+                            });
+                          }}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:border-blue-300 dark:hover:border-blue-800 text-slate-700 dark:text-slate-200 transition-all shadow-sm group/pic"
+                          title="Lihat foto bukti pickup"
+                        >
+                          <Camera className="h-3.5 w-3.5 text-blue-500 group-hover/pic:scale-110 transition-transform" />
+                          <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">Foto</span>
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 italic">-</span>
+                      )}
+                    </td>
                     <td className="py-3 px-4 whitespace-nowrap">
                       {renderStatusBadge(item.status)}
                     </td>
                     <td className="py-3 px-4 max-w-[200px] truncate text-slate-500">
                       {item.catatan || "-"}
                     </td>
-                    <td className="py-3 px-4 text-right">
-                      <span className="text-slate-700 dark:text-slate-300 font-semibold hover:underline">
-                        Buka
-                      </span>
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDriverDrawer(item.id_user, item.nama_driver);
+                          }}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-md text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                          title="Buka Slide Panel Riwayat Driver"
+                        >
+                          Riwayat
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1182,120 +1330,285 @@ function RiwayatPickupContent() {
       )}
 
       {/* ───────────────────────────────────────────────────────────────────
-       * MODAL DRILL-DOWN: DETAIL RIWAYAT DRIVER SPESIFIK
+       * SLIDE-OVER DRAWER: PANEL RIWAYAT DRIVER & BUKTI PICKUP (KANAN)
        * ─────────────────────────────────────────────────────────────────── */}
       {modalDriver && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          {/* Backdrop Blur */}
           <div
-            className="w-full max-w-2xl rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/60">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold text-base flex items-center justify-center">
-                  {modalDriver.namaDriver.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    Riwayat Muatan: {modalDriver.namaDriver}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="inline-flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-1.5 py-0.5 text-[10px] font-mono font-bold">
-                      <Truck className="h-3 w-3 text-slate-500" /> {getPlatForDriver(modalDriver.idUser, modalDriver.namaDriver)}
-                    </span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
-                      Total {modalDriver.totalAwb} AWB ({modalDriver.logs.length} kali input)
-                    </span>
+            className="fixed inset-0 bg-slate-950/40 backdrop-blur-[2px] transition-opacity animate-in fade-in duration-200"
+            onClick={() => setModalDriver(null)}
+          />
+
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10 pointer-events-none">
+            <div
+              className="w-screen max-w-xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col pointer-events-auto animate-in slide-in-from-right duration-300"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Drawer Header */}
+              <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/60 backdrop-blur-sm flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-extrabold text-base flex items-center justify-center shadow-sm">
+                    {modalDriver.namaDriver.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                        {modalDriver.namaDriver}
+                      </h3>
+                      {renderStatusBadge(modalDriver.latestStatus)}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className="inline-flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-0.5 text-[11px] font-mono font-bold border border-slate-200 dark:border-slate-700">
+                        <Truck className="h-3 w-3 text-slate-500" />
+                        {getPlatForDriver(modalDriver.idUser, modalDriver.namaDriver)}
+                      </span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        Total {modalDriver.logs.length} Sesi Input
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <button
-                onClick={() => setModalDriver(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
 
-            {/* Modal Driver Metrics Summary */}
-            <div className="grid grid-cols-4 gap-2 p-3 bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800 text-center text-xs">
-              <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Total AWB</span>
-                <span className="text-base font-bold text-slate-900 dark:text-white">{modalDriver.totalAwb}</span>
-              </div>
-              <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Koli</span>
-                <span className="text-base font-bold text-slate-800 dark:text-slate-200">{modalDriver.totalKoli}</span>
-              </div>
-              <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Ecer</span>
-                <span className="text-base font-bold text-slate-800 dark:text-slate-200">{modalDriver.totalEcer}</span>
-              </div>
-              <div className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">High Value</span>
-                <span className="text-base font-bold text-slate-800 dark:text-slate-200">{modalDriver.totalHv}</span>
-              </div>
-            </div>
-
-            {/* Modal Body: Timeline Log Perjalanan */}
-            <div className="p-5 overflow-y-auto space-y-3 text-xs flex-1">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-                Timeline & Riwayat Sesi Driver
-              </div>
-
-              <div className="space-y-2.5">
-                {modalDriver.logs.map((logItem) => (
-                  <div
-                    key={logItem.id_log}
-                    className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 space-y-1.5"
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setModalDriver(null)}
+                    className="p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all"
+                    title="Tutup Panel"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 dark:text-white">
-                          {logItem.asal_seller || "Gudang Utama"}
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          #{logItem.id_log}
-                        </span>
-                      </div>
-                      {renderStatusBadge(logItem.status)}
-                    </div>
-
-                    <div className="flex items-center gap-3 text-[11px] text-slate-400">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {logItem.updated_at
-                          ? new Date(logItem.updated_at).toLocaleTimeString("id-ID")
-                          : "-"}
-                      </span>
-                      <span>•</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
-                        +{logItem.jumlah_barang} AWB
-                      </span>
-                      <span>
-                        ({logItem.koli || 0} Koli, {logItem.ecer || 0} Ecer, {logItem.high_value || 0} HV)
-                      </span>
-                    </div>
-
-                    {logItem.catatan && (
-                      <p className="text-[11px] text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800 italic mt-1">
-                        &quot;{logItem.catatan}&quot;
-                      </p>
-                    )}
-                  </div>
-                ))}
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {/* Modal Footer */}
-            <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex justify-end">
-              <button
-                onClick={() => setModalDriver(null)}
-                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-all"
-              >
-                Tutup
-              </button>
+              {/* Drawer Switcher & Metrics Banner */}
+              <div className="p-4 bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800 space-y-3">
+                {/* Switch to other driver quick selector */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                    Ganti Driver:
+                  </span>
+                  <select
+                    value={modalDriver.idUser}
+                    onChange={(e) => {
+                      const uid = parseInt(e.target.value, 10);
+                      if (uid) openDriverDrawer(uid);
+                    }}
+                    className="px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium focus:outline-none cursor-pointer"
+                  >
+                    {driverSummaryList.map((d) => (
+                      <option key={d.idUser} value={d.idUser}>
+                        {d.namaDriver} ({d.totalAwb} AWB)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* KPI Grid */}
+                <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                  <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Total AWB</span>
+                    <span className="text-base font-extrabold text-slate-900 dark:text-white">
+                      {modalDriver.totalAwb}
+                    </span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Koli</span>
+                    <span className="text-base font-bold text-slate-800 dark:text-slate-200">
+                      {modalDriver.totalKoli}
+                    </span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Ecer</span>
+                    <span className="text-base font-bold text-slate-800 dark:text-slate-200">
+                      {modalDriver.totalEcer}
+                    </span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Foto Bukti</span>
+                    <span className="text-base font-bold text-blue-600 dark:text-blue-400 flex items-center justify-center gap-1">
+                      <Camera className="h-3.5 w-3.5" />
+                      {drawerPhotoCount}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* In-Drawer Search & Filter Controls */}
+              <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 bg-white dark:bg-slate-900">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Cari toko seller, catatan, ID log..."
+                    value={drawerSearch}
+                    onChange={(e) => setDrawerSearch(e.target.value)}
+                    className="w-full pl-8 pr-7 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                  />
+                  {drawerSearch && (
+                    <button
+                      onClick={() => setDrawerSearch("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setDrawerOnlyPhotos((prev) => !prev)}
+                  className={cn(
+                    "px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border whitespace-nowrap",
+                    drawerOnlyPhotos
+                      ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-800"
+                      : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750"
+                  )}
+                  title="Filter hanya stop yang memiliki foto bukti"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                  <span>Ada Foto ({drawerPhotoCount})</span>
+                </button>
+              </div>
+
+              {/* Drawer Body: Timeline Perjalanan */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span className="font-bold uppercase tracking-wider text-[11px]">
+                    Riwayat Kunjungan ({drawerFilteredLogs.length})
+                  </span>
+                  <span>Periode: {activeDateRange.label}</span>
+                </div>
+
+                {drawerFilteredLogs.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-slate-400">
+                    <PackageCheck className="h-8 w-8 mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                    <p className="font-semibold text-slate-700 dark:text-slate-300">Tidak ada log yang cocok</p>
+                    <p className="text-[11px] mt-1 text-slate-400">
+                      Coba ganti kata kunci pencarian atau nonaktifkan filter foto.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="relative border-l-2 border-slate-200 dark:border-slate-800 ml-3.5 pl-5 space-y-5">
+                    {drawerFilteredLogs.map((logItem) => (
+                      <div key={logItem.id_log} className="relative group">
+                        {/* Timeline Bullet Node */}
+                        <div className="absolute -left-[27px] top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 bg-slate-900 dark:bg-slate-100 shadow-sm" />
+
+                        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800/80 transition-all shadow-sm space-y-2.5">
+                          {/* Stop Header */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <Store className="h-4 w-4 text-slate-500" />
+                                <span className="font-bold text-sm text-slate-900 dark:text-white">
+                                  {logItem.asal_seller || "Gudang Utama"}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                Log #{logItem.id_log}
+                              </span>
+                            </div>
+                            {renderStatusBadge(logItem.status)}
+                          </div>
+
+                          {/* Time & Volume Stats */}
+                          <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5 text-slate-400" />
+                              {logItem.updated_at
+                                ? new Date(logItem.updated_at).toLocaleTimeString("id-ID", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    second: "2-digit",
+                                  })
+                                : logItem.tanggal || "-"}
+                            </span>
+                            <span>•</span>
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              +{logItem.jumlah_barang} AWB
+                            </span>
+                            <span className="text-[11px]">
+                              ({logItem.koli || 0} Koli, {logItem.ecer || 0} Ecer
+                              {logItem.high_value ? `, ${logItem.high_value} HV` : ""})
+                            </span>
+                          </div>
+
+                          {/* Remarks */}
+                          {logItem.catatan && (
+                            <p className="text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800 italic">
+                              &quot;{logItem.catatan}&quot;
+                            </p>
+                          )}
+
+                          {/* Foto Bukti Pickup Preview */}
+                          {logItem.foto_url && (
+                            <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                                  <Camera className="h-3.5 w-3.5 text-blue-500" />
+                                  Foto Bukti Pickup
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setLightboxPhoto({
+                                    url: logItem.foto_url!,
+                                    title: `${logItem.asal_seller || "Gudang"} - ${modalDriver.namaDriver}`,
+                                    subtitle: `${logItem.tanggal || ""} ${logItem.updated_at ? new Date(logItem.updated_at).toLocaleTimeString("id-ID") : ""}`,
+                                    awb: logItem.jumlah_barang,
+                                    koli: logItem.koli,
+                                    ecer: logItem.ecer,
+                                    hv: logItem.high_value,
+                                  })}
+                                  className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+                                >
+                                  Perbesar Foto
+                                </button>
+                              </div>
+                              <div
+                                onClick={() => setLightboxPhoto({
+                                  url: logItem.foto_url!,
+                                  title: `${logItem.asal_seller || "Gudang"} - ${modalDriver.namaDriver}`,
+                                  subtitle: `${logItem.tanggal || ""} ${logItem.updated_at ? new Date(logItem.updated_at).toLocaleTimeString("id-ID") : ""}`,
+                                  awb: logItem.jumlah_barang,
+                                  koli: logItem.koli,
+                                  ecer: logItem.ecer,
+                                  hv: logItem.high_value,
+                                })}
+                                className="relative group/pic cursor-pointer overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-950 aspect-video flex items-center justify-center hover:ring-2 hover:ring-blue-400 transition-all shadow-sm"
+                              >
+                                <img
+                                  src={getFullPhotoUrl(logItem.foto_url)}
+                                  alt={`Bukti pickup ${logItem.asal_seller}`}
+                                  className="w-full h-full object-cover group-hover/pic:scale-105 transition-transform duration-300"
+                                  loading="lazy"
+                                />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/pic:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white">
+                                  <ZoomIn className="h-5 w-5 drop-shadow" />
+                                  <span className="text-xs font-semibold drop-shadow">Buka Foto Penuh</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Drawer Footer */}
+              <div className="px-6 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between">
+                <span className="text-xs text-slate-500">
+                  Total {modalDriver.logs.length} catatan dalam periode ini
+                </span>
+                <button
+                  onClick={() => setModalDriver(null)}
+                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-all"
+                >
+                  Tutup Panel
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1325,15 +1638,123 @@ function RiwayatPickupContent() {
               <p><strong>Status:</strong> {modalLogDetail.status}</p>
               <p><strong>Waktu:</strong> {modalLogDetail.tanggal} {modalLogDetail.updated_at}</p>
               {modalLogDetail.catatan && <p><strong>Catatan:</strong> {modalLogDetail.catatan}</p>}
+
+              {modalLogDetail.foto_url && (
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <span className="font-bold text-slate-700 dark:text-slate-300 block mb-1.5 flex items-center gap-1.5">
+                    <Camera className="h-3.5 w-3.5 text-blue-500" />
+                    Foto Bukti Pickup:
+                  </span>
+                  <div
+                    onClick={() => setLightboxPhoto({
+                      url: modalLogDetail.foto_url!,
+                      title: `${modalLogDetail.asal_seller || "Gudang"} - ${modalLogDetail.nama_driver}`,
+                      subtitle: `${modalLogDetail.tanggal} ${modalLogDetail.updated_at || ""}`,
+                      awb: modalLogDetail.jumlah_barang,
+                      koli: modalLogDetail.koli,
+                      ecer: modalLogDetail.ecer,
+                      hv: modalLogDetail.high_value,
+                    })}
+                    className="cursor-pointer overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-950 aspect-video flex items-center justify-center group relative"
+                  >
+                    <img
+                      src={getFullPhotoUrl(modalLogDetail.foto_url)}
+                      alt="Foto Bukti"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 text-white">
+                      <ZoomIn className="h-4 w-4" />
+                      <span className="text-[11px] font-semibold">Perbesar</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex justify-end pt-2">
               <button
                 onClick={() => setModalLogDetail(null)}
-                className="px-4 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold"
+                className="px-4 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
               >
                 Tutup
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────────────────────
+       * LIGHTBOX MODAL: PREVIEW FOTO BUKTI PICKUP
+       * ─────────────────────────────────────────────────────────────────── */}
+      {lightboxPhoto && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setLightboxPhoto(null)}
+        >
+          <div
+            className="w-full max-w-3xl rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Lightbox Header */}
+            <div className="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+              <div className="min-w-0 pr-4">
+                <h3 className="text-sm font-bold text-white truncate">
+                  {lightboxPhoto.title}
+                </h3>
+                {lightboxPhoto.subtitle && (
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {lightboxPhoto.subtitle}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={getFullPhotoUrl(lightboxPhoto.url)}
+                  target="_blank"
+                  rel="noreferrer"
+                  download
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+                  title="Unduh / Buka Asli"
+                >
+                  <Download className="h-4 w-4" />
+                </a>
+                <button
+                  onClick={() => setLightboxPhoto(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+                  title="Tutup"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Photo Viewer */}
+            <div className="flex-1 overflow-auto bg-black flex items-center justify-center p-3 sm:p-6 min-h-[300px]">
+              <img
+                src={getFullPhotoUrl(lightboxPhoto.url)}
+                alt="Foto Bukti Pickup"
+                className="max-h-[70vh] max-w-full rounded-lg object-contain shadow-2xl"
+              />
+            </div>
+
+            {/* Footer with Details */}
+            {lightboxPhoto.awb !== undefined && (
+              <div className="px-5 py-3 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between text-xs text-slate-400">
+                <div className="flex items-center gap-3">
+                  <span className="font-bold text-white">
+                    Muatan: {lightboxPhoto.awb} AWB
+                  </span>
+                  <span>
+                    ({lightboxPhoto.koli || 0} Koli, {lightboxPhoto.ecer || 0} Ecer, {lightboxPhoto.hv || 0} HV)
+                  </span>
+                </div>
+                <button
+                  onClick={() => setLightboxPhoto(null)}
+                  className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold transition-all text-xs"
+                >
+                  Tutup
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
