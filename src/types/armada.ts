@@ -266,6 +266,7 @@ export interface DriverPickupLog {
   status: string;
   catatan?: string;
   asal_seller?: string;
+  foto_url?: string;
   created_by?: string;
   created_at: string;
   updated_at: string;
