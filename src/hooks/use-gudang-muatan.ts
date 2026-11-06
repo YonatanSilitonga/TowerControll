@@ -75,7 +75,6 @@ export interface GudangInputPayload {
   jenis_ritase: string;
   ritase_ke: number;
   catatan?: string;
-  jumlah_awb: number;
   koli_jkt: number;
   koli_seg: number;
   koli_btn: number;
@@ -84,7 +83,6 @@ export interface GudangInputPayload {
   ecer_btn: number;
   koli_hv: number;
   ecer_hv: number;
-  awb_hv: number;
 }
 
 /** Payload konfirmasi pengambilan ke ritase driver. */
@@ -93,7 +91,6 @@ export interface GudangConfirmPayload {
   ritase_ke: number;
   id_ritase: number;
   id_stop?: number;
-  diambil_awb: number;
   diambil_koli_jkt: number;
   diambil_koli_seg: number;
   diambil_koli_btn: number;
@@ -106,9 +103,6 @@ export interface GudangConfirmPayload {
   diambil_ecer_hv_jkt: number;
   diambil_ecer_hv_seg: number;
   diambil_ecer_hv_btn: number;
-  diambil_awb_hv_jkt: number;
-  diambil_awb_hv_seg: number;
-  diambil_awb_hv_btn: number;
   catatan?: string;
 }
 
@@ -173,7 +167,7 @@ export function useConfirmGudangPickup() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: GudangConfirmPayload) =>
-      post<{ sisa: { jumlah_awb: number } }>("/gudang-muatan/confirm-pickup", payload, {
+      post<{ sisa: { koli_jkt: number; koli_seg: number; koli_btn: number } }>("/gudang-muatan/confirm-pickup", payload, {
         token,
       }),
     onSuccess: () => {

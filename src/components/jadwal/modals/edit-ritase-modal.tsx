@@ -232,22 +232,35 @@ export function EditRitaseModal({
     );
     if (!confirmed) return;
 
-    updateMutation.mutate(
-      {
-        idRitase: editingRitase.id_ritase,
-        data: {
+    const finalDropPoint =
+      [...stops]
+        .reverse()
+        .find(
+          (s) =>
+            s.jenis_stop === "gateway" || s.jenis_stop === "drop_point",
+        )?.id_drop_point ?? editingRitase.id_drop_point;
+
+    const isRunningLocked =
+      editingRitase.status === "berjalan" && !isWhisnu;
+
+    const payload = isRunningLocked
+      ? {
+          id_drop_point: finalDropPoint,
+          stops: reindexedStops,
+        }
+      : {
           id_driver: editingRitase.id_driver,
           id_kendaraan: editingRitase.id_kendaraan,
-          id_drop_point:
-            [...stops]
-              .reverse()
-              .find((s) => s.jenis_stop === "gateway")?.id_drop_point ??
-            masterOptions?.drop_points[0]?.id_drop_point ??
-            1,
+          id_drop_point: finalDropPoint,
           status: editingRitase.status,
           ritase_ke: editingRitase.ritase_ke,
           stops: reindexedStops,
-        },
+        };
+
+    updateMutation.mutate(
+      {
+        idRitase: editingRitase.id_ritase,
+        data: payload,
       },
       {
         onSuccess: () => {

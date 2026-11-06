@@ -3,7 +3,7 @@ import { WhatsAppContact } from "@/components/armada/whatsapp-contact";
 import { createPortal } from "react-dom";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
-import { Check, ChevronDown, ChevronUp, Clock, Gauge, History, Loader2, MapPin, Package, Phone, Save, Search, Truck } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Clock, Gauge, History, Loader2, MapPin, Save, Search, Truck } from "lucide-react";
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
 import { useQueryClient } from "@tanstack/react-query";
 import { get, post } from "@/lib/api-client";
@@ -72,19 +72,20 @@ const truckIconCache = new Map<string, L.DivIcon>();
 const sellerIconCache = new Map<string, L.DivIcon>();
 
 /** Ikon Truk/Driver:
- *  - Driver Pickup: Oranye (#ea580c) saat LIVE, gelap saat offline
- *  - Driver Reguler: Hijau (#10b981) saat LIVE, gelap saat offline
- *  - Bubble chat: Angka AWB di atas icon jika > 0
+ *  - Driver Pickup: Oranye (#ea580c) saat LIVE, gelap saat offline; bubble AWB.
+ *  - Driver Reguler: Hijau (#10b981) saat LIVE, gelap saat offline; bubble koli
+ *    hanya setelah konfirmasi penjemputan.
  */
 function getTruckIcon(
   selected: boolean,
   roleDriver?: string | null,
   isLive?: boolean,
-  totalAwb?: number | null
+  muatanValue?: number | null,
+  unit: "awb" | "koli" = "koli"
 ): L.DivIcon {
   const isPickup = roleDriver === "driver_pickup";
-  const awbVal = totalAwb != null && totalAwb >= 0 ? totalAwb : 0;
-  const key = `${selected}:${isPickup}:${!!isLive}:${awbVal}`;
+  const muatan = muatanValue != null && muatanValue >= 0 ? muatanValue : 0;
+  const key = `${selected}:${isPickup}:${!!isLive}:${unit}:${muatan}`;
 
   const cached = truckIconCache.get(key);
   if (cached) return cached;
@@ -106,10 +107,10 @@ function getTruckIcon(
     border = "#fff";
   }
 
-  // Bubble AWB hanya tampil bila driver membawa muatan (> 0).
+  // Bubble hanya tampil bila driver membawa muatan (> 0).
   // Tanpa muatan → marker truk polos. Geometri ikon dipertahankan agar
   // posisi marker tidak melompat saat angka muncul/hilang.
-  const hasBubble = awbVal > 0;
+  const hasBubble = muatan > 0;
   const bubbleBg = isPickup ? "#c2410c" : "#047857";
 
   const icon = L.divIcon({
@@ -120,8 +121,8 @@ function getTruckIcon(
       <div style="position:relative;width:34px;height:54px;">
         ${hasBubble ? `
         <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:10;white-space:nowrap;background:${bubbleBg};color:#fff;border:1.5px solid #fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800;box-shadow:0 2px 5px rgba(0,0,0,0.35);display:flex;align-items:center;gap:2px;">
-          <span>${awbVal}</span>
-          <span style="font-size:8px;opacity:0.85;">AWB</span>
+          <span>${muatan}</span>
+          <span style="font-size:8px;opacity:0.85;">${unit}</span>
           <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid ${bubbleBg};"></div>
         </div>` : ""}
         ${selected ? `<span class="truck-pulse-ring" style="top:20px;"></span>` : ""}
@@ -159,22 +160,32 @@ function getTruckIcon(
 }
 
 /** Ikon Seller / Implan:
- *  - Bubble angka AWB di atasnya HANYA bila ada sisa muatan (> 0).
- *  - Tanpa muatan (0 / sudah habis diambil) → marker polos tanpa bubble.
- *  - Warna marker: hijau bila sudah diambil semua, biru bila masih menunggu.
+ *  - Seller tidak menampilkan bubble muatan (barang seller diambil driver pickup).
+ *  - Implan menampilkan bubble AWB sisa muatan (> 0); tanpa muatan → marker polos.
+ *  - Warna marker: seller biru, implant hijau; shade lebih gelap bila sudah diambil.
  */
-function getSellerIcon(jumlahBarang?: number | null, statusPickup?: string | null, sisaBarang?: number | null): L.DivIcon {
-  const count = jumlahBarang != null && jumlahBarang >= 0 ? jumlahBarang : 0;
-  // Sisa = input − sudah diambil (dari backend); fallback ke total bila backend lama.
-  const shown = sisaBarang != null && sisaBarang >= 0 ? sisaBarang : count;
+function getSellerIcon(
+  statusPickup?: string | null,
+  sisaAwb?: number | null,
+  variant: "seller" | "implant" = "seller"
+): L.DivIcon {
+  const shown = sisaAwb != null && sisaAwb >= 0 ? sisaAwb : 0;
   const status = statusPickup || "menunggu";
-  const key = `${shown}:${status}`;
+  const isImplant = variant === "implant";
+  const key = `${variant}:${shown}:${status}`;
 
   const cached = sellerIconCache.get(key);
   if (cached) return cached;
 
   const isSelesai = status === "sudah_diambil";
-  const hasBubble = shown > 0;
+  const markerBg = isImplant
+    ? isSelesai
+      ? "#047857"
+      : "#10b981"
+    : isSelesai
+      ? "#0369a1"
+      : "#0284c7";
+  const hasBubble = isImplant && shown > 0;
   const badgeBg = "#d97706"; // amber — hanya dipakai saat bubble tampil
 
   const icon = L.divIcon({
@@ -186,12 +197,13 @@ function getSellerIcon(jumlahBarang?: number | null, statusPickup?: string | nul
         ${hasBubble ? `
         <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:10;white-space:nowrap;background:${badgeBg};color:#fff;border:1.5px solid #fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800;box-shadow:0 2px 5px rgba(0,0,0,0.35);display:flex;align-items:center;gap:2px;">
           <span>${shown}</span>
+          <span style="font-size:8px;opacity:0.85;">awb</span>
           <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid ${badgeBg};"></div>
         </div>` : ""}
         <div class="marker-visual" style="
           position:absolute;bottom:0;left:0;
           width:30px;height:30px;
-          background:${isSelesai ? "#10b981" : "#0284c7"};
+          background:${markerBg};
           border:2px solid #fff;
           border-radius:50%;
           box-shadow:0 2px 6px rgba(0,0,0,.4);
@@ -211,7 +223,8 @@ function getSellerIcon(jumlahBarang?: number | null, statusPickup?: string | nul
   return icon;
 }
 
-const SELLER_ICON = getSellerIcon(0, "menunggu");
+const SELLER_ICON = getSellerIcon("menunggu", null, "seller");
+const IMPLANT_ICON = getSellerIcon("menunggu", null, "implant");
 
 function createGudangIcon(color: string) {
   return L.divIcon({
@@ -238,10 +251,10 @@ function createGudangIcon(color: string) {
 
 const gudangIconCache = new Map<string, L.DivIcon>();
 
-/** Ikon gudang + bubble AWB kondisional: hanya tampil bila sisa muatan > 0.
+/** Ikon gudang + bubble koli kondisional: hanya tampil bila sisa muatan > 0.
  *  Geometri dipertahankan agar posisi marker tidak melompat. */
-function getGudangIcon(color: string, sisaBarang?: number | null): L.DivIcon {
-  const shown = sisaBarang != null && sisaBarang >= 0 ? sisaBarang : 0;
+function getGudangIcon(color: string, sisaKoli?: number | null): L.DivIcon {
+  const shown = sisaKoli != null && sisaKoli >= 0 ? sisaKoli : 0;
   const key = `${color}:${shown > 0 ? shown : 0}`;
   const cached = gudangIconCache.get(key);
   if (cached) return cached;
@@ -256,6 +269,7 @@ function getGudangIcon(color: string, sisaBarang?: number | null): L.DivIcon {
         ${hasBubble ? `
         <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:10;white-space:nowrap;background:#d97706;color:#fff;border:1.5px solid #fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800;box-shadow:0 2px 5px rgba(0,0,0,0.35);display:flex;align-items:center;gap:2px;">
           <span>${shown}</span>
+          <span style="font-size:8px;opacity:0.85;">koli</span>
           <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid #d97706;"></div>
         </div>` : ""}
         <div class="marker-visual" style="
@@ -487,8 +501,15 @@ function VehicleMarker({
     v.role_driver === "driver_pickup"
       ? !v.offline || hasSession || (Date.now() - lastT < 2 * 3600 * 1000)
       : !v.offline && hasSession;
-  const awbCount = v.total_awb ?? v.total_koli ?? 0;
-  const truckIcon = getTruckIcon(selected, v.role_driver, isLive, awbCount);
+  const isPickup = v.role_driver === "driver_pickup";
+  const showKoli = !isPickup && v.id_ritase != null && v.has_confirmation === true;
+  const bubbleValue = isPickup
+    ? (v.total_awb ?? 0)
+    : showKoli
+      ? (v.bubble_total ?? v.total_koli ?? 0)
+      : 0;
+  const bubbleUnit: "awb" | "koli" = isPickup ? "awb" : "koli";
+  const truckIcon = getTruckIcon(selected, v.role_driver, isLive, bubbleValue, bubbleUnit);
 
   return (
     <Marker
@@ -550,7 +571,7 @@ function VehicleMarker({
                 </div>
               </div>
 
-              {v.role_driver === "driver_pickup" ? (
+              {isPickup ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-bold text-amber-950">Muatan: {v.total_awb ?? 0} AWB</span>
@@ -562,7 +583,7 @@ function VehicleMarker({
                     Lihat Riwayat Pickup Driver &rarr;
                   </a>
                 </div>
-              ) : v.session_online !== false && ((v.total_koli ?? 0) > 0 || (v.total_eceran ?? 0) > 0 || (v.total_high_value ?? 0) > 0) ? (
+              ) : showKoli && v.session_online !== false && ((v.total_koli ?? 0) > 0 || (v.total_eceran ?? 0) > 0 || (v.total_high_value ?? 0) > 0) ? (
                 <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-800">
                   Muatan: {[(v.total_koli ?? 0) > 0 ? v.total_koli + " koli" : null, (v.total_eceran ?? 0) > 0 ? v.total_eceran + " ecer" : null, (v.total_high_value ?? 0) > 0 ? v.total_high_value + " HV" : null].filter(Boolean).join(" · ")}
                 </div>
@@ -738,7 +759,7 @@ function resolveStopPoint(
       lat: stop.latitude,
       lng: stop.longitude,
       label,
-      icon: isSeller || isImplant ? SELLER_ICON : isGudang ? DC_ICON : DROP_ICON,
+      icon: isSeller ? SELLER_ICON : isImplant ? IMPLANT_ICON : isGudang ? DC_ICON : DROP_ICON,
       kind: isSeller ? "seller" : isImplant ? "implant" : isGudang ? "gudang" : "drop",
     };
   }
@@ -764,7 +785,7 @@ function resolveStopPoint(
         lat: s.latitude,
         lng: s.longitude,
         label: s.nama_implant || `Implant ${s.id_implant}`,
-        icon: SELLER_ICON,
+        icon: IMPLANT_ICON,
         kind: "implant",
       };
   }
@@ -1294,8 +1315,8 @@ function LiveMapView({
         {legendOpen && (
           <div className={fullscreen ? "absolute right-0 bottom-full mb-3 w-60 max-w-[calc(100vw-32px)] space-y-1 rounded-xl border bg-white p-3 shadow-lg lg:bottom-auto lg:top-full lg:mb-0 lg:mt-3" : compact ? "flex flex-col items-center gap-1" : "space-y-0.5"}>
             <LegendToggle compact={fullscreen ? false : compact} label="Truk" color="#1e3a5f" active={show.trucks} onClick={() => toggleLayer("trucks")} />
-            <LegendToggle compact={fullscreen ? false : compact} label="Seller" color="#10b981" active={show.sellers} onClick={() => toggleLayer("sellers")} />
-            <LegendToggle compact={fullscreen ? false : compact} label="Implant" color="#f59e0b" active={show.implants} onClick={() => toggleLayer("implants")} />
+            <LegendToggle compact={fullscreen ? false : compact} label="Seller" color="#0284c7" active={show.sellers} onClick={() => toggleLayer("sellers")} />
+            <LegendToggle compact={fullscreen ? false : compact} label="Implant" color="#10b981" active={show.implants} onClick={() => toggleLayer("implants")} />
             <LegendToggle compact={fullscreen ? false : compact} label="Gudang Outgoing" color="#0ea5e9" active={show.gudang} onClick={() => toggleLayer("gudang")} />
             <LegendToggle compact={fullscreen ? false : compact} label="Gudang DC" color="#7c3aed" active={show.gudang} onClick={() => toggleLayer("gudang")} />
             <LegendToggle compact={fullscreen ? false : compact} label="Gateway" color="#f97316" active={show.drop} onClick={() => toggleLayer("drop")} />
@@ -1403,7 +1424,7 @@ function LiveMapView({
                 key={`gudang-${g.id_gudang}`}
                 poiKey={`gudang:${g.id_gudang}`}
                 position={[g.latitude, g.longitude]}
-                icon={getGudangIcon(isOutgoing ? "#0ea5e9" : "#7c3aed", g.sisa_barang ?? g.jumlah_barang ?? 0)}
+                icon={getGudangIcon(isOutgoing ? "#0ea5e9" : "#7c3aed", g.sisa_koli ?? g.koli ?? 0)}
                 focusKey={focusKey}
               >
                 <Popup autoPan={false}>   {/* ⬅️ INI — tambahkan autoPan={false} di sini */}
@@ -1418,11 +1439,11 @@ function LiveMapView({
                           : "Gudang DC (Buaran Indah) — acuan jarak \"DC\" tiap seller."}
                       </p>
                     )}
-                    {(g.jumlah_barang ?? 0) > 0 && (
+                    {(g.koli ?? 0) > 0 && (
                       <p className="mt-1 text-xs font-medium text-amber-600">
-                        Muatan: <b>{g.jumlah_barang} AWB</b>
-                        {(g.sisa_barang ?? 0) !== (g.jumlah_barang ?? 0) && (
-                          <> · Sisa <b>{g.sisa_barang ?? 0}</b></>
+                        Muatan: <b>{g.koli} koli</b>
+                        {(g.sisa_koli ?? 0) !== (g.koli ?? 0) && (
+                          <> · Sisa <b>{g.sisa_koli ?? 0} koli</b></>
                         )}
                       </p>
                     )}
@@ -1474,14 +1495,14 @@ function LiveMapView({
             </PoiMarker>
           ))}
 
-        {/* Seller / Implan — bisa difilter; ada bubble AWB & form update barang */}
+        {/* Seller / Implan — bisa difilter; seller tanpa bubble, implant bubble AWB */}
         {show.sellers &&
           sellers.map((s) => (
             <PoiMarker
               key={`seller-${s.id_seller}`}
               poiKey={`seller:${s.id_seller}`}
               position={[s.latitude, s.longitude]}
-              icon={getSellerIcon(s.jumlah_barang, s.status_pickup, s.sisa_barang)}
+              icon={getSellerIcon(s.status_pickup, null, "seller")}
               focusKey={focusKey}
             >
               <Popup autoPan={false}>    {/* ⬅️ INI — tambahkan autoPan={false} di sini */}
@@ -1517,13 +1538,6 @@ function LiveMapView({
                         </div>
                       )}
                       {s.pic && <p className="mt-1 text-xs">PIC: <b>{s.pic}</b></p>}
-                      {(s.total_koli != null && s.total_koli! > 0) || (s.total_ecer != null && s.total_ecer! > 0) || (s.total_high_value != null && s.total_high_value! > 0) ? (
-                        <p className="mt-1 text-xs font-medium text-amber-600">
-                          Muatan: <b>{s.total_koli ?? 0} koli</b>
-                          {(s.total_ecer != null && s.total_ecer! > 0) && ` • ${s.total_ecer} ecer`}
-                          {(s.total_high_value != null && s.total_high_value! > 0) && ` • ${s.total_high_value} HV`}
-                        </p>
-                      ) : null}
                       {s.no_hp && (
                         <WhatsAppContact phone={s.no_hp} />
                       )}
@@ -1541,7 +1555,7 @@ function LiveMapView({
               key={`implant-${s.id_implant}`}
               poiKey={`implant:${s.id_implant}`}
               position={[s.latitude, s.longitude]}
-              icon={getSellerIcon(s.jumlah_barang, s.status_pickup, s.sisa_barang)}
+              icon={getSellerIcon(s.status_pickup, s.sisa_barang ?? s.jumlah_barang ?? 0, "implant")}
               focusKey={focusKey}
             >
               <Popup autoPan={false}>
@@ -1584,18 +1598,23 @@ function LiveMapView({
                           Sisa: <b className="text-amber-600">{s.sisa_barang ?? 0} AWB</b>
                         </p>
                       )}
+                      {((s.koli ?? 0) > 0 || (s.sisa_koli ?? 0) > 0) && (
+                        <p className="mt-1 text-xs text-slate-600">
+                          Koli: <b>{s.koli ?? 0}</b> · Sisa: <b>{s.sisa_koli ?? 0}</b>
+                        </p>
+                      )}
                       {(s.anggota?.length ?? 0) > 1 && (
                         <p className="mt-1 text-[11px] text-slate-500">
                           Gabungan: {s.anggota!.join(", ")}
                         </p>
                       )}
-                      {(s.total_koli != null && s.total_koli! > 0) || (s.total_ecer != null && s.total_ecer! > 0) || (s.total_high_value != null && s.total_high_value! > 0) ? (
+                      {((s.ecer ?? 0) > 0 || (s.high_value ?? 0) > 0) && (
                         <p className="mt-1 text-xs font-medium text-amber-600">
-                          Muatan: <b>{s.total_koli ?? 0} koli</b>
-                          {(s.total_ecer != null && s.total_ecer! > 0) && ` • ${s.total_ecer} ecer`}
-                          {(s.total_high_value != null && s.total_high_value! > 0) && ` • ${s.total_high_value} HV`}
+                          {((s.ecer ?? 0) > 0) && `${s.ecer} ecer`}
+                          {((s.ecer ?? 0) > 0) && ((s.high_value ?? 0) > 0) && " • "}
+                          {((s.high_value ?? 0) > 0) && `${s.high_value} HV`}
                         </p>
-                      ) : null}
+                      )}
                       {s.no_hp && (
                         <WhatsAppContact phone={s.no_hp} />
                       )}
@@ -1697,90 +1716,6 @@ function LiveMapView({
   );
 }
 
-/** Popup info untuk titik Implan (Seller): informasi toko, jarak, & status muatan AWB (read-only) */
-function SellerPopupContent({
-  seller,
-  compact,
-}: {
-  seller: SellerLocation;
-  compact?: boolean;
-}) {
-  const isDiambil = seller.status_pickup === "sudah_diambil";
-  const hasMuatan = (seller.jumlah_barang != null && seller.jumlah_barang > 0) || (seller.koli != null && seller.koli > 0);
-
-  return (
-    <div className={compact ? "min-w-[140px] text-xs" : "min-w-[200px] max-w-[260px] text-xs"}>
-      {/* Header Info Toko */}
-      <div>
-        <p className="font-bold text-sky-800 text-sm">
-          {seller.nama_seller}
-          {seller.kode_seller && (
-            <span className="ml-1 text-[10px] font-normal text-slate-400">({seller.kode_seller})</span>
-          )}
-        </p>
-        {seller.alamat && (
-          <p className="mt-0.5 text-[11px] text-slate-500 line-clamp-2">{seller.alamat}</p>
-        )}
-        {seller.kota && (
-          <p className="text-[10px] text-slate-400">{seller.kota}</p>
-        )}
-        {seller.no_hp && (
-          <a
-            href={`tel:${seller.no_hp.replace(/[^+\d]/g, "")}`}
-            className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 hover:underline"
-          >
-            <Phone className="h-3 w-3" /> Telpon: {seller.no_hp}
-          </a>
-        )}
-      </div>
-
-      {/* Info Muatan / AWB Hari Ini (Read-only) */}
-      {hasMuatan && (
-        <div className="mt-2 rounded-lg border border-slate-200/80 bg-slate-50/80 p-2 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1 font-bold text-slate-800 text-xs">
-              <Package className="h-3.5 w-3.5 text-amber-500" />
-              {seller.jumlah_barang ?? 0} AWB
-            </span>
-            <span
-              className={cn(
-                "rounded px-1.5 py-0.5 text-[10px] font-bold",
-                isDiambil ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-              )}
-            >
-              {isDiambil ? "Sudah Diambil" : "Menunggu"}
-            </span>
-          </div>
-          {(seller.koli != null && seller.koli > 0) && (
-            <p className="mt-0.5 text-[10px] text-slate-500 font-medium">
-              {seller.koli} Koli {seller.ecer ? `• ${seller.ecer} Ecer` : ""} {seller.high_value ? `• ${seller.high_value} HV` : ""}
-            </p>
-          )}
-          {seller.catatan_pickup && (
-            <p className="mt-1 text-[10px] italic text-slate-600">"{seller.catatan_pickup}"</p>
-          )}
-        </div>
-      )}
-
-      {/* Jarak dari Gudang Outgoing & DC */}
-      {(seller.jarak_tempuh_km != null || seller.jarak_dc_km != null) && (
-        <div className="mt-2 space-y-0.5 border-t border-slate-100 pt-1.5 text-[11px]">
-          {seller.jarak_tempuh_km != null && (
-            <p className="font-medium text-sky-700">
-              Outgoing: <span className="font-bold">{seller.jarak_tempuh_km.toFixed(1)} km</span>
-            </p>
-          )}
-          {seller.jarak_dc_km != null && (
-            <p className="font-medium text-violet-700">
-              DC: <span className="font-bold">{seller.jarak_dc_km.toFixed(1)} km</span>
-            </p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /** Baris legenda yang bisa diklik (filter layer). Mode compact = dot-only + tooltip. */
 function LegendToggle({
   label,
@@ -1831,15 +1766,15 @@ function liveMapPropsEqual(prev: LiveMapProps, next: LiveMapProps): boolean {
   const vSig = (arr?: TrackingVehicle[]) =>
     (arr ?? [])
       .map((v) =>
-        [v.id_kendaraan, v.latitude?.toFixed(5), v.longitude?.toFixed(5), v.offline, v.last_login, v.id_ritase, v.last_update, v.total_awb, v.role_driver].join(":")
+        [v.id_kendaraan, v.latitude?.toFixed(5), v.longitude?.toFixed(5), v.offline, v.last_login, v.id_ritase, v.last_update, v.total_awb, v.total_koli, v.has_confirmation, v.bubble_total, v.role_driver].join(":")
       )
       .join("|");
   const sSig = (arr?: SellerLocation[]) =>
-    (arr ?? []).map((s) => [s.id_seller, s.latitude.toFixed(5), s.longitude.toFixed(5), s.jumlah_barang, s.status_pickup].join(":")).join("|");
+    (arr ?? []).map((s) => [s.id_seller, s.latitude.toFixed(5), s.longitude.toFixed(5), s.status_pickup].join(":")).join("|");
   const iSig = (arr?: ImplantLocation[]) =>
-    (arr ?? []).map((s) => [s.id_implant, s.latitude.toFixed(5), s.longitude.toFixed(5), s.jumlah_barang, s.status_pickup].join(":")).join("|");
+    (arr ?? []).map((s) => [s.id_implant, s.latitude.toFixed(5), s.longitude.toFixed(5), s.jumlah_barang, s.sisa_barang, s.koli, s.sisa_koli, s.ecer, s.high_value, s.status_pickup].join(":")).join("|");
   const gSig = (arr?: GudangPoint[]) =>
-    (arr ?? []).map((g) => [g.id_gudang, g.latitude.toFixed(5), g.longitude.toFixed(5)].join(":")).join("|");
+    (arr ?? []).map((g) => [g.id_gudang, g.latitude.toFixed(5), g.longitude.toFixed(5), g.koli, g.sisa_koli].join(":")).join("|");
   const dSig = (arr?: DropPointPoi[]) =>
     (arr ?? []).map((p) => [p.id_drop_point, p.latitude.toFixed(5), p.longitude.toFixed(5)].join(":")).join("|");
 

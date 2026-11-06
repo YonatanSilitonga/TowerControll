@@ -201,10 +201,8 @@ function GudangInputPanel() {
   const inputMut = useInputGudangMuatan();
 
   const [ritKe, setRitKe] = useState(1);
-  const [awb, setAwb] = useState(0);
   const [koli, setKoli] = useState({ ...emptyTrio });
   const [ecer, setEcer] = useState({ ...emptyTrio });
-  const [hvAwb, setHvAwb] = useState(0);
   const [hvKoli, setHvKoli] = useState(0);
   const [hvEcer, setHvEcer] = useState(0);
   const [catatan, setCatatan] = useState("");
@@ -238,7 +236,7 @@ function GudangInputPanel() {
       const p = pending.find((x) => `${x.jenis_ritase}__${x.ritase_ke}` === key);
       const s = sisaGrup.find((x) => `${x.jenis_ritase}__${x.ritase_ke}` === key);
       const adaSisa =
-        s != null && (s.sisa_awb > 0 || s.sisa_koli > 0 || s.sisa_ecer > 0);
+        s != null && (s.sisa_koli > 0 || s.sisa_ecer > 0);
       if (!p && !adaSisa) return;
       seen.add(key);
       out.push({ key, jenis, ritKe: rit, pending: p, sisa: s });
@@ -249,15 +247,12 @@ function GudangInputPanel() {
     return out;
   }, [pending, sisaGrup]);
 
+  const totalKoliInput = koli.jkt + koli.seg + koli.btn;
   const totalInput =
-    awb +
-    koli.jkt +
-    koli.seg +
-    koli.btn +
+    totalKoliInput +
     ecer.jkt +
     ecer.seg +
     ecer.btn +
-    hvAwb +
     hvKoli +
     hvEcer;
 
@@ -272,12 +267,12 @@ function GudangInputPanel() {
 
   const handleSubmit = async () => {
     if (totalInput <= 0) {
-      swal.error("Isi minimal salah satu angka muatan (AWB/Koli/Ecer/HV).");
+      swal.error("Isi minimal salah satu angka muatan (Koli/Ecer/HV).");
       return;
     }
     const ok = await swal.confirm(
       "Simpan muatan?",
-      `Rit ${ritKe} Outgoing — ${awb} AWB akan dicatat untuk Gudang Outgoing.`,
+      `Rit ${ritKe} Outgoing — ${totalKoliInput} koli akan dicatat untuk Gudang Outgoing.`,
       "Ya, simpan"
     );
     if (!ok) return;
@@ -286,7 +281,6 @@ function GudangInputPanel() {
         jenis_ritase: "outgoing",
         ritase_ke: ritKe,
         catatan: catatan.trim() || undefined,
-        jumlah_awb: awb,
         koli_jkt: koli.jkt,
         koli_seg: koli.seg,
         koli_btn: koli.btn,
@@ -295,13 +289,10 @@ function GudangInputPanel() {
         ecer_btn: ecer.btn,
         koli_hv: hvKoli,
         ecer_hv: hvEcer,
-        awb_hv: hvAwb,
       });
       swal.success("Data muatan berhasil disimpan!");
-      setAwb(0);
       setKoli({ ...emptyTrio });
       setEcer({ ...emptyTrio });
-      setHvAwb(0);
       setHvKoli(0);
       setHvEcer(0);
       setCatatan("");
@@ -358,14 +349,12 @@ function GudangInputPanel() {
               </div>
             </div>
 
-            <NumField label="Jumlah AWB" value={awb} onChange={setAwb} />
             <TrioFields title="Koli" values={koli} onChange={setKoli} />
             <TrioFields title="Ecer" values={ecer} onChange={setEcer} />
 
             <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3">
               <p className="text-xs font-bold text-slate-700">High Value</p>
               <div className="mt-2 grid grid-cols-3 gap-2">
-                <NumField label="AWB HV" value={hvAwb} onChange={setHvAwb} />
                 <NumField label="Koli HV" value={hvKoli} onChange={setHvKoli} />
                 <NumField label="Ecer HV" value={hvEcer} onChange={setHvEcer} />
               </div>
@@ -528,10 +517,7 @@ function HistoryCard({ items }: { items: GudangRiwayatItem[] }) {
               {formatWaktu(r.created_at)}
             </span>
             <div className="flex w-full items-center gap-3 border-t border-slate-100 pt-1.5 sm:w-auto sm:border-0 sm:pt-0">
-              <span className="tabular-nums font-bold text-violet-700">
-                {r.jumlah_awb} AWB
-              </span>
-              <span className="tabular-nums text-slate-500">{r.total_koli} koli</span>
+              <span className="tabular-nums font-bold text-violet-700">{r.total_koli} koli</span>
               <span className="tabular-nums text-slate-500">{r.total_ecer} ecer</span>
             </div>
           </div>
@@ -573,15 +559,12 @@ function GroupCard({
   const [selectedRitase, setSelectedRitase] = useState<number>(0);
   const [catatan, setCatatan] = useState("");
 
-  const [tAwb, setTAwb] = useState(0);
   const [tKoli, setTKoli] = useState({ ...emptyTrio });
   const [tEcer, setTEcer] = useState({ ...emptyTrio });
-  const [tHvAwb, setTHvAwb] = useState(0);
   const [tHvKoli, setTHvKoli] = useState(0);
   const [tHvEcer, setTHvEcer] = useState(0);
 
   useEffect(() => {
-    setTAwb(sisa?.sisa_awb ?? 0);
     setTKoli({
       jkt: sisa?.sisa_koli_jkt ?? 0,
       seg: sisa?.sisa_koli_seg ?? 0,
@@ -600,14 +583,12 @@ function GroupCard({
 
   const count = pending ? toInt(pending.jumlah_input) : 0;
   const confirmTotal =
-    tAwb +
     tKoli.jkt +
     tKoli.seg +
     tKoli.btn +
     tEcer.jkt +
     tEcer.seg +
     tEcer.btn +
-    tHvAwb +
     tHvKoli +
     tHvEcer;
   const isStartOnly = candidates.length === 0 && ritKe === 1;
@@ -638,16 +619,12 @@ function GroupCard({
         ritase_ke: ritKe,
         id_ritase: selected.id_ritase,
         id_stop: selected.id_stop ?? 0,
-        diambil_awb: tAwb,
         diambil_koli_jkt: tKoli.jkt,
         diambil_koli_seg: tKoli.seg,
         diambil_koli_btn: tKoli.btn,
         diambil_ecer_jkt: tEcer.jkt,
         diambil_ecer_seg: tEcer.seg,
         diambil_ecer_btn: tEcer.btn,
-        diambil_awb_hv_jkt: tHvAwb,
-        diambil_awb_hv_seg: 0,
-        diambil_awb_hv_btn: 0,
         diambil_koli_hv_jkt: tHvKoli,
         diambil_koli_hv_seg: 0,
         diambil_koli_hv_btn: 0,
@@ -656,7 +633,11 @@ function GroupCard({
         diambil_ecer_hv_btn: 0,
         catatan: catatan.trim() || undefined,
       });
-      swal.success(`Berhasil! Sisa ${res?.sisa?.jumlah_awb ?? 0} AWB.`);
+      const sisaKoli =
+        (res?.sisa?.koli_jkt ?? 0) +
+        (res?.sisa?.koli_seg ?? 0) +
+        (res?.sisa?.koli_btn ?? 0);
+      swal.success(`Berhasil! Sisa ${sisaKoli} koli.`);
     } catch (e: any) {
       swal.error(e?.message ?? "Gagal menyimpan konfirmasi.");
     }
@@ -695,8 +676,7 @@ function GroupCard({
 
       <div className="space-y-4 p-4">
         <div className="flex flex-wrap gap-2">
-          <SummaryChip label="Sisa AWB" value={sisa?.sisa_awb ?? 0} tone="violet" />
-          <SummaryChip label="Koli" value={sisa?.sisa_koli ?? 0} tone="blue" />
+          <SummaryChip label="Sisa Koli" value={sisa?.sisa_koli ?? 0} tone="blue" />
           <SummaryChip label="Ecer" value={sisa?.sisa_ecer ?? 0} tone="amber" />
           <SummaryChip label="HV" value={sisa?.sisa_hv ?? 0} tone="rose" />
         </div>
@@ -770,7 +750,6 @@ function GroupCard({
               </div>
 
               <div className="space-y-3">
-                <NumField label="Diambil (AWB)" value={tAwb} onChange={setTAwb} />
                 <div className="grid gap-3 sm:grid-cols-2">
                   <TrioFields
                     title="Diambil Koli"
@@ -791,8 +770,7 @@ function GroupCard({
                       (sisa {sisa?.sisa_hv ?? 0} gabungan)
                     </span>
                   </p>
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    <NumField label="AWB HV" value={tHvAwb} onChange={setTHvAwb} />
+                  <div className="mt-2 grid grid-cols-2 gap-2">
                     <NumField label="Koli HV" value={tHvKoli} onChange={setTHvKoli} />
                     <NumField label="Ecer HV" value={tHvEcer} onChange={setTHvEcer} />
                   </div>

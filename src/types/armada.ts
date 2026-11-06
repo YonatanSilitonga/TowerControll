@@ -141,6 +141,12 @@ export interface TrackingVehicle {
   total_koli?: number | null;
   total_high_value?: number | null;
   total_eceran?: number | null;
+  /** True bila ada konfirmasi penjemputan dari implant/gudang ke ritase ini hari ini. */
+  has_confirmation?: boolean;
+  /** Gateway akhir ritase: 'JKT' atau 'SEG' (termasuk BTN). */
+  gateway_akhir?: string | null;
+  /** Total koli + koli HV sesuai gateway akhir; dipakai bubble truk. */
+  bubble_total?: number | null;
   /** Role driver: 'driver' (reguler) atau 'driver_pickup'. */
   role_driver?: string | null;
   last_update: string;
@@ -302,6 +308,10 @@ export interface GudangPoint {
   jumlah_barang?: number | null;
   /** Sisa muatan (input − sudah diambil). Bubble peta hanya tampil bila > 0. */
   sisa_barang?: number | null;
+  /** Muatan dalam koli (karung) dari input koor gudang. */
+  koli?: number | null;
+  /** Sisa koli (input − sudah diambil). Dipakai bubble peta. */
+  sisa_koli?: number | null;
   status_pickup?: string | null;
 }
 
