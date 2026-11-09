@@ -1,3 +1,4 @@
+
 export type FleetStatus = "active" | "inactive";
 export type VehicleStatus = "available" | "in_transit" | "maintenance" | "off";
 export type DriverStatus = "on_duty" | "off";
@@ -251,6 +252,8 @@ export interface DriverPickupItem {
   session_online?: boolean;
   last_login?: string | null;
   updated_at?: string | null;
+  status_driver?: string;
+  status_user?: string;
 }
 
 export interface DriverPickupLog {

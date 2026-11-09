@@ -86,8 +86,19 @@ export function useTrackingMap() {
               // (menuju_seller / menuju_gudang) — agar icon selalu muncul di peta
               // meskipun session_online false / GPS stale.
               const isDpOnline = dp.session_online || hasActiveSession(dp.last_login);
-              const dpStatusLower = (dp.status || "").toLowerCase();
-              const isActivePickupStatus = ["menuju_seller", "menuju_gudang", "sedang menuju"].includes(dpStatusLower);
+              const dpStatusLower = (dp.status || "").toLowerCase().trim();
+              const isFinished =
+                dpStatusLower === "selesai" ||
+                dpStatusLower === "sampai gudang" ||
+                dpStatusLower === "sampai di gudang";
+              const isActivePickupStatus =
+                !isFinished &&
+                (dpStatusLower.includes("menuju") ||
+                  dpStatusLower.includes("kembali") ||
+                  dpStatusLower.includes("perjalanan") ||
+                  dpStatusLower.includes("loading") ||
+                  dpStatusLower.includes("muat") ||
+                  ["menuju_seller", "menuju_gudang", "sedang menuju", "kembali ke gudang", "kembali kegudang"].includes(dpStatusLower));
               if (isDpOnline || isActivePickupStatus) {
                 const syntheticId = 9000 + (dp.id_user || (idx + 1));
                 if (!existingVehicleIds.has(syntheticId)) {

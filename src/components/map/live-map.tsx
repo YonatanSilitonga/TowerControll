@@ -497,10 +497,19 @@ function VehicleMarker({
   }, [selected, hidePopup]);
 
   const hasSession = Boolean(v.session_online) || hasActiveSession(v.last_login);
+  const statusLower = (v.status || "").toLowerCase().trim();
+  const ritaseStatusLower = (v.status_ritase || "").toLowerCase().trim();
+  const hasActiveTrip =
+    statusLower.includes("menuju") ||
+    statusLower.includes("kembali") ||
+    statusLower.includes("perjalanan") ||
+    ritaseStatusLower.includes("in_transit") ||
+    ritaseStatusLower.includes("berjalan");
+
   const isLive =
     v.role_driver === "driver_pickup"
-      ? !v.offline || hasSession || (Date.now() - lastT < 2 * 3600 * 1000)
-      : !v.offline && hasSession;
+      ? !v.offline || hasSession || hasActiveTrip || (Date.now() - lastT < 2 * 3600 * 1000)
+      : (!v.offline && hasSession) || hasActiveTrip;
   const isPickup = v.role_driver === "driver_pickup";
   const showKoli = !isPickup && v.id_ritase != null && v.has_confirmation === true;
   const bubbleValue = isPickup
@@ -1118,15 +1127,11 @@ function LiveMapView({
       const isGpsActive = !v.offline && lastT > 0 && (Date.now() - lastT < 15 * 60 * 1000);
       const isOnline = isGpsActive || Boolean(v.session_online) || hasActiveSession(v.last_login);
 
-      const statusLower = (v.status || "").toLowerCase();
-
-      // Driver pickup dengan status aktif (menuju seller / gudang) selalu lolos filter online
-      const activePickupStatuses = ["menuju_seller", "menuju_gudang", "sedang menuju", "menuju seller"];
-      const isActivePickupDriver = v.role_driver === "driver_pickup" && activePickupStatuses.includes(statusLower);
+      const statusLower = (v.status || "").toLowerCase().trim();
+      const ritaseStatusLower = (v.status_ritase || "").toLowerCase().trim();
 
       // KHUSUS STATUS SUDAH SAMPAI GUDANG / SELESAI:
       // Armada otomatis hilang dari peta live tracking karena perjalanan telah tuntas sampai di gudang/tujuan akhir.
-      const ritaseStatusLower = (v.status_ritase || "").toLowerCase();
       const isSampaiGudang =
         statusLower === "selesai" ||
         statusLower === "sampai gudang" ||
@@ -1138,15 +1143,34 @@ function LiveMapView({
         return false;
       }
 
-      // Sembunyikan kendaraan HANYA jika driver benar-benar sudah LOGOUT dari sistem (tidak ada sesi aktif)
-      if (!isOnline && !isActivePickupDriver) {
+      // ATURAN PENCEGAHAN (PREVENTION RULE):
+      // Jika driver sedang memiliki status aktif (sedang menuju seller/titik, kembali ke gudang, perjalanan, dll),
+      // ICON TIDAK BOLEH HILANG DARI PETA meskipun diam di tempat lama, macet, atau sinyal GPS stale!
+      // Posisi icon tetap dipertahankan pada titik koordinat terakhir (last known position).
+      const activeKeywords = [
+        "menuju",
+        "kembali",
+        "perjalanan",
+        "transit",
+        "berjalan",
+        "loading",
+        "muat",
+        "pickup",
+        "otw",
+      ];
+      const hasActiveTripStatus = activeKeywords.some(
+        (kw) => statusLower.includes(kw) || ritaseStatusLower.includes(kw)
+      );
+
+      if (hasActiveTripStatus) {
+        return true;
+      }
+
+      // Sembunyikan kendaraan HANYA jika driver benar-benar sudah LOGOUT / OFFLINE dan TIDAK ADA tugas aktif
+      if (!isOnline) {
         return false;
       }
 
-      // UNTUK SELURUH STATUS LAINNYA YANG BELUM SAMPAI GUDANG (menuju seller, muat barang, kembali ke gudang, standby, dll):
-      // PENCEGAHAN (PREVENTION): Icon armada TIDAK BOLEH HILANG dari peta meskipun berhenti terlalu lama,
-      // macet, sinyal GPS hilang/stale, atau terjadi kendala di jalan.
-      // Posisi icon tetap dipertahankan pada titik koordinat terakhir (last known position).
       return true;
     });
 
