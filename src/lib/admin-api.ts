@@ -235,11 +235,10 @@ export const adminSeller = {
     catch { return getStorage("sellers", defaultSellers); }
   },
   create: async (data: Partial<SellerAdmin>) => {
-    const list = getStorage("sellers", defaultSellers);
-    const generatedKode = data.kode_seller || `SLR-${String(list.length + 1).padStart(3, "0")}`;
+    const cleanKode = (data.kode_seller || "").trim().toUpperCase();
     const newObj: SellerAdmin = {
       id_seller: Date.now(),
-      kode_seller: generatedKode,
+      kode_seller: cleanKode,
       nama_seller: data.nama_seller || "Seller Baru",
       alamat: data.alamat || "",
       kota: data.kota || "Tangerang",
@@ -252,10 +251,11 @@ export const adminSeller = {
       longitude: data.longitude ?? 106.8,
     };
     if (isMock) {
+      const list = getStorage("sellers", defaultSellers);
       setStorage("sellers", [newObj, ...list]);
       return { id_seller: newObj.id_seller };
     }
-    return await adminFetch<{ id_seller: number }>("/admin/sellers", { method: "POST", body: JSON.stringify({ ...data, kode_seller: generatedKode }) });
+    return await adminFetch<{ id_seller: number }>("/admin/sellers", { method: "POST", body: JSON.stringify({ ...data, kode_seller: cleanKode }) });
   },
   update: async (id: number, data: Partial<SellerAdmin>) => {
     if (isMock) {

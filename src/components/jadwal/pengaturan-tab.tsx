@@ -511,22 +511,33 @@ function RouteTemplateTab({
   const implants = masterOptions?.implants ?? [];
   const dropPoints = masterOptions?.drop_points ?? [];
 
-  // Fokus dulu ke driver Transporter Outgoing & Incoming saja — konsisten dengan JadwalPage.
-  const activeDrivers = drivers.filter((d) =>
-    ["transporter outgoing", "transporter incoming"].includes(
-      (d.jabatan ?? "").toLowerCase().trim(),
-    ),
-  );
+  // Seluruh driver Transporter aktif (kecualikan driver pickup & status nonaktif)
+  const activeDrivers = drivers.filter((d) => {
+    const jab = (d.jabatan ?? "").toLowerCase().trim();
+    const st = (d.status_driver ?? "").toLowerCase().trim();
+    if (st === "nonaktif" || st === "inactive") return false;
+    if (jab.includes("pickup") || jab === "driver_pickup") return false;
+    return true;
+  });
 
-  // Jenis driver ditentukan tetap dari jabatan (TRANSPORTER OUTGOING/INCOMING).
   const getDriverJenis = (idDriver: number) => {
+    // 1. Cek dari mapping konfigurasi dinamis driver_ritase_jenis
+    const mapping = masterOptions?.driver_jenis?.find((dj) => dj.id_driver === idDriver);
+    if (mapping?.jenis) {
+      return mapping.jenis.toLowerCase();
+    }
+    // 2. Cek dari jabatan driver
     const driver = drivers.find((d) => d.id_driver === idDriver);
     const jabatan = (driver?.jabatan ?? "").toLowerCase();
-    return jabatan.includes("incoming") ? "incoming" : "outgoing";
+    if (jabatan.includes("incoming")) return "incoming";
+    if (jabatan.includes("outgoing")) return "outgoing";
+    return "outgoing";
   };
 
-  const driversForJenis = (jenis: string) =>
-    activeDrivers.filter((d) => getDriverJenis(d.id_driver) === jenis);
+  const driversForJenis = (jenis: string) => {
+    const list = activeDrivers.filter((d) => getDriverJenis(d.id_driver) === jenis);
+    return list.length > 0 ? list : activeDrivers;
+  };
 
   const emptyRoute = {
     id_driver: driversForJenis("outgoing")[0]?.id_driver ?? 1,
@@ -769,9 +780,15 @@ function RouteTemplateTab({
               >
                 {driversForJenis(form.jenis_ritase).map((d) => (
                   <option key={d.id_driver} value={d.id_driver}>
-                    {d.nama_driver} ({d.jabatan})
+                    {d.nama_driver} ({getDriverJenis(d.id_driver) === "incoming" ? "Incoming" : "Outgoing"})
                   </option>
                 ))}
+                {form.id_driver &&
+                  !activeDrivers.some((d) => d.id_driver === form.id_driver) && (
+                    <option value={form.id_driver}>
+                      {drivers.find((d) => d.id_driver === form.id_driver)?.nama_driver ?? `Driver #${form.id_driver}`}
+                    </option>
+                  )}
               </select>
             </div>
             <div>

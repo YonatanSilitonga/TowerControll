@@ -75,8 +75,9 @@ const fields: FieldConfig[] = [
   {
     key: "kode_seller",
     label: "Kode Seller",
+    required: true,
     placeholder: "cth: SLR-001",
-    hint: "Kosongkan untuk generate otomatis",
+    hint: "Wajib diisi secara manual dengan kode unik toko / seller",
     colSpan: 1,
   },
   {

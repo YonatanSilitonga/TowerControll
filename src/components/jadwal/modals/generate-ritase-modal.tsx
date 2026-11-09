@@ -71,9 +71,17 @@ export function GenerateRitaseModal({
   }, [open, fetchPreview]);
 
   const getDriverJenis = (idDriver: number) => {
+    // 1. Cek dari mapping konfigurasi dinamis driver_ritase_jenis
+    const mapping = masterOptions?.driver_jenis?.find((dj) => dj.id_driver === idDriver);
+    if (mapping?.jenis) {
+      return mapping.jenis.toLowerCase();
+    }
+    // 2. Cek dari jabatan driver (mis. "TRANSPORTER INCOMING" atau "TRANSPORTER OUTGOING")
     const driver = masterOptions?.drivers.find((d) => d.id_driver === idDriver);
     const jabatan = (driver?.jabatan ?? "").toLowerCase();
-    return jabatan.includes("incoming") ? "incoming" : "outgoing";
+    if (jabatan.includes("incoming")) return "incoming";
+    if (jabatan.includes("outgoing")) return "outgoing";
+    return "outgoing";
   };
 
   const getRouteJenis = (route: PreviewRoute) => getDriverJenis(route.id_driver);
@@ -568,9 +576,15 @@ export function GenerateRitaseModal({
                               )
                               .map((d) => (
                                 <option key={d.id_driver} value={d.id_driver}>
-                                  {d.nama_driver} ({d.jabatan})
+                                  {d.nama_driver} ({getDriverJenis(d.id_driver) === "incoming" ? "Incoming" : "Outgoing"})
                                 </option>
                               ))}
+                            {route.id_driver &&
+                              !activeDrivers.some((d) => d.id_driver === route.id_driver) && (
+                                <option value={route.id_driver}>
+                                  {route.nama_driver || `Driver #${route.id_driver}`}
+                                </option>
+                              )}
                           </select>
                         </div>
 

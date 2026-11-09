@@ -29,6 +29,8 @@ import { useManifestPhotos } from "@/hooks/use-manifest-photos";
 import { useDriver } from "@/hooks/use-armada";
 import { getFullPhotoUrl } from "@/lib/constants";
 import { formatDateTime, cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/layout/page-header";
 import type { ManifestPhotoItem, DriverArmada } from "@/types/armada";
 
 /* ──────────── types ──────────── */
@@ -83,6 +85,7 @@ export default function ManifestFotoPage() {
     }).format(new Date());
   });
   const [selectedDriverId, setSelectedDriverId] = useState<string>("all");
+  const [selectedRitase, setSelectedRitase] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPhoto, setSelectedPhoto] = useState<ManifestPhotoItem | null>(
     null,
@@ -103,9 +106,10 @@ export default function ManifestFotoPage() {
     () => ({
       tanggal: selectedDate === "all" ? undefined : selectedDate,
       driver_id: selectedDriverId === "all" ? null : Number(selectedDriverId),
+      ritase_ke: selectedRitase === "all" ? null : Number(selectedRitase),
       search: searchQuery.trim() || undefined,
     }),
-    [selectedDate, selectedDriverId, searchQuery],
+    [selectedDate, selectedDriverId, selectedRitase, searchQuery],
   );
 
   const {
@@ -124,6 +128,11 @@ export default function ManifestFotoPage() {
       result = result.filter((p) => p.id_driver === dId);
     }
 
+    if (selectedRitase !== "all") {
+      const rit = Number(selectedRitase);
+      result = result.filter((p) => p.ritase_ke === rit);
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter(
@@ -137,7 +146,7 @@ export default function ManifestFotoPage() {
     }
 
     return result;
-  }, [rawPhotos, selectedDriverId, searchQuery]);
+  }, [rawPhotos, selectedDriverId, selectedRitase, searchQuery]);
 
   /* ── stats dihitung dari foto yang aktif difilter ── */
   const stats = useMemo(() => {
@@ -219,6 +228,13 @@ export default function ManifestFotoPage() {
     selectedDate !== "all" &&
     selectedDate !== todayStr &&
     selectedDate !== yesterdayStr;
+
+  const activeDateLabel = useMemo(() => {
+    if (selectedDate === "all") return "Semua Tanggal";
+    if (selectedDate === todayStr) return `Hari Ini (${selectedDate})`;
+    if (selectedDate === yesterdayStr) return `Kemarin (${selectedDate})`;
+    return `Tanggal: ${selectedDate}`;
+  }, [selectedDate, todayStr, yesterdayStr]);
 
   /* ── grouping by ritase ── */
   const ritaseGroups = useMemo<RitaseGroup[]>(() => {
@@ -384,37 +400,25 @@ export default function ManifestFotoPage() {
 
   return (
     <div className="space-y-4 sm:space-y-5 pb-20">
-      {/* ── Breadcrumb & Title Bar ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <nav className="flex items-center gap-1.5 text-xs text-slate-400 mb-1">
-            <Link
-              href="/"
-              className="hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-            >
-              Beranda
-            </Link>
-            <span>&gt;</span>
-            <span className="font-semibold text-slate-700 dark:text-slate-200">
-              Foto Manifest Driver
-            </span>
-          </nav>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Dokumentasi Foto Manifest Driver
-          </h1>
-        </div>
-
-        {/* Live Status Badge */}
-        <div className="flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50/90 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400 shadow-2xs">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-          </span>
-          <span className="uppercase text-[11px] tracking-wider font-bold">
-            Menyambungkan
-          </span>
-        </div>
-      </div>
+      {/* ── Page Header with Unified Breadcrumb ── */}
+      <PageHeader
+        title="Dokumentasi Foto Manifest Driver"
+        description="Dokumentasi dan verifikasi foto manifest penjemputan barang driver per ritase."
+        crumbs={[{ label: "Foto Manifest Driver" }]}
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50/90 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400 shadow-2xs">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+              </span>
+              <span className="uppercase text-[11px] tracking-wider font-bold">
+                Menyambungkan
+              </span>
+            </div>
+          </div>
+        }
+      />
 
       {/* ── 4 KPI Stat Cards (2 Kolom di Mobile, 4 di Desktop) ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
@@ -502,221 +506,237 @@ export default function ManifestFotoPage() {
         </div>
       </div>
 
-      {/* ── Toolbar: Responsive Layout ── */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 shadow-2xs">
-        {/* Baris 1: Mode Tampilan + Filter Tanggal Cepat */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5">
-          {/* Mode Tampilan (Pills dengan Counter) */}
-          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
-            <button
-              onClick={() => setViewMode("ritase")}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-bold transition-all shadow-2xs shrink-0",
-                viewMode === "ritase"
-                  ? "bg-[#FEA103] text-white shadow-sm"
-                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
-              )}
-            >
-              <Rows3 className="h-3.5 w-3.5" />
-              <span>Per Ritase</span>
-              <span
+      {/* ── Toolbar: Filter Konsisten Card ── */}
+      <Card className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+        <CardContent className="p-3.5 space-y-3">
+          {/* Baris 1: Filter Periode (Kiri) & Indikator Tanggal Aktif (Kanan) */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            {/* Kiri: Periode Pills */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-slate-500" />
+                Periode:
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedDate(todayStr)}
                 className={cn(
-                  "rounded-full px-1.5 py-0.2 text-[10px] font-mono",
-                  viewMode === "ritase"
-                    ? "bg-white/25 text-white"
-                    : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300",
+                  "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                  selectedDate === todayStr
+                    ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm font-bold"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                 )}
               >
-                {ritaseGroups.length}
-              </span>
-            </button>
+                Hari Ini
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedDate(yesterdayStr)}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                  selectedDate === yesterdayStr
+                    ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm font-bold"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                )}
+              >
+                Kemarin
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedDate("all")}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                  selectedDate === "all"
+                    ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm font-bold"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                )}
+              >
+                Semua
+              </button>
 
-            <button
-              onClick={() => setViewMode("timeline")}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-bold transition-all shadow-2xs shrink-0",
-                viewMode === "timeline"
-                  ? "bg-[#FEA103] text-white shadow-sm"
-                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
-              )}
-            >
-              <Images className="h-3.5 w-3.5" />
-              <span>Per Driver</span>
-              <span
-                className={cn(
-                  "rounded-full px-1.5 py-0.2 text-[10px] font-mono",
-                  viewMode === "timeline"
-                    ? "bg-white/25 text-white"
-                    : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300",
-                )}
-              >
-                {driverGroups.length}
-              </span>
-            </button>
+              {/* Custom Date Input */}
+              <div className="relative inline-flex items-center">
+                <div
+                  onClick={() => customDateInputRef.current?.showPicker?.()}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer",
+                    isCustomDate
+                      ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm font-bold"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  )}
+                >
+                  <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                  <span>{isCustomDate ? formatCustomDateDisplay(selectedDate) : "Pilih Tanggal"}</span>
+                </div>
+                <input
+                  ref={customDateInputRef}
+                  type="date"
+                  value={selectedDate === "all" ? "" : selectedDate}
+                  max={todayStr}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setSelectedDate(e.target.value);
+                    }
+                  }}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0 z-10"
+                  title="Pilih tanggal kustom"
+                />
+              </div>
+            </div>
+
+            {/* Kanan: Periode Aktif Indicator */}
+            <div className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800 shrink-0">
+              <Clock className="h-3.5 w-3.5 text-slate-500" />
+              <span>Periode Aktif: <strong className="text-slate-900 dark:text-white font-semibold">{activeDateLabel}</strong></span>
+            </div>
           </div>
 
-          {/* Quick Date Pills + Custom Date Picker */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-            <button
-              onClick={() => setSelectedDate(todayStr)}
-              className={cn(
-                "rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-colors shrink-0",
-                selectedDate === todayStr
-                  ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs"
-                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
-              )}
-            >
-              Hari ini
-            </button>
-            <button
-              onClick={() => setSelectedDate(yesterdayStr)}
-              className={cn(
-                "rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-colors shrink-0",
-                selectedDate === yesterdayStr
-                  ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs"
-                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
-              )}
-            >
-              Kemarin
-            </button>
-            <button
-              onClick={() => setSelectedDate("all")}
-              className={cn(
-                "rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-colors shrink-0",
-                selectedDate === "all"
-                  ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs"
-                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
-              )}
-            >
-              Semua
-            </button>
+          <div className="h-px bg-slate-100 dark:bg-slate-800" />
 
-            {/* Custom Date Picker — 100% Functional & Mobile Ready */}
-            <div className="relative inline-flex items-center shrink-0">
-              <div
-                className={cn(
-                  "pointer-events-none flex items-center gap-1.5 rounded-lg border px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-all shadow-2xs",
-                  isCustomDate
-                    ? "border-amber-400 bg-amber-50 text-amber-900 font-bold dark:bg-amber-950/40 dark:border-amber-700 dark:text-amber-300 ring-2 ring-amber-400/20"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
+          {/* Baris 2: Filter Ritase, Driver, Search, Mode Tampilan & Refresh */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+              {/* Filter Ritase Pills */}
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs">
+                <span className="text-[11px] font-bold text-slate-400 px-1.5">Ritase:</span>
+                {[
+                  { id: "all", label: "Semua" },
+                  { id: "1", label: "Rit 1" },
+                  { id: "2", label: "Rit 2" },
+                  { id: "3", label: "Rit 3" },
+                ].map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => setSelectedRitase(r.id)}
+                    className={cn(
+                      "px-2.5 py-1 font-semibold rounded-md transition-all text-xs",
+                      selectedRitase === r.id
+                        ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-bold"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    )}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Driver Selector Dropdown */}
+              <div className="relative min-w-[170px]">
+                <select
+                  value={selectedDriverId}
+                  onChange={(e) => setSelectedDriverId(e.target.value)}
+                  className={cn(
+                    "h-8 w-full rounded-lg border px-2.5 text-xs font-semibold transition-colors focus:border-[#0c1e3a] focus:outline-none dark:bg-slate-800 dark:text-white cursor-pointer",
+                    selectedDriverId !== "all"
+                      ? "border-amber-400 bg-amber-50/60 text-amber-900 font-bold dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                      : "border-slate-200 bg-slate-50/60 text-slate-700 dark:border-slate-700"
+                  )}
+                >
+                  <option value="all">Semua Driver ({drivers.length})</option>
+                  {drivers.map((d: DriverArmada) => (
+                    <option key={d.id_driver} value={d.id_driver.toString()}>
+                      {d.nama_driver}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Search Input dengan Clear Button */}
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Cari driver, nopol, lokasi, ritase..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50/50 pl-8 pr-7 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700"
+                    title="Hapus pencarian"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 )}
+              </div>
+
+              {/* Refresh Button */}
+              <button
+                onClick={() => refetch()}
+                disabled={isLoading || isRefetching}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 shadow-2xs"
+                title="Refresh Data"
               >
-                <Calendar
+                <RefreshCw
                   className={cn(
                     "h-3.5 w-3.5",
-                    isCustomDate
-                      ? "text-amber-600 dark:text-amber-400"
-                      : "text-slate-400",
+                    (isLoading || isRefetching) && "animate-spin"
                   )}
                 />
-                <span className="whitespace-nowrap font-sans">
-                  Custom:{" "}
-                  {isCustomDate
-                    ? formatCustomDateDisplay(selectedDate)
-                    : "18/09/2026"}
-                </span>
+              </button>
+            </div>
+
+            {/* Mode Tampilan (Pills dengan Counter) */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs">
+                <button
+                  onClick={() => setViewMode("ritase")}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-all",
+                    viewMode === "ritase"
+                      ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-bold"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  )}
+                >
+                  <Rows3 className="h-3.5 w-3.5" />
+                  <span>Per Ritase</span>
+                  <span className="rounded-full bg-slate-200/80 dark:bg-slate-700 px-1.5 py-0.2 text-[10px] font-mono">
+                    {ritaseGroups.length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setViewMode("timeline")}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-all",
+                    viewMode === "timeline"
+                      ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-bold"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  )}
+                >
+                  <Images className="h-3.5 w-3.5" />
+                  <span>Per Driver</span>
+                  <span className="rounded-full bg-slate-200/80 dark:bg-slate-700 px-1.5 py-0.2 text-[10px] font-mono">
+                    {driverGroups.length}
+                  </span>
+                </button>
               </div>
-              <input
-                ref={customDateInputRef}
-                type="date"
-                value={selectedDate === "all" ? "" : selectedDate}
-                max={todayStr}
-                onClick={(e) => {
-                  try {
-                    (e.target as HTMLInputElement).showPicker();
-                  } catch {}
-                }}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    setSelectedDate(e.target.value);
-                  }
-                }}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0 z-10"
-                title="Pilih tanggal kustom"
-              />
+
+              {/* Buka Semua / Tutup Semua (khusus mode Per Driver) */}
+              {viewMode === "timeline" && (
+                <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0 ml-1">
+                  <button
+                    onClick={expandAll}
+                    className="hover:text-slate-800 dark:hover:text-white transition-colors"
+                  >
+                    Buka Semua
+                  </button>
+                  <span>·</span>
+                  <button
+                    onClick={collapseAll}
+                    className="hover:text-slate-800 dark:hover:text-white transition-colors"
+                  >
+                    Tutup Semua
+                  </button>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-
-        {/* Baris 2: Filter Driver Dropdown, Search Input, Refresh, & Expand Action */}
-        <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-          {/* Driver Selector Dropdown */}
-          <div className="relative flex-1 sm:flex-none sm:min-w-[190px]">
-            <select
-              value={selectedDriverId}
-              onChange={(e) => setSelectedDriverId(e.target.value)}
-              className={cn(
-                "h-9 w-full rounded-xl border px-3 text-xs font-semibold transition-colors focus:border-[#0c1e3a] focus:outline-none dark:bg-slate-800 dark:text-white cursor-pointer",
-                selectedDriverId !== "all"
-                  ? "border-amber-400 bg-amber-50/60 text-amber-900 font-bold dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                  : "border-slate-200 bg-slate-50/60 text-slate-700 dark:border-slate-700",
-              )}
-            >
-              <option value="all">Semua Driver ({drivers.length})</option>
-              {drivers.map((d: DriverArmada) => (
-                <option key={d.id_driver} value={d.id_driver.toString()}>
-                  {d.nama_driver}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Search Input dengan Clear Button */}
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Cari driver, armada, lokasi, ritase..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-9 pr-8 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#0c1e3a] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700"
-                title="Hapus pencarian"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-
-          {/* Refresh Button */}
-          <button
-            onClick={() => refetch()}
-            disabled={isLoading || isRefetching}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 shadow-2xs"
-            title="Refresh Data"
-          >
-            <RefreshCw
-              className={cn(
-                "h-3.5 w-3.5",
-                (isLoading || isRefetching) && "animate-spin",
-              )}
-            />
-          </button>
-
-          {/* Buka Semua / Tutup Semua (khusus mode Per Driver) */}
-          {viewMode === "timeline" && (
-            <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0 ml-1">
-              <button
-                onClick={expandAll}
-                className="hover:text-slate-800 dark:hover:text-white transition-colors"
-              >
-                Buka Semua
-              </button>
-              <span>·</span>
-              <button
-                onClick={collapseAll}
-                className="hover:text-slate-800 dark:hover:text-white transition-colors"
-              >
-                Tutup Semua
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* ── Content View ── */}
       {isLoading ? (
@@ -732,12 +752,14 @@ export default function ManifestFotoPage() {
         <EmptyState
           isFiltered={
             selectedDriverId !== "all" ||
+            selectedRitase !== "all" ||
             Boolean(searchQuery) ||
             isCustomDate
           }
           onReset={() => {
             setSelectedDate(todayStr);
             setSelectedDriverId("all");
+            setSelectedRitase("all");
             setSearchQuery("");
           }}
         />

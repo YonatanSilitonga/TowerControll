@@ -117,16 +117,20 @@ export default function JadwalPage() {
 
   const activeDrivers = useMemo(() => {
     if (!masterOptions?.drivers) return [];
-    const jenisAllowed = ["transporter outgoing", "transporter incoming"];
-    const byJenis = masterOptions.drivers.filter((d) =>
-      jenisAllowed.includes((d.jabatan ?? "").toLowerCase().trim()),
-    );
-    const filtered = byJenis.filter((d) =>
-      ["aktif", "bertugas", "on_duty", "standby", "tersedia"].includes(
+    // Izinkan seluruh driver transporter / linehaul aktif (kecualikan driver pickup & status nonaktif)
+    const byRole = masterOptions.drivers.filter((d) => {
+      const jab = (d.jabatan ?? "").toLowerCase().trim();
+      const st = (d.status_driver ?? "").toLowerCase().trim();
+      if (st === "nonaktif" || st === "inactive") return false;
+      if (jab.includes("pickup") || jab === "driver_pickup") return false;
+      return true;
+    });
+    const filtered = byRole.filter((d) =>
+      ["aktif", "bertugas", "on_duty", "standby", "tersedia", ""].includes(
         (d.status_driver ?? "").toLowerCase().trim(),
       ),
     );
-    return filtered.length > 0 ? filtered : byJenis;
+    return filtered.length > 0 ? filtered : byRole.length > 0 ? byRole : masterOptions.drivers;
   }, [masterOptions?.drivers]);
 
   const activeVehicles = useMemo(() => {

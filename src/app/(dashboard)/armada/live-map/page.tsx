@@ -207,11 +207,11 @@ function LiveMapBody() {
     <div className="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-slate-100">
       <div className="absolute inset-0"><LiveMap fullscreen controlsContainer={controlsContainer} onFilterOpenChange={setFilterOpen} vehicles={vehicles} sellers={sellers} implants={implants} gudang={data?.gudang ?? []} dropPoints={data?.drop_points ?? []} initialFocus={sellerParam ? { type: "seller", id: Number(sellerParam) } : undefined} selectedVehicleId={selectedId} onSelectVehicle={handleSelectVehicle} />{isLoading && <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70 text-sm">Memuat peta...</div>}</div>
       {/* ── Top Header Navigation ── */}
-      <div className="pointer-events-none absolute left-3 sm:left-14 top-3 z-30 flex items-center gap-2">
+      <div className="pointer-events-none absolute left-3 top-3 z-30 flex items-center gap-2">
         <button
           type="button"
           onClick={goBack}
-          className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white/95 backdrop-blur-sm px-3.5 py-2 text-xs font-bold text-slate-700 shadow-md transition-all active:scale-95"
+          className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white/95 backdrop-blur-sm px-3.5 py-2 text-xs font-bold text-slate-700 shadow-md transition-all active:scale-95 hover:bg-white"
         >
           <ArrowLeft className="h-4 w-4" />
           Kembali
@@ -232,7 +232,7 @@ function LiveMapBody() {
           className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs transition-opacity lg:hidden"
         />
       )}
-      {mapError && <div role="alert" className="absolute left-14 top-14 z-[70] rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs text-rose-700">Pembaruan peta gagal; posisi mungkin belum terkini. <button onClick={() => reloadMap()} className="underline">Coba lagi</button></div>}
+      {mapError && <div role="alert" className="absolute left-3 top-14 z-[70] rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs text-rose-700">Pembaruan peta gagal; posisi mungkin belum terkini. <button onClick={() => reloadMap()} className="underline">Coba lagi</button></div>}
       {listOpen && (
         <aside
           aria-label="Daftar armada"

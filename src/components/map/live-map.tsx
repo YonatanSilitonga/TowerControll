@@ -3,8 +3,8 @@ import { WhatsAppContact } from "@/components/armada/whatsapp-contact";
 import { createPortal } from "react-dom";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
-import { Check, ChevronDown, ChevronUp, Clock, Gauge, History, Loader2, MapPin, Save, Search, Truck } from "lucide-react";
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
+import { Check, ChevronDown, ChevronUp, Clock, Gauge, History, Loader2, MapPin, Package, Phone, Save, Search, Truck } from "lucide-react";
+import { MapContainer, Marker, Polyline, Popup, TileLayer, ZoomControl, useMap } from "react-leaflet";
 import { useQueryClient } from "@tanstack/react-query";
 import { get, post } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
@@ -1404,11 +1404,13 @@ function LiveMapView({
         center={JAKARTA}
         zoom={12}
         minZoom={11}
+        zoomControl={false}
         maxBounds={TANGERANG_BOUNDS}
         maxBoundsViscosity={1.0}
         className="h-full w-full"
         style={{ zIndex: 0 }}
       >
+        <ZoomControl position="bottomright" />
         <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />
         <MapAutoResize />
         <FitBounds vehicles={activeVehicles} sellers={sellers} implants={implants ?? []} gudang={gudangList} dropPoints={dropList} />

@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { adminKapten, adminImplant, KaptenAdmin, ImplantAdmin } from "@/lib/admin-api";
+import { WhatsAppContact } from "@/components/armada/whatsapp-contact";
 
 /* ─────────── MODAL (with scroll lock) ─────────── */
 function Modal({
@@ -613,7 +614,16 @@ export default function AdminKaptenPage() {
                         <span className="ml-2 font-mono text-[10px] font-medium text-slate-400">@{row.username}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-500">{row.no_hp || "—"}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-500">
+                      {row.no_hp ? (
+                        <div className="flex items-center gap-1.5">
+                          <span>{row.no_hp}</span>
+                          <WhatsAppContact phone={row.no_hp} name={row.nama} compact />
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       {(row.implants ?? []).length === 0 ? (
                         <span className="text-xs text-slate-400">—</span>
@@ -803,7 +813,17 @@ export default function AdminKaptenPage() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[
               { label: "Nama", value: <span className="font-bold">{detailRow.nama}</span> },
-              { label: "No HP", value: detailRow.no_hp || "—" },
+              {
+                label: "No HP",
+                value: detailRow.no_hp ? (
+                  <div className="flex items-center gap-1.5 font-mono">
+                    <span>{detailRow.no_hp}</span>
+                    <WhatsAppContact phone={detailRow.no_hp} name={detailRow.nama} compact />
+                  </div>
+                ) : (
+                  "—"
+                ),
+              },
               { label: "Akun Login", value: <span className="font-mono font-bold">{detailRow.username || "—"}</span> },
               {
                 label: "Status",

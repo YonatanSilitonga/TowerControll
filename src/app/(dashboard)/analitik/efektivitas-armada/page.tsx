@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import {
   CalendarDays,
+  CalendarRange,
+  RotateCcw,
   TrendingUp,
   Package,
   Truck,
@@ -26,7 +28,10 @@ import {
   CheckCircle2,
   AlertCircle,
   Search,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +50,12 @@ const ProductivityStackedChart = dynamic(
 );
 
 /* ---------- HELPER FUNCTIONS ---------- */
+
+function formatDateID(t: string): string {
+  const d = new Date(`${t}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? t : format(d, "dd/MM/yyyy");
+}
+
 
 function todayLocal(): string {
   const d = new Date();
@@ -68,15 +79,38 @@ const PRESETS = [
 ];
 
 /* ---------- CAPACITY DICTIONARY ---------- */
-// Acuan data batas maksimal kapasitas muatan.
-const getVehicleCapacity = (jenis: string) => {
+// Acuan data batas maksimal kapasitas muatan logistik terstandarisasi.
+const getVehicleCapacity = (jenis: string, dbKapasitasKoli?: number | null) => {
+  if (dbKapasitasKoli && dbKapasitasKoli > 0) {
+    return {
+      maxKoli: dbKapasitasKoli,
+      maxEcer: dbKapasitasKoli * 15,
+    };
+  }
+
   const type = (jenis || "").toLowerCase();
-  if (type.includes("blindvan") || type.includes("bv")) return { maxKoli: 10, maxEcer: 10 };
-  if (type.includes("traga")) return { maxKoli: 25, maxEcer: 20 };
-  if (type.includes("cdel") || type.includes("engkel")) return { maxKoli: 40, maxEcer: 35 };
-  if (type.includes("cddl")) return { maxKoli: 60, maxEcer: 50 };
-  if (type.includes("cdd")) return { maxKoli: 50, maxEcer: 45 };
-  return { maxKoli: 50, maxEcer: 45 }; // Default fallback
+  if (type.includes("wingbox") || type.includes("tronton") || type.includes("8m")) {
+    return { maxKoli: 120, maxEcer: 1800 };
+  }
+  if (type.includes("cddl") || type.includes("double long")) {
+    return { maxKoli: 70, maxEcer: 1050 };
+  }
+  if (type.includes("cdd") || type.includes("box 6m") || type.includes("double")) {
+    return { maxKoli: 60, maxEcer: 900 };
+  }
+  if (type.includes("cdel") || type.includes("engkel") || type.includes("cde") || type.includes("box 4m")) {
+    return { maxKoli: 40, maxEcer: 600 };
+  }
+  if (type.includes("traga") || type.includes("l300") || type.includes("pickup") || type.includes("bak")) {
+    return { maxKoli: 25, maxEcer: 375 };
+  }
+  if (type.includes("blindvan") || type.includes("bv") || type.includes("van") || type.includes("granmax") || type.includes("luxio")) {
+    return { maxKoli: 12, maxEcer: 180 };
+  }
+  if (type.includes("motor") || type.includes("roda dua")) {
+    return { maxKoli: 4, maxEcer: 60 };
+  }
+  return { maxKoli: 50, maxEcer: 750 }; // Default fallback realistis
 };
 
 /* ---------- REKOMENDASI SISTEM GENERATOR ---------- */
@@ -85,6 +119,9 @@ function getVehicleEvaluationDetails(v: VehicleMetrics) {
   const isOverload = v.statusKapasitas === "Overload";
   const type = (v.jenisKendaraan || "").toLowerCase();
   const roundedKoli = Math.round(v.avgKoli);
+  const roundedEcer = Math.round(v.avgEcer);
+  const totalEkuivKoli = Math.round(v.avgKoli + (v.avgEcer / 15));
+  const utilPercent = Math.round((totalEkuivKoli / v.maxKoli) * 100);
 
   let title = "";
   let diagnosis = "";
@@ -93,33 +130,35 @@ function getVehicleEvaluationDetails(v: VehicleMetrics) {
 
   if (isUnder) {
     title = "Kapasitas Kurang Maksimal (<50%)";
-    const sisaKoli = Math.max(0, v.maxKoli - roundedKoli);
-    diagnosis = `Rata-rata muatan hanya terisi ${roundedKoli} Koli dari batas ${v.maxKoli} Koli (${v.avgUtilKoliPercent.toFixed(0)}%). Sisa ruang kosong ${sisaKoli} Koli belum terisi di setiap ritase.`;
+    const sisaKoli = Math.max(0, v.maxKoli - totalEkuivKoli);
+    diagnosis = `Rata-rata muatan terisi ${roundedKoli} Koli${roundedEcer > 0 ? ` & ${roundedEcer} Eceran` : ""} (ekuivalen ${totalEkuivKoli} Koli dari batas ${v.maxKoli} Koli, ${utilPercent}%). Sisa ruang kargo ~${sisaKoli} Koli belum terisi di setiap ritase.`;
     
-    routeSuggestion = `Tambahkan 1-2 titik pickup seller baru yang sejalur dengan rute ini, atau gabungkan muatan dengan jadwal ritase rute terdekat agar ruang kendaraan terisi optimal.`;
+    routeSuggestion = `Tambahkan 1-2 titik pickup seller baru yang sejalur dengan rute ini, atau konsolidasikan muatan dengan jadwal ritase unit lain yang searah agar ruang kargo terisi optimal.`;
     
-    if (type.includes("cddl") || type.includes("cdd")) {
-      vehicleSuggestion = `Muatan terlalu sedikit untuk truk besar CDD. Disarankan ganti unit ke tipe Traga (maks 25 koli) atau Blindvan (maks 10 koli) untuk memangkas konsumsi BBM dan biaya operasional.`;
-    } else if (type.includes("cdel") || type.includes("engkel") || type.includes("traga")) {
-      vehicleSuggestion = `Disarankan mengganti unit armada ke tipe Blindvan (maks 10 koli) atau satukan muatan dengan unit lain.`;
+    if (type.includes("wingbox") || type.includes("tronton") || type.includes("8m")) {
+      vehicleSuggestion = `Muatan terlalu sedikit untuk Truk Wingbox. Pertimbangkan alihkan rute ini ke Truk CDD Box (kapasitas 60 koli) atau Engkel agar efisiensi solar dan operasional jauh lebih hemat.`;
+    } else if (type.includes("cdd") || type.includes("cddl")) {
+      vehicleSuggestion = `Pertimbangkan alihkan jadwal ke unit yang lebih kecil (Engkel / CDEL) agar biaya operasional solar & tol lebih hemat.`;
+    } else if (type.includes("cdel") || type.includes("engkel")) {
+      vehicleSuggestion = `Pertimbangkan memakai unit Traga atau Blindvan untuk rute ini agar penggunaan kapasitas lebih proporsional.`;
     } else {
       vehicleSuggestion = `Pertimbangkan mengonsolidasikan jadwal pengiriman dengan unit lain yang searah.`;
     }
   } else if (isOverload) {
     title = "Kelebihan Muatan (>100%)";
-    const lebihKoli = Math.max(0, roundedKoli - v.maxKoli);
-    diagnosis = `Rata-rata muatan mencapai ${roundedKoli} Koli, melebihi batas kapasitas aman ${v.maxKoli} Koli (${v.avgUtilKoliPercent.toFixed(0)}%). Kelebihan muatan ${lebihKoli} Koli berisiko merusak unit & melanggar batas keselamatan.`;
+    const lebihKoli = Math.max(0, totalEkuivKoli - v.maxKoli);
+    diagnosis = `Rata-rata muatan mencapai ${roundedKoli} Koli${roundedEcer > 0 ? ` & ${roundedEcer} Eceran` : ""} (ekuivalen ${totalEkuivKoli} Koli dari batas ${v.maxKoli} Koli, ${utilPercent}%). Kelebihan muatan ~${lebihKoli} Koli berisiko mengurangi faktor keselamatan dan merusak kargo.`;
     
-    routeSuggestion = `Bagi rute pengiriman menjadi 2 ritase (pagi & siang), atau pisahkan jadwal pickup seller berkapasitas besar ke unit armada pendukung lainnya.`;
+    routeSuggestion = `Bagi rute pengiriman menjadi 2 ritase (ritase pagi & siang), atau pisahkan jadwal pickup seller berkapasitas besar ke unit armada pendukung lainnya.`;
 
     if (type.includes("blindvan") || type.includes("bv")) {
-      vehicleSuggestion = `Muatan tidak lagi muat di Blindvan. Direkomendasikan segera ganti/upgrade unit ke tipe Traga (maks 25 koli) atau CDEL (maks 40 koli).`;
-    } else if (type.includes("traga")) {
-      vehicleSuggestion = `Direkomendasikan upgrade armada ke Truk Engkel (CDEL - 40 koli) atau CDD (50 koli) agar seluruh muatan koli terangkut aman.`;
-    } else if (type.includes("cdd")) {
-      vehicleSuggestion = `Gunakan unit truk sasis ekstra panjang CDDL (maks 60 koli) atau buat jadwal ritase kedua untuk menampung sisa koli.`;
+      vehicleSuggestion = `Muatan tidak lagi muat di Blindvan. Direkomendasikan segera upgrade unit ke tipe Traga (maks 25 koli) atau CDEL (maks 40 koli).`;
+    } else if (type.includes("traga") || type.includes("pickup")) {
+      vehicleSuggestion = `Direkomendasikan upgrade armada ke Truk Engkel (CDEL kapasitas 40 koli) atau tambah jadwal ritase harian.`;
+    } else if (type.includes("cdel") || type.includes("engkel")) {
+      vehicleSuggestion = `Direkomendasikan upgrade ke Truk CDD (kapasitas 60 koli) atau CDDL (kapasitas 70 koli).`;
     } else {
-      vehicleSuggestion = `Tingkatkan kapasitas tipe kendaraan atau tambahkan ritase armada tambahan.`;
+      vehicleSuggestion = `Kapasitas kargo maksimal. Disarankan menambah armada pendukung atau membagi rute menjadi dua jadwal ritase berbeda.`;
     }
   }
 
@@ -147,15 +186,59 @@ interface VehicleMetrics {
 }
 
 export default function EfektivitasArmadaPage() {
-  const [selectedPreset, setSelectedPreset] = useState<number>(0);
   const [startDate, setStartDate] = useState<string>(todayLocal());
   const [endDate, setEndDate] = useState<string>(todayLocal());
+  const [selectedPreset, setSelectedPreset] = useState<number>(0);
+  const [showCustomRange, setShowCustomRange] = useState(false);
+
+  const presets = useMemo(() => {
+    const now = new Date();
+    const currentDay = now.getDay();
+    const diffToMonday = (currentDay === 0 ? -6 : 1) - currentDay;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diffToMonday);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    const toWIB = (d: Date) =>
+      new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+
+    const firstMonthStr = toWIB(new Date(now.getFullYear(), now.getMonth(), 1));
+
+    return [
+      { id: "today", label: "Hari Ini", from: todayLocal(), to: todayLocal(), days: 0 },
+      { id: "yesterday", label: "Kemarin", from: daysAgo(1), to: daysAgo(1), days: 1 },
+      { id: "this_week", label: "Minggu Ini", from: toWIB(monday), to: toWIB(sunday), days: -1 },
+      { id: "this_month", label: "Bulan Ini", from: firstMonthStr, to: todayLocal(), days: -2 },
+      { id: "30d", label: "30 Hari", from: daysAgo(29), to: todayLocal(), days: 30 },
+    ];
+  }, []);
+
+  const isPresetActive = presets.some((p) => p.from === startDate && p.to === endDate);
   const [productivityView, setProductivityView] = useState<"tipe" | "driver">("tipe");
   const [selectedArmadaForHistory, setSelectedArmadaForHistory] = useState<VehicleMetrics | null>(null);
   const [showEvaluationModal, setShowEvaluationModal] = useState<boolean>(false);
   const [evaluationFilter, setEvaluationFilter] = useState<"all" | "under" | "overload">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [tableStatusFilter, setTableStatusFilter] = useState<"all" | "aktif" | "under" | "optimal" | "overload" | "tanpa_ritase">("all");
+  const [pickupSearchQuery, setPickupSearchQuery] = useState<string>("");
+  const [pickupStatusFilter, setPickupStatusFilter] = useState<"all" | "optimal" | "overload" | "under">("all");
+
+  // Pagination Table 1 (Armada Dorong)
+  const [tablePage, setTablePage] = useState<number>(1);
+  const [tablePageSize, setTablePageSize] = useState<number>(10);
+
+  // Pagination Table 2 (Driver Pickup)
+  const [pickupPage, setPickupPage] = useState<number>(1);
+  const [pickupPageSize, setPickupPageSize] = useState<number>(10);
+
+  useEffect(() => {
+    setTablePage(1);
+  }, [searchQuery, tableStatusFilter, startDate, endDate]);
+
+  useEffect(() => {
+    setPickupPage(1);
+  }, [pickupSearchQuery, pickupStatusFilter, startDate, endDate]);
 
   /** Format jam tanpa detik. Handle both HH:MM string dan ISO timestamp. */
   const fmtTime = (val?: string | null) => {
@@ -194,7 +277,7 @@ export default function EfektivitasArmadaPage() {
     const map = new Map<number, VehicleMetrics>();
 
     allKendaraan.forEach((k) => {
-      const capacity = getVehicleCapacity(k.jenis_kendaraan || "");
+      const capacity = getVehicleCapacity(k.jenis_kendaraan || "", k.kapasitas_koli);
       map.set(k.id_kendaraan, {
         idKendaraan: k.id_kendaraan,
         platNomor: k.plat_nomor,
@@ -217,7 +300,7 @@ export default function EfektivitasArmadaPage() {
       if (!r.id_kendaraan) return;
       let vm = map.get(r.id_kendaraan);
       if (!vm) {
-        const capacity = getVehicleCapacity("cdd");
+        const capacity = getVehicleCapacity("cdd", null);
         vm = {
           idKendaraan: r.id_kendaraan,
           platNomor: r.plat_nomor || "-",
@@ -252,15 +335,19 @@ export default function EfektivitasArmadaPage() {
         vm.avgUtilKoliPercent = (vm.avgKoli / vm.maxKoli) * 100;
         vm.avgUtilEcerPercent = (vm.avgEcer / vm.maxEcer) * 100;
 
-        // Acuan utama kargo logistik Gateway adalah keterisian koli fisik.
-        // Bila unit tidak membawa koli (0 koli) tetapi membawa eceran, gunakan eceran.
-        const primaryUtil = vm.avgKoli > 0 || vm.avgEcer === 0
-          ? vm.avgUtilKoliPercent
-          : vm.avgUtilEcerPercent;
+        // Muatan gabungan kargo logistik Gateway (Koli fisik + Eceran yang memakan ruang):
+        // 1 Karung Koli standar ≈ 15 Paket Eceran
+        const totalKoliEkuivalen = vm.avgKoli + (vm.avgEcer / 15);
+        const combinedUtilPercent = (totalKoliEkuivalen / vm.maxKoli) * 100;
 
-        if (primaryUtil < 50) vm.statusKapasitas = "Under";
-        else if (primaryUtil > 100) vm.statusKapasitas = "Overload";
-        else vm.statusKapasitas = "Optimal";
+        // Penentuan Status Beban & Efisiensi Armada yang akurat:
+        if (combinedUtilPercent < 50) {
+          vm.statusKapasitas = "Under";
+        } else if (combinedUtilPercent > 100) {
+          vm.statusKapasitas = "Overload";
+        } else {
+          vm.statusKapasitas = "Optimal";
+        }
       }
     });
 
@@ -328,6 +415,12 @@ export default function EfektivitasArmadaPage() {
     });
   }, [vehicleMetricsMap, searchQuery, tableStatusFilter]);
 
+  const totalTablePages = Math.max(1, Math.ceil(filteredTableVehicles.length / tablePageSize));
+  const paginatedVehicles = useMemo(() => {
+    const start = (tablePage - 1) * tablePageSize;
+    return filteredTableVehicles.slice(start, start + tablePageSize);
+  }, [filteredTableVehicles, tablePage, tablePageSize]);
+
   const handleExportCsv = () => {
     const headers = [
       "Plat Nomor",
@@ -358,8 +451,6 @@ export default function EfektivitasArmadaPage() {
 
   // ── SEGMEN PICKUP DATA & LOGIC ──
   const [fleetSegment, setFleetSegment] = useState<"linehaul" | "pickup">("linehaul");
-  const [pickupSearchQuery, setPickupSearchQuery] = useState("");
-  const [pickupStatusFilter, setPickupStatusFilter] = useState<"all" | "optimal" | "overload" | "under">("all");
 
   const pickupHistoryQuery = useAllDriverPickupHistory({
     start_date: startDate,
@@ -372,10 +463,14 @@ export default function EfektivitasArmadaPage() {
     namaDriver: string;
     totalSesi: number;
     totalKoli: number;
+    totalEcer: number;
     totalAwb: number;
     avgKoli: number;
+    avgAwb: number;
+    avgKoliEkuiv: number;
     statusEfisiensi: "Optimal" | "Overload" | "Under";
     rekomendasiArmada: string;
+    platNomor?: string;
   }
 
   const { pickupMetricsList, pickupKpis } = useMemo(() => {
@@ -383,7 +478,9 @@ export default function EfektivitasArmadaPage() {
       namaDriver: string;
       totalSesi: number;
       totalKoli: number;
+      totalEcer: number;
       totalAwb: number;
+      platNomor?: string;
     }>();
 
     for (const l of pickupLogs) {
@@ -393,36 +490,62 @@ export default function EfektivitasArmadaPage() {
           namaDriver: name,
           totalSesi: 0,
           totalKoli: 0,
+          totalEcer: 0,
           totalAwb: 0,
+          platNomor: l.plat_nomor || undefined,
         });
       }
       const item = map.get(name)!;
       item.totalSesi += 1;
       item.totalKoli += l.koli || 0;
+      item.totalEcer += l.ecer || 0;
       item.totalAwb += l.jumlah_barang || 0;
+      if (!item.platNomor && l.plat_nomor) {
+        item.platNomor = l.plat_nomor;
+      }
     }
 
     let countOver = 0;
     let countUnder = 0;
     let countOptimal = 0;
     let totalAllKoli = 0;
+    let totalAllAwb = 0;
     let totalAllSesi = 0;
+    let totalAllKoliEkuiv = 0;
 
     const list: PickupFleetMetric[] = Array.from(map.values()).map((p) => {
-      const avg = p.totalSesi > 0 ? p.totalKoli / p.totalSesi : 0;
+      // Perhitungan beban realistis penjemputan:
+      // Seller sering mencatat per AWB (ecer) atau per karung koli.
+      // 1 karung koli ≈ 20 AWB (atau 15 eceran)
+      const ekuivKoliFromAwb = p.totalEcer > 0 
+        ? (p.totalEcer / 15) 
+        : (p.totalKoli === 0 && p.totalAwb > 0 ? (p.totalAwb / 20) : 0);
+      
+      const koliEkuivalen = p.totalKoli + ekuivKoliFromAwb;
+      const avgKoliEkuiv = p.totalSesi > 0 ? (koliEkuivalen / p.totalSesi) : 0;
+      const avgKoliMurni = p.totalSesi > 0 ? (p.totalKoli / p.totalSesi) : 0;
+      const avgAwb = p.totalSesi > 0 ? (p.totalAwb / p.totalSesi) : 0;
+
       totalAllKoli += p.totalKoli;
+      totalAllAwb += p.totalAwb;
       totalAllSesi += p.totalSesi;
+      totalAllKoliEkuiv += koliEkuivalen;
 
       let statusEfisiensi: "Optimal" | "Overload" | "Under" = "Optimal";
-      let rekomendasiArmada = "Muatan proporsional untuk penjemputan harian.";
+      let rekomendasiArmada = "Muatan proporsional untuk operasional penjemputan harian.";
 
-      if (avg > 25) {
+      // Beban Berat: >25 koli ekuivalen ATAU >350 AWB per sesi
+      if (avgKoliEkuiv > 25 || avgAwb > 350) {
         statusEfisiensi = "Overload";
-        rekomendasiArmada = "Muatan berat (>25 koli). Disarankan alokasi mobil Blindvan/Pickup, bukan motor.";
+        const hasCar = p.platNomor ? true : false;
+        rekomendasiArmada = hasCar
+          ? "Volume muatan tinggi (>25 koli ekuiv). Pertahankan alokasi unit mobil (Blindvan/Pickup) agar kapasitas muat aman."
+          : "Volume muatan tinggi (>25 koli ekuiv). Wajib dialokasikan mobil Blindvan/Pickup, bukan motor.";
         countOver += 1;
-      } else if (avg < 5) {
+      // Muatan Rendah: <5 koli ekuivalen DAN <30 AWB per sesi
+      } else if (avgKoliEkuiv < 5 && avgAwb < 30) {
         statusEfisiensi = "Under";
-        rekomendasiArmada = "Muatan minim (<5 koli). Evaluasi penggabungan rute penjemputan toko.";
+        rekomendasiArmada = "Volume penjemputan minim (<5 koli ekuiv). Evaluasi konsolidasi jadwal pickup dengan seller sejalur.";
         countUnder += 1;
       } else {
         countOptimal += 1;
@@ -430,19 +553,22 @@ export default function EfektivitasArmadaPage() {
 
       return {
         ...p,
-        avgKoli: avg,
+        avgKoli: avgKoliMurni,
+        avgAwb,
+        avgKoliEkuiv,
         statusEfisiensi,
         rekomendasiArmada,
       };
-    }).sort((a, b) => b.totalKoli - a.totalKoli);
+    }).sort((a, b) => (b.avgKoliEkuiv * b.totalSesi) - (a.avgKoliEkuiv * a.totalSesi));
 
-    const avgKoliPerSesi = totalAllSesi > 0 ? (totalAllKoli / totalAllSesi).toFixed(1) : "0";
+    const avgKoliPerSesi = totalAllSesi > 0 ? (totalAllKoliEkuiv / totalAllSesi).toFixed(1) : "0";
 
     return {
       pickupMetricsList: list,
       pickupKpis: {
         totalDrivers: list.length,
         totalAllKoli,
+        totalAllAwb,
         totalAllSesi,
         avgKoliPerSesi,
         countOver,
@@ -465,6 +591,12 @@ export default function EfektivitasArmadaPage() {
     });
   }, [pickupMetricsList, pickupSearchQuery, pickupStatusFilter]);
 
+  const totalPickupPages = Math.max(1, Math.ceil(filteredPickupMetrics.length / pickupPageSize));
+  const paginatedPickupMetrics = useMemo(() => {
+    const start = (pickupPage - 1) * pickupPageSize;
+    return filteredPickupMetrics.slice(start, start + pickupPageSize);
+  }, [filteredPickupMetrics, pickupPage, pickupPageSize]);
+
   const handleExportPickupCsv = () => {
     const headers = [
       "Nama Driver Pickup",
@@ -480,7 +612,7 @@ export default function EfektivitasArmadaPage() {
       p.totalSesi,
       p.totalKoli,
       p.totalAwb,
-      Math.round(p.avgKoli),
+      Math.round(p.avgKoliEkuiv),
       p.statusEfisiensi,
       p.rekomendasiArmada,
     ]);
@@ -522,99 +654,180 @@ export default function EfektivitasArmadaPage() {
   const stackedChartData = productivityView === "tipe" ? stackedChartDataTipe : stackedChartDataDriver;
 
   return (
-    <div className="space-y-6 p-4 md:p-6 lg:p-8 bg-[#f8fafc] min-h-screen text-slate-900 font-sans antialiased">
+    <div className="space-y-4 pb-8">
       {/* ── HEADER ── */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between pb-3 border-b border-slate-200">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Link
-              href="/analitik"
-              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
-            >
-              <ArrowLeft className="h-3.5 w-3.5 text-slate-400" />
-              <span>Ke Analitik Operasional</span>
-            </Link>
-          </div>
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
-            Dasbor Efektivitas Armada
-          </h1>
-          <p className="text-xs md:text-sm text-slate-500 mt-1 font-normal">
-            Pemantauan optimalisasi kapasitas koli pada armada truk yang bertugas mendorong muatan ke Gateway (JKT/SEG).
-          </p>
-        </div>
+      <PageHeader
+        title="Dasbor Efektivitas Armada"
+        description="Pemantauan optimalisasi kapasitas koli pada armada truk yang bertugas mendorong muatan ke Gateway (JKT/SEG) maupun driver pickup."
+        crumbs={[{ label: "Analitik", href: "/analitik" }, { label: "Efektivitas Armada" }]}
+        actions={
+          <Link
+            href="/analitik"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            <ArrowLeft className="h-4 w-4 text-slate-400" />
+            <span>Kembali ke Analitik</span>
+          </Link>
+        }
+      />
 
-        {/* Filter Periode */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center rounded-md border border-slate-200 bg-white p-0.5 shadow-sm">
-            {PRESETS.map((p) => (
+      {/* ── UNIFIED FILTER TOOLBAR (Style Riwayat Pickup - Kanan & Kiri Rapi) ── */}
+      <Card className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+        <CardContent className="p-3.5 space-y-3">
+          {/* Baris 1: Preset Periode (Kiri) & Indikator Tanggal Aktif (Kanan) */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            {/* Kiri: Periode Pills */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-slate-500" />
+                Periode:
+              </span>
+
+              {presets.map((p) => {
+                const isActive = startDate === p.from && endDate === p.to;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      setStartDate(p.from);
+                      setEndDate(p.to);
+                      setSelectedPreset(p.days);
+                      setShowCustomRange(false);
+                    }}
+                    className={cn(
+                      "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                      isActive
+                        ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+
+              {/* Tombol Pilih Rentang */}
               <button
-                key={p.days}
                 type="button"
-                onClick={() => handlePreset(p.days)}
+                onClick={() => setShowCustomRange(!showCustomRange)}
                 className={cn(
-                  "rounded px-2.5 py-1 text-xs font-semibold transition-all",
-                  selectedPreset === p.days
-                    ? "bg-slate-900 text-white shadow-xs"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                  "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5",
+                  showCustomRange || !isPresetActive
+                    ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                 )}
+                title="Atur rentang tanggal spesifik"
               >
-                {p.label}
+                <CalendarRange className="h-3.5 w-3.5 text-slate-500" />
+                <span>Pilih Rentang</span>
               </button>
-            ))}
+            </div>
+
+            {/* Kanan: Indikator Periode Aktif */}
+            <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+              <div className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                <Clock className="h-3.5 w-3.5 text-slate-500" />
+                <span>
+                  Periode: <strong className="text-slate-900 dark:text-white font-semibold">{formatDateID(startDate)} – {formatDateID(endDate)}</strong>
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 shadow-sm">
-            <CalendarDays className="h-3.5 w-3.5 text-slate-400" />
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => {
-                setSelectedPreset(-1);
-                setStartDate(e.target.value);
-              }}
-              className="bg-transparent focus:outline-none text-slate-800 font-semibold cursor-pointer text-xs"
-            />
-            <span className="text-slate-300 font-bold">-</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => {
-                setSelectedPreset(-1);
-                setEndDate(e.target.value);
-              }}
-              className="bg-transparent focus:outline-none text-slate-800 font-semibold cursor-pointer text-xs"
-            />
-          </div>
-        </div>
-      </div>
+          {/* Baris 2 (Rentang Kustom): Dari Tanggal - Sampai Tanggal & Tombol Reset */}
+          {(showCustomRange || !isPresetActive) && (
+            <>
+              <div className="h-px bg-slate-100 dark:bg-slate-800/80" />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-0.5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                    Rentang Kustom:
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/60 px-3 py-1.5 text-xs">
+                      <span className="text-[11px] font-medium text-slate-400">Dari:</span>
+                      <input
+                        type="date"
+                        value={startDate}
+                        max={endDate}
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            setStartDate(e.target.value);
+                            setSelectedPreset(-1);
+                          }
+                        }}
+                        className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none"
+                      />
+                    </div>
+                    <span className="text-slate-400 font-semibold">–</span>
+                    <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/60 px-3 py-1.5 text-xs">
+                      <span className="text-[11px] font-medium text-slate-400">Sampai:</span>
+                      <input
+                        type="date"
+                        value={endDate}
+                        min={startDate}
+                        max={todayLocal()}
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            setEndDate(e.target.value);
+                            setSelectedPreset(-1);
+                          }
+                        }}
+                        className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStartDate(todayLocal());
+                      setEndDate(todayLocal());
+                      setSelectedPreset(0);
+                      setShowCustomRange(false);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-400 transition-colors"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    <span>Reset (Hari Ini)</span>
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* ── SEGMEN ARMADA SWITCHER ── */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
+      <div className="p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 w-fit inline-flex gap-1">
         <button
           type="button"
           onClick={() => setFleetSegment("linehaul")}
           className={cn(
-            "flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all",
+            "flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all",
             fleetSegment === "linehaul"
-              ? "bg-slate-900 text-white shadow-xs"
-              : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+              ? "bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-900"
+              : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
           )}
         >
-          <Truck className="h-4 w-4" />
+          <Truck className="h-3.5 w-3.5" />
           <span>Armada Dorong (Gateway)</span>
         </button>
         <button
           type="button"
           onClick={() => setFleetSegment("pickup")}
           className={cn(
-            "flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all",
+            "flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all",
             fleetSegment === "pickup"
-              ? "bg-slate-900 text-white shadow-xs"
-              : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+              ? "bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-900"
+              : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
           )}
         >
-          <Store className="h-4 w-4" />
-          <span>Armada &amp; Tim Pickup (Penjemputan Seller)</span>
+          <Store className="h-3.5 w-3.5" />
+          <span>Armada &amp; Tim Pickup</span>
         </button>
       </div>
 
@@ -979,7 +1192,7 @@ export default function EfektivitasArmadaPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredTableVehicles.map((v) => {
+                    paginatedVehicles.map((v) => {
                       const roundedKoli = Math.round(v.avgKoli);
                       const roundedEcer = Math.round(v.avgEcer);
                       const isNoData = v.ritaseCount === 0 || v.statusKapasitas === "NoData";
@@ -1060,6 +1273,56 @@ export default function EfektivitasArmadaPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls Table 1 */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500">
+              <div className="flex items-center gap-2">
+                <span>
+                  Menampilkan{" "}
+                  <strong className="text-slate-800 dark:text-slate-200">
+                    {filteredTableVehicles.length === 0 ? 0 : (tablePage - 1) * tablePageSize + 1}–
+                    {Math.min(tablePage * tablePageSize, filteredTableVehicles.length)}
+                  </strong>{" "}
+                  dari <strong className="text-slate-800 dark:text-slate-200">{filteredTableVehicles.length}</strong> armada
+                </span>
+                <select
+                  value={tablePageSize}
+                  onChange={(e) => {
+                    setTablePageSize(Number(e.target.value));
+                    setTablePage(1);
+                  }}
+                  className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none"
+                >
+                  <option value={10}>10 / hal</option>
+                  <option value={20}>20 / hal</option>
+                  <option value={50}>50 / hal</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={tablePage <= 1}
+                  onClick={() => setTablePage((p) => Math.max(1, p - 1))}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  title="Halaman Sebelumnya"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="px-2 font-semibold text-slate-700 dark:text-slate-300">
+                  {tablePage} / {totalTablePages}
+                </span>
+                <button
+                  type="button"
+                  disabled={tablePage >= totalTablePages}
+                  onClick={() => setTablePage((p) => Math.min(totalTablePages, p + 1))}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  title="Halaman Berikutnya"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -1080,6 +1343,7 @@ export default function EfektivitasArmadaPage() {
                         {loadingPickup ? <Skeleton className="h-9 w-20" /> : formatNumber(pickupKpis.totalAllKoli)}
                       </h2>
                       <span className="text-xs font-normal text-slate-500">koli</span>
+                      <span className="text-xs font-medium text-slate-400">({formatNumber(pickupKpis.totalAllAwb)} AWB)</span>
                     </div>
                   </div>
                   <div className="p-2.5 bg-blue-50 text-blue-700 rounded-md">
@@ -1291,10 +1555,13 @@ export default function EfektivitasArmadaPage() {
                         </td>
                       </tr>
                     ) : (
-                      filteredPickupMetrics.map((p) => (
+                      paginatedPickupMetrics.map((p) => (
                         <tr key={p.namaDriver} className="hover:bg-slate-50/80 transition-colors">
                           <td className="py-3 px-5 font-bold text-slate-900 whitespace-nowrap">
-                            {p.namaDriver}
+                            <div>{p.namaDriver}</div>
+                            {p.platNomor && (
+                              <div className="text-[10px] font-mono text-slate-400 font-normal">{p.platNomor}</div>
+                            )}
                           </td>
                           <td className="py-3 px-4 text-center font-mono font-semibold">
                             {p.totalSesi}
@@ -1305,8 +1572,13 @@ export default function EfektivitasArmadaPage() {
                           <td className="py-3 px-4 text-right font-mono text-slate-600">
                             {formatNumber(p.totalAwb)}
                           </td>
-                          <td className="py-3 px-4 text-right font-mono font-bold text-slate-800">
-                            {Math.round(p.avgKoli)} koli
+                          <td className="py-3 px-4 text-right font-mono text-slate-800">
+                            <span className="font-bold text-xs">
+                              {Math.round(p.avgKoliEkuiv)} koli
+                            </span>
+                            <span className="block text-[10px] text-slate-400 font-normal">
+                              ~{Math.round(p.avgAwb)} AWB/sesi
+                            </span>
                           </td>
                           <td className="py-3 px-6 text-center">
                             {p.statusEfisiensi === "Overload" ? (
@@ -1323,7 +1595,7 @@ export default function EfektivitasArmadaPage() {
                               </span>
                             )}
                           </td>
-                          <td className="py-3 px-5 text-slate-600 text-[11px]">
+                          <td className="py-3 px-5 text-slate-600 text-[11px] leading-relaxed">
                             {p.rekomendasiArmada}
                           </td>
                         </tr>

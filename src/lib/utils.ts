@@ -258,3 +258,132 @@ export function exportCsv(
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Menghitung kemiripan dua teks (0.0 - 1.0) menggunakan kombinasi Levenshtein & Bigram.
+ */
+function stringSimilarity(s1: string, s2: string): number {
+  const a = s1.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const b = s2.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+
+  // Levenshtein distance
+  const matrix: number[][] = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+
+  const distance = matrix[b.length][a.length];
+  const maxLen = Math.max(a.length, b.length);
+  return 1 - distance / maxLen;
+}
+
+/**
+ * Normalisasi nama toko seller dari log penjemputan driver.
+ * Dilengkapi algoritma adaptif:
+ * 1. Filter status/rute perjalanan secara otomatis (Gudang, Perjalanan, Selesai, Menuju, dsb.).
+ * 2. Konsolidasi variasi typo / huruf besar-kecil ke Master Data Seller via Fuzzy Matching.
+ * 3. Sanitasi & Title-Case generik untuk toko baru apa pun di luar daftar yang sudah ada.
+ */
+export function normalizeSellerName(
+  raw?: string | null,
+  masterSellerList?: string[]
+): string | null {
+  if (!raw) return null;
+  
+  // Bersihkan spasi berlebih & karakter non-alfanumerik di awal/akhir
+  const clean = raw.trim().replace(/^[\s,.\-_!#&]+|[\s,.\-_!#&]+$/g, "");
+  if (!clean || clean.length < 3) return null;
+  const lower = clean.toLowerCase();
+
+  // 1. FILTER GENERIK KATA STATUS / RUTE PERJALANAN (Bukan Toko)
+  const nonSellerTerms = [
+    "gudang",
+    "hub",
+    "transit",
+    "perjalanan",
+    "menuju",
+    "selesai",
+    "standby",
+    "istirahat",
+    "sampai",
+    "ke gudang",
+    "di gudang",
+    "ok",
+    "yes",
+    "oke",
+    "test",
+    "testing",
+  ];
+
+  for (const term of nonSellerTerms) {
+    if (lower === term || lower.startsWith(term + " ") || lower.endsWith(" " + term) || lower.includes("ke gudang")) {
+      return null;
+    }
+  }
+
+  // 2. DYNAMIC FUZZY MATCHING KE MASTER SELLER (Jika disediakan)
+  if (masterSellerList && masterSellerList.length > 0) {
+    let bestMatch: string | null = null;
+    let highestSim = 0;
+
+    for (const master of masterSellerList) {
+      const sim = stringSimilarity(clean, master);
+      if (sim > highestSim) {
+        highestSim = sim;
+        bestMatch = master;
+      }
+    }
+
+    if (bestMatch && highestSim >= 0.75) {
+      return bestMatch;
+    }
+  }
+
+  // 3. MAPPING ALIAS CEPAT UNTUK SELLER EKSISTING TANGERANG
+  if (lower.includes("pln")) return "PLN";
+  if (lower.includes("dewa raya") || lower === "dwr") return "DEWA RAYA";
+  if (lower.includes("msc") || lower.includes("mcs")) return "MSC16";
+  if (lower === "uce" || lower.includes("ucce") || lower.includes("ucee")) return "UCE";
+  if (lower.includes("kiss") || lower.includes("kissa") || lower.includes("kuasa studio")) return "KISSA STUDIO";
+  if (lower.includes("solution") || lower.includes("sulotion") || lower.includes("gsol")) return "GSOLUTION";
+  if (lower.includes("naimax") || lower === "nmx") return "NAIMAX";
+  if (lower.includes("pc") && (lower.includes("zen") || lower.includes("zein"))) return "PC & ZEN";
+  if (lower.includes("monza")) return "Monza Mall";
+  if (lower.includes("priskila")) return "PRISKILA";
+  if (lower.includes("cutties")) return "CUTTIES";
+  if (lower.includes("groglo")) return "GROGLO";
+  if (lower.includes("plastic") || lower.includes("plastik")) return "PLASTIC";
+  if (lower.includes("svarga")) return "SVARGA";
+  if (lower.includes("shenelin") || lower.includes("senelin") || lower === "snln") return "SHENELIN";
+  if (lower.includes("fiveplus") || lower.includes("fvplus")) return "FIVEPLUS";
+  if (lower.includes("thamrin")) return "MDP THAMRIN";
+  if (lower.includes("cibodas")) return "MDP CIBODAS";
+  if (lower.includes("pempers")) return "PEMPERS";
+  if (lower.includes("melinda")) return "MELINDA";
+  if (lower.includes("united")) return "UNITED CLEANING";
+  if (lower.includes("modern park")) return "MODERN PARK";
+  if (lower.includes("home living") || lower === "hmlv") return "HOME LIVING";
+
+  // 4. SANITASI GENERIK (Untuk Toko Baru Apa Pun di Luar Daftar)
+  // Menyamakan kapitalisasi & merapikan spasi ganda agar "toko baru", "Toko Baru", "TOKO BARU"
+  // otomatis menjadi SATU nama yang sama ("Toko Baru").
+  return clean
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+

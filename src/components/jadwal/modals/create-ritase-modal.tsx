@@ -49,13 +49,25 @@ export function CreateRitaseModal({
   const createOriginalRef = useRef<string>("");
 
   const getDriverJenis = (idDriver: number) => {
+    // 1. Cek dari mapping konfigurasi dinamis driver_ritase_jenis
+    const mapping = masterOptions?.driver_jenis?.find((dj) => dj.id_driver === idDriver);
+    if (mapping?.jenis) {
+      return mapping.jenis.toLowerCase();
+    }
+    // 2. Cek dari jabatan driver (mis. "TRANSPORTER INCOMING" atau "TRANSPORTER OUTGOING")
     const driver = masterOptions?.drivers.find((d) => d.id_driver === idDriver);
     const jabatan = (driver?.jabatan ?? "").toLowerCase();
-    return jabatan.includes("incoming") ? "incoming" : "outgoing";
+    if (jabatan.includes("incoming")) return "incoming";
+    if (jabatan.includes("outgoing")) return "outgoing";
+    // 3. Default fallback: transporter biasa adalah outgoing
+    return "outgoing";
   };
 
   const getInitialNewRitase = () => {
-    const defaultDriver = activeDrivers[0];
+    const initialJenis = "outgoing";
+    const defaultDriver =
+      activeDrivers.find((d) => getDriverJenis(d.id_driver) === initialJenis) ??
+      activeDrivers[0];
     const defaultVehicle = activeVehicles[0];
     const defaultGudang = masterOptions?.gudangs[0];
     const defaultSeller = masterOptions?.sellers[0];
@@ -67,9 +79,7 @@ export function CreateRitaseModal({
       id_kendaraan: defaultVehicle?.id_kendaraan ?? 1,
       id_drop_point: defaultDp?.id_drop_point ?? 1,
       ritase_ke: 1,
-      jenis_ritase: defaultDriver
-        ? getDriverJenis(defaultDriver.id_driver)
-        : "outgoing",
+      jenis_ritase: initialJenis,
       stops: [
         {
           id_stop: 1,
@@ -403,11 +413,8 @@ export function CreateRitaseModal({
                 value={newRitase.id_driver}
                 onChange={(e) => {
                   const newDriverId = parseInt(e.target.value, 10);
-                  const driver = masterOptions?.drivers.find(
-                    (d) => d.id_driver === newDriverId,
-                  );
-                  const jabatan = (driver?.jabatan ?? "").toLowerCase();
-                  const maxR = jabatan.includes("incoming") ? 4 : 3;
+                  const driverJenis = getDriverJenis(newDriverId);
+                  const maxR = driverJenis === "incoming" ? 4 : 3;
                   setNewRitase({
                     ...newRitase,
                     id_driver: newDriverId,
@@ -418,14 +425,23 @@ export function CreateRitaseModal({
               >
                 {activeDrivers
                   .filter(
-                    (d) =>
-                      getDriverJenis(d.id_driver) === newRitase.jenis_ritase,
+                    (d) => getDriverJenis(d.id_driver) === newRitase.jenis_ritase,
                   )
                   .map((d) => (
                     <option key={d.id_driver} value={d.id_driver}>
-                      {d.nama_driver} ({d.jabatan})
+                      {d.nama_driver} ({getDriverJenis(d.id_driver) === "incoming" ? "Transporter Incoming" : "Transporter Outgoing"})
                     </option>
                   ))}
+                {newRitase.id_driver &&
+                  !activeDrivers.some(
+                    (d) =>
+                      d.id_driver === newRitase.id_driver &&
+                      getDriverJenis(d.id_driver) === newRitase.jenis_ritase,
+                  ) && (
+                    <option value={newRitase.id_driver}>
+                      {masterOptions?.drivers.find((d) => d.id_driver === newRitase.id_driver)?.nama_driver ?? `Driver #${newRitase.id_driver}`}
+                    </option>
+                  )}
               </select>
             </div>
 

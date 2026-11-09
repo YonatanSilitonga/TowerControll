@@ -11,6 +11,7 @@ import {
   Package,
   Clock,
   Calendar,
+  CalendarRange,
   RefreshCw,
   Boxes,
   FileSpreadsheet,
@@ -35,7 +36,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAllDriverPickupHistory, useDriverPickups, useTrackingMap } from "@/hooks/use-tracking";
-import { formatDateTime, cn } from "@/lib/utils";
+import { formatDateTime, cn, normalizeSellerName } from "@/lib/utils";
 import type { DriverPickupLog } from "@/types/armada";
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -69,9 +70,6 @@ interface SellerAggregated {
 
 function RiwayatPickupContent() {
   const searchParams = useSearchParams();
-  const dateInputRef = useRef<HTMLInputElement>(null);
-  const monthInputRef = useRef<HTMLInputElement>(null);
-
   // Filter States
   const [search, setSearch] = useState("");
   const driverParam = searchParams.get("driver");
@@ -83,15 +81,19 @@ function RiwayatPickupContent() {
     }
   }, [driverParam]);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [dateMode, setDateMode] = useState<"today" | "yesterday" | "this_week" | "custom_day" | "custom_month">("today");
-  const [pickedDate, setPickedDate] = useState<string>(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
-  });
-  const [pickedMonth, setPickedMonth] = useState<string>(() => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-  });
+
+  const todayStr = useMemo(() => {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Jakarta",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+  }, []);
+
+  const [dateMode, setDateMode] = useState<"today" | "yesterday" | "this_week" | "this_month" | "last_30d" | "custom">("today");
+  const [customStart, setCustomStart] = useState<string>(todayStr);
+  const [customEnd, setCustomEnd] = useState<string>(todayStr);
 
   // Tampilan Mode: 'analytics' (Driver Cards) vs 'raw' (Audit Logs)
   const [viewMode, setViewMode] = useState<"analytics" | "raw">("analytics");
@@ -115,16 +117,22 @@ function RiwayatPickupContent() {
     hv?: number;
   } | null>(null);
 
-  // Rentang tanggal aktif yang dipakai query
+  // Rentang tanggal aktif yang dipakai query (terstandarisasi)
   const activeDateRange = useMemo<{
     startDate: string;
     endDate: string;
     label: string;
   }>(() => {
     const now = new Date();
+    const toWIB = (d: Date) =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Jakarta",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(d);
 
     if (dateMode === "today") {
-      const todayStr = now.toISOString().split("T")[0];
       return {
         startDate: todayStr,
         endDate: todayStr,
@@ -135,7 +143,7 @@ function RiwayatPickupContent() {
     if (dateMode === "yesterday") {
       const yest = new Date(now);
       yest.setDate(yest.getDate() - 1);
-      const yestStr = yest.toISOString().split("T")[0];
+      const yestStr = toWIB(yest);
       return {
         startDate: yestStr,
         endDate: yestStr,
@@ -152,8 +160,8 @@ function RiwayatPickupContent() {
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
 
-      const monStr = monday.toISOString().split("T")[0];
-      const sunStr = sunday.toISOString().split("T")[0];
+      const monStr = toWIB(monday);
+      const sunStr = toWIB(sunday);
       return {
         startDate: monStr,
         endDate: sunStr,
@@ -161,40 +169,40 @@ function RiwayatPickupContent() {
       };
     }
 
-    if (dateMode === "custom_day") {
+    if (dateMode === "this_month") {
+      const firstMonthStr = toWIB(new Date(now.getFullYear(), now.getMonth(), 1));
       return {
-        startDate: pickedDate,
-        endDate: pickedDate,
-        label: `Tanggal: ${pickedDate}`,
+        startDate: firstMonthStr,
+        endDate: todayStr,
+        label: `Bulan Ini (${firstMonthStr} s/d ${todayStr})`,
       };
     }
 
-    if (dateMode === "custom_month") {
-      const parts = pickedMonth.split("-");
-      const year = parseInt(parts[0], 10) || now.getFullYear();
-      const monthIndex = (parseInt(parts[1], 10) || now.getMonth() + 1) - 1;
-
-      const firstDay = new Date(year, monthIndex, 1);
-      const lastDay = new Date(year, monthIndex + 1, 0);
-
-      const startMonthStr = firstDay.toISOString().split("T")[0];
-      const endMonthStr = lastDay.toISOString().split("T")[0];
-      const monthName = firstDay.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-
+    if (dateMode === "last_30d") {
+      const d30 = new Date(now);
+      d30.setDate(d30.getDate() - 29);
+      const d30Str = toWIB(d30);
       return {
-        startDate: startMonthStr,
-        endDate: endMonthStr,
-        label: `Bulan ${monthName}`,
+        startDate: d30Str,
+        endDate: todayStr,
+        label: `30 Hari (${d30Str} s/d ${todayStr})`,
       };
     }
 
-    const todayStr = now.toISOString().split("T")[0];
+    if (dateMode === "custom") {
+      return {
+        startDate: customStart,
+        endDate: customEnd,
+        label: `${customStart} s/d ${customEnd}`,
+      };
+    }
+
     return {
       startDate: todayStr,
       endDate: todayStr,
       label: todayStr,
     };
-  }, [dateMode, pickedDate, pickedMonth]);
+  }, [dateMode, customStart, customEnd, todayStr]);
 
   // Query parameters
   const queryParams = useMemo(() => {
@@ -246,69 +254,7 @@ function RiwayatPickupContent() {
     return "B 9278 PDD";
   }, [driverPlatMap, mapData]);
 
-  // Date Filter Handler
-  const handleDateModeChange = (mode: "today" | "yesterday" | "this_week" | "custom_day" | "custom_month") => {
-    setDateMode(mode);
-    const now = new Date();
-    if (mode === "today") {
-      setPickedDate(now.toISOString().split("T")[0]);
-    } else if (mode === "yesterday") {
-      const yest = new Date(now);
-      yest.setDate(yest.getDate() - 1);
-      setPickedDate(yest.toISOString().split("T")[0]);
-    }
-  };
 
-  // Month & Year Picker Modal State
-  const [showMonthModal, setShowMonthModal] = useState(false);
-  const [monthPickerYear, setMonthPickerYear] = useState<number>(() => {
-    const today = new Date();
-    return today.getFullYear();
-  });
-
-  const MONTH_NAMES = [
-    { num: "01", short: "Jan", full: "Januari" },
-    { num: "02", short: "Feb", full: "Februari" },
-    { num: "03", short: "Mar", full: "Maret" },
-    { num: "04", short: "Apr", full: "April" },
-    { num: "05", short: "Mei", full: "Mei" },
-    { num: "06", short: "Jun", full: "Juni" },
-    { num: "07", short: "Jul", full: "Juli" },
-    { num: "08", short: "Ags", full: "Agustus" },
-    { num: "09", short: "Sep", full: "September" },
-    { num: "10", short: "Okt", full: "Oktober" },
-    { num: "11", short: "Nov", full: "November" },
-    { num: "12", short: "Des", full: "Desember" },
-  ];
-
-  const handleSelectMonth = (monthNum: string) => {
-    const formatted = `${monthPickerYear}-${monthNum}`;
-    setPickedMonth(formatted);
-    setDateMode("custom_month");
-    setShowMonthModal(false);
-  };
-
-  const handleOpenDatePicker = () => {
-    if (dateInputRef.current) {
-      if (typeof dateInputRef.current.showPicker === "function") {
-        dateInputRef.current.showPicker();
-      } else {
-        dateInputRef.current.focus();
-        dateInputRef.current.click();
-      }
-    }
-  };
-
-  const monthDisplayLabel = useMemo(() => {
-    const parts = pickedMonth.split("-");
-    const year = parseInt(parts[0], 10);
-    const monthIndex = parseInt(parts[1], 10) - 1;
-    if (!isNaN(year) && !isNaN(monthIndex)) {
-      const d = new Date(year, monthIndex, 1);
-      return d.toLocaleDateString("id-ID", { month: "short", year: "numeric" });
-    }
-    return "Pilih Bulan";
-  }, [pickedMonth]);
 
   /* ─────────────────────────────────────────────────────────────────────────
    * OLAH DATA ANALITIK
@@ -367,17 +313,16 @@ function RiwayatPickupContent() {
       if (status === "selesai") dAgg.totalTripSelesai += 1;
       dAgg.logs.push(log);
 
-      // Parse nama seller
+      // Parse & normalisasi nama seller
       const parts = asalSellerStr
         .split(",")
-        .map((s) => s.trim())
-        .filter((s) => s && s.toLowerCase() !== "gudang" && s.toLowerCase() !== "menuju seller");
+        .map((s) => normalizeSellerName(s))
+        .filter((s): s is string => Boolean(s));
 
-      parts.forEach((p) => {
-        dAgg.sellerSet.add(p);
+      parts.forEach((cleanSeller) => {
+        dAgg.sellerSet.add(cleanSeller);
 
         // 2. Agregasi Seller
-        const cleanSeller = p;
         if (!sellerMap.has(cleanSeller)) {
           sellerMap.set(cleanSeller, {
             namaSeller: cleanSeller,
@@ -601,6 +546,7 @@ function RiwayatPickupContent() {
       <PageHeader
         title="Riwayat Pickup Driver"
         description="Monitoring performa muatan dan riwayat pickup driver dari toko seller ke gudang."
+        crumbs={[{ label: "Riwayat Pickup" }]}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -615,10 +561,10 @@ function RiwayatPickupContent() {
         }
       />
 
-      {/* ── 1. Top Date Filter Toolbar (Hari Ini, Kemarin, Minggu Ini, Pilih Tanggal, Pilih Bulan) ── */}
+      {/* ── 1. Top Date Filter Toolbar Terstandarisasi ── */}
       <Card className="rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-        <CardContent className="p-3.5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <CardContent className="p-3.5 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5 text-slate-500" />
@@ -627,7 +573,8 @@ function RiwayatPickupContent() {
 
               {/* Tombol Hari Ini */}
               <button
-                onClick={() => handleDateModeChange("today")}
+                type="button"
+                onClick={() => setDateMode("today")}
                 className={cn(
                   "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all",
                   dateMode === "today"
@@ -640,7 +587,8 @@ function RiwayatPickupContent() {
 
               {/* Tombol Kemarin */}
               <button
-                onClick={() => handleDateModeChange("yesterday")}
+                type="button"
+                onClick={() => setDateMode("yesterday")}
                 className={cn(
                   "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all",
                   dateMode === "yesterday"
@@ -653,7 +601,8 @@ function RiwayatPickupContent() {
 
               {/* Tombol Minggu Ini */}
               <button
-                onClick={() => handleDateModeChange("this_week")}
+                type="button"
+                onClick={() => setDateMode("this_week")}
                 className={cn(
                   "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all",
                   dateMode === "this_week"
@@ -664,57 +613,48 @@ function RiwayatPickupContent() {
                 Minggu Ini
               </button>
 
-              {/* Tombol Pilih Tanggal (Pop-up Langsung) */}
-              <div className="relative inline-flex items-center">
-                <input
-                  ref={dateInputRef}
-                  type="date"
-                  value={pickedDate}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setPickedDate(e.target.value);
-                      setDateMode("custom_day");
-                    }
-                  }}
-                  className="sr-only absolute pointer-events-none opacity-0 w-0 h-0"
-                  tabIndex={-1}
-                  aria-hidden="true"
-                />
-                <button
-                  type="button"
-                  onClick={handleOpenDatePicker}
-                  className={cn(
-                    "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5",
-                    dateMode === "custom_day"
-                      ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm"
-                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                  )}
-                  title="Klik untuk memilih tanggal spesifik"
-                >
-                  <Calendar className="h-3.5 w-3.5 text-slate-500" />
-                  <span>{dateMode === "custom_day" ? `Tanggal: ${pickedDate}` : "Pilih Tanggal"}</span>
-                </button>
-              </div>
-
-              {/* Tombol Pilih Bulan (Pop-up Modal Langsung) */}
+              {/* Tombol Bulan Ini */}
               <button
                 type="button"
-                onClick={() => {
-                  const parts = pickedMonth.split("-");
-                  const y = parseInt(parts[0], 10);
-                  if (!isNaN(y)) setMonthPickerYear(y);
-                  setShowMonthModal(true);
-                }}
+                onClick={() => setDateMode("this_month")}
                 className={cn(
-                  "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5",
-                  dateMode === "custom_month"
+                  "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                  dateMode === "this_month"
                     ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm"
                     : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                 )}
-                title="Klik untuk memilih bulan spesifik"
               >
-                <Calendar className="h-3.5 w-3.5 text-slate-500" />
-                <span>{dateMode === "custom_month" ? `Bulan: ${monthDisplayLabel}` : "Pilih Bulan"}</span>
+                Bulan Ini
+              </button>
+
+              {/* Tombol 30 Hari */}
+              <button
+                type="button"
+                onClick={() => setDateMode("last_30d")}
+                className={cn(
+                  "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                  dateMode === "last_30d"
+                    ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                )}
+              >
+                30 Hari
+              </button>
+
+              {/* Tombol Pilih Rentang */}
+              <button
+                type="button"
+                onClick={() => setDateMode(dateMode === "custom" ? "today" : "custom")}
+                className={cn(
+                  "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5",
+                  dateMode === "custom"
+                    ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                )}
+                title="Atur rentang tanggal spesifik"
+              >
+                <CalendarRange className="h-3.5 w-3.5 text-slate-500" />
+                <span>Pilih Rentang</span>
               </button>
             </div>
 
@@ -724,6 +664,58 @@ function RiwayatPickupContent() {
               <span>Periode Aktif: <strong className="text-slate-900 dark:text-white font-semibold">{activeDateRange.label}</strong></span>
             </div>
           </div>
+
+          {/* Inline Rentang Kustom */}
+          {dateMode === "custom" && (
+            <>
+              <div className="h-px bg-slate-100 dark:bg-slate-800/80" />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-0.5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                    Rentang Kustom:
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/60 px-3 py-1.5 text-xs">
+                      <span className="text-[11px] font-medium text-slate-400">Dari:</span>
+                      <input
+                        type="date"
+                        value={customStart}
+                        onChange={(e) => {
+                          setCustomStart(e.target.value);
+                          setDateMode("custom");
+                        }}
+                        className="bg-transparent font-medium text-slate-700 dark:text-slate-200 focus:outline-none text-xs"
+                      />
+                    </div>
+                    <span className="text-xs text-slate-400 font-medium">s/d</span>
+                    <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/60 px-3 py-1.5 text-xs">
+                      <span className="text-[11px] font-medium text-slate-400">Sampai:</span>
+                      <input
+                        type="date"
+                        value={customEnd}
+                        onChange={(e) => {
+                          setCustomEnd(e.target.value);
+                          setDateMode("custom");
+                        }}
+                        className="bg-transparent font-medium text-slate-700 dark:text-slate-200 focus:outline-none text-xs"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomStart(todayStr);
+                      setCustomEnd(todayStr);
+                      setDateMode("today");
+                    }}
+                    className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline font-medium"
+                  >
+                    Reset Rentang
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -1755,105 +1747,6 @@ function RiwayatPickupContent() {
                 </button>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Month & Year Picker Modal Pop-up ── */}
-      {showMonthModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm animate-in fade-in duration-150"
-          onClick={() => setShowMonthModal(false)}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header Modal with Year Switcher */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Pilih Bulan & Tahun</h3>
-              </div>
-              <button
-                onClick={() => setShowMonthModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Year Navigator */}
-            <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => setMonthPickerYear((y) => y - 1)}
-                className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition-all flex items-center justify-center"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <span className="text-sm font-extrabold text-slate-900 dark:text-white">
-                {monthPickerYear}
-              </span>
-              <button
-                type="button"
-                onClick={() => setMonthPickerYear((y) => y + 1)}
-                className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition-all flex items-center justify-center"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* 12 Months Grid */}
-            <div className="grid grid-cols-3 gap-2">
-              {MONTH_NAMES.map((m) => {
-                const isSelected =
-                  dateMode === "custom_month" &&
-                  pickedMonth === `${monthPickerYear}-${m.num}`;
-
-                return (
-                  <button
-                    key={m.num}
-                    type="button"
-                    onClick={() => handleSelectMonth(m.num)}
-                    className={cn(
-                      "py-2.5 px-2 rounded-xl text-xs font-semibold transition-all border text-center flex flex-col items-center justify-center gap-0.5",
-                      isSelected
-                        ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border-slate-900 dark:border-slate-100 shadow-sm"
-                        : "bg-slate-50/70 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
-                    )}
-                  >
-                    <span className="font-bold text-xs">{m.short}</span>
-                    <span className={cn("text-[10px]", isSelected ? "text-slate-300 dark:text-slate-600" : "text-slate-400")}>
-                      {m.full}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Quick Actions Footer */}
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  const now = new Date();
-                  setMonthPickerYear(now.getFullYear());
-                  const curMonthNum = String(now.getMonth() + 1).padStart(2, "0");
-                  handleSelectMonth(curMonthNum);
-                }}
-                className="font-bold text-slate-700 dark:text-slate-300 hover:underline"
-              >
-                Bulan Sekarang
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowMonthModal(false)}
-                className="px-3.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-              >
-                Tutup
-              </button>
-            </div>
           </div>
         </div>
       )}

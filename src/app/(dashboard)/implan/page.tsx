@@ -460,6 +460,7 @@ export default function ImplanPage() {
       <PageHeader
         title="Kelola AWB Implan & Muatan Driver Pickup"
         description="Pencatatan muatan toko implan dan pembaruan jumlah barang yang diangkut oleh masing-masing Driver Pickup menuju gudang."
+        crumbs={[{ label: "Kelola Implan" }]}
       />
 
       {/* BANNER READ ONLY UNTUK DIREKSI & KOOR GUDANG */}
