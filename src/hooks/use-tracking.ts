@@ -37,6 +37,25 @@ export function useTrackingMap() {
               (v) => (v.nama_driver || "").toLowerCase() === nameLower
             );
 
+            // Cek status aktif driver pickup
+            const dpStatusLower = (dp.status || "").toLowerCase().trim();
+            const isFinished =
+              dpStatusLower === "selesai" ||
+              dpStatusLower === "sampai gudang" ||
+              dpStatusLower === "sampai di gudang" ||
+              dpStatusLower === "selesai perjalanan";
+
+            const isActivePickupStatus =
+              !isFinished &&
+              (dpStatusLower.includes("menuju") ||
+                dpStatusLower.includes("kembali") ||
+                dpStatusLower.includes("perjalanan") ||
+                dpStatusLower.includes("loading") ||
+                dpStatusLower.includes("muat") ||
+                dpStatusLower.includes("otw") ||
+                dpStatusLower.includes("pickup") ||
+                ["menuju_seller", "menuju_gudang", "sedang menuju", "kembali ke gudang", "kembali kegudang"].includes(dpStatusLower));
+
             // Cek apakah driver sedang aktif menuju seller tertentu atau baru input di seller
             const sellerName = (dp.asal_seller || "").toLowerCase().trim();
             const matchedSeller =
@@ -50,11 +69,11 @@ export function useTrackingMap() {
               matchedSeller &&
               matchedSeller.latitude &&
               matchedSeller.longitude &&
-              (dp.status === "menuju_seller" || dp.status === "sedang menuju");
+              (dpStatusLower.includes("seller") || dpStatusLower === "sedang menuju");
 
-            // Koordinat pusat: di seller jika aktif, atau di gudang outgoing jika selesai/standby
-            const baseLat = isAtSeller ? matchedSeller.latitude : -6.1741458;
-            const baseLng = isAtSeller ? matchedSeller.longitude : 106.6576157;
+            // Koordinat pusat: di seller jika ada, atau di gudang outgoing jika menuju gudang/standby
+            const baseLat = isAtSeller ? matchedSeller.latitude : (matchedSeller?.latitude || -6.1741458);
+            const baseLng = isAtSeller ? matchedSeller.longitude : (matchedSeller?.longitude || 106.6576157);
 
             // Sebarkan posisi marker secara melingkar rapi agar tidak saling bertumpuk (overlap)
             const count = Math.max(1, (data.driver_pickups ?? []).length);
@@ -69,36 +88,28 @@ export function useTrackingMap() {
               matchedVehicle.total_koli = dp.koli ?? matchedVehicle.total_koli;
               matchedVehicle.total_eceran = dp.ecer ?? matchedVehicle.total_eceran;
               matchedVehicle.total_high_value = dp.high_value ?? matchedVehicle.total_high_value;
-              matchedVehicle.session_online = Boolean(matchedVehicle.session_online) || Boolean(dp.session_online);
+              matchedVehicle.session_online = Boolean(matchedVehicle.session_online) || Boolean(dp.session_online) || isActivePickupStatus;
               if (dp.last_login) matchedVehicle.last_login = dp.last_login;
-              if (dp.status && (!matchedVehicle.status || matchedVehicle.status.toLowerCase() === "selesai")) {
+              if (dp.plat_nomor) matchedVehicle.plat_nomor = dp.plat_nomor;
+
+              // ATURAN PENTING: Jika driver pickup sedang aktif (sedang menuju, kembali kegudang, dll)
+              // WAJIB SELALU timpa status dan hidupkan status online-nya agar icon TIDAK HILANG dari peta!
+              if (isActivePickupStatus || !matchedVehicle.status || matchedVehicle.status.toLowerCase() === "selesai" || matchedVehicle.status.toLowerCase() === "standby") {
                 matchedVehicle.status = dp.status;
+                matchedVehicle.offline = false;
               }
               if (dp.updated_at && (!matchedVehicle.last_update || Date.parse(dp.updated_at) > Date.parse(matchedVehicle.last_update))) {
                 matchedVehicle.last_update = dp.updated_at;
               }
-              if (isAtSeller) {
+              // Jika koordinat kendaraan kosong/0 atau sedang berada di seller:
+              if (!matchedVehicle.latitude || !matchedVehicle.longitude || isAtSeller) {
                 matchedVehicle.latitude = baseLat + offsetLat;
                 matchedVehicle.longitude = baseLng + offsetLng;
               }
             } else if (!existingDriverNames.has(nameLower)) {
               // Buat marker jika driver pickup SEDANG LOGIN, ATAU statusnya masih aktif
-              // (menuju_seller / menuju_gudang) — agar icon selalu muncul di peta
-              // meskipun session_online false / GPS stale.
+              // (menuju_seller / menuju_gudang / sedang menuju / kembali kegudang) — agar icon selalu muncul di peta!
               const isDpOnline = dp.session_online || hasActiveSession(dp.last_login);
-              const dpStatusLower = (dp.status || "").toLowerCase().trim();
-              const isFinished =
-                dpStatusLower === "selesai" ||
-                dpStatusLower === "sampai gudang" ||
-                dpStatusLower === "sampai di gudang";
-              const isActivePickupStatus =
-                !isFinished &&
-                (dpStatusLower.includes("menuju") ||
-                  dpStatusLower.includes("kembali") ||
-                  dpStatusLower.includes("perjalanan") ||
-                  dpStatusLower.includes("loading") ||
-                  dpStatusLower.includes("muat") ||
-                  ["menuju_seller", "menuju_gudang", "sedang menuju", "kembali ke gudang", "kembali kegudang"].includes(dpStatusLower));
               if (isDpOnline || isActivePickupStatus) {
                 const syntheticId = 9000 + (dp.id_user || (idx + 1));
                 if (!existingVehicleIds.has(syntheticId)) {
@@ -112,14 +123,14 @@ export function useTrackingMap() {
                     id_driver: dp.id_user,
                     nama_driver: dp.nama_driver || dp.username,
                     role_driver: "driver_pickup",
-                    status: dp.status || "standby",
+                    status: dp.status || "sedang menuju",
                     latitude: baseLat + offsetLat,
                     longitude: baseLng + offsetLng,
                     kecepatan: 0,
-                    offline: !isDpOnline,
+                    offline: false,
                     last_update: dp.updated_at || new Date().toISOString(),
                     last_login: dp.last_login ?? new Date().toISOString(),
-                    session_online: isDpOnline || isActivePickupStatus,
+                    session_online: true,
                     total_awb: dp.jumlah_barang || 0,
                     total_koli: dp.koli || 0,
                     total_eceran: dp.ecer || 0,
