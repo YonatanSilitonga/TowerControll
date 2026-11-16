@@ -6,15 +6,15 @@ import { cn } from "@/lib/utils";
 import { swal } from "@/lib/swal";
 import {
   Plus, Pencil, Trash2, Search, X, Loader2, Phone,
-  UserCog, CheckCircle2, AlertTriangle, ChevronDown, Check,
-  Eye, EyeOff, ArrowUpDown, Filter, UserPlus, ToggleLeft, ToggleRight, FileSpreadsheet,
+  UserCog, CheckCircle2, AlertTriangle, ChevronDown, Check, Eye,
+  ArrowUpDown, Filter, FileSpreadsheet,
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
-import { adminDriver, adminUser, DriverAdmin } from "@/lib/admin-api";
+import { adminDriver, DriverAdmin } from "@/lib/admin-api";
 
 /* ─────────── TOAST ─────────── */
 function Toast({ show, title, message, type, onClose }: {
@@ -201,34 +201,14 @@ function CustomSelect({ value, onChange, options, placeholder, hasError }: {
   );
 }
 
-/* ─────────── PASSWORD INPUT ─────────── */
-function PasswordInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  const [show, setShow] = useState(false);
-  return (
-    <div className="relative">
-      <Input
-        type={show ? "text" : "password"}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder ?? "Minimal 6 karakter"}
-        className="h-11 rounded-lg pr-10 text-sm"
-      />
-      <button type="button" onClick={() => setShow((p) => !p)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" tabIndex={-1}>
-        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-      </button>
-    </div>
-  );
-}
-
 /* ─────────── INITIAL FORM STATE ─────────── */
 const INIT_FORM = {
   nama_driver: "", no_hp: "", no_sim: "", jenis_sim: "B1", jabatan: "", status_driver: "aktif",
 };
-const INIT_AKUN = { username: "", password: "" };
 
 /* ─────────── PAGE ─────────── */
-export default function AdminDriversPage() {
+export function DriverCrudPage({ tipe = "reguler" }: { tipe?: "reguler" | "pickup" }) {
+  const isPickup = tipe === "pickup";
   const [data, setData]           = useState<DriverAdmin[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState<string | null>(null);
@@ -242,11 +222,6 @@ export default function AdminDriversPage() {
   const [form, setFormState]        = useState({ ...INIT_FORM });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [saving, setSaving]         = useState(false);
-
-  // Toggle "buat akun sekaligus"
-  const [buatAkun, setBuatAkun]   = useState(false);
-  const [akunForm, setAkunForm]   = useState({ ...INIT_AKUN });
-  const [akunErrors, setAkunErrors] = useState<Record<string, string>>({});
 
   const [toast, setToast] = useState<{ show: boolean; title: string; message?: string; type: "success" | "error" | "info" }>({
     show: false, title: "", type: "success",
@@ -273,6 +248,7 @@ export default function AdminDriversPage() {
 
   // ── Filter + Sort ──
   let processed = data.filter((row) => {
+    if ((row.tipe_driver ?? "reguler") !== tipe) return false;
     if (statusFilter !== "ALL" && row.status_driver !== statusFilter) return false;
     if (!search) return true;
     const q = search.toLowerCase();
@@ -319,9 +295,6 @@ export default function AdminDriversPage() {
     setEditing(null);
     setFormState({ ...INIT_FORM });
     setFormErrors({});
-    setBuatAkun(false);
-    setAkunForm({ ...INIT_AKUN });
-    setAkunErrors({});
     setModalOpen(true);
   };
   const openEdit = (row: DriverAdmin) => {
@@ -335,9 +308,6 @@ export default function AdminDriversPage() {
       status_driver: row.status_driver,
     });
     setFormErrors({});
-    setBuatAkun(false);
-    setAkunForm({ ...INIT_AKUN });
-    setAkunErrors({});
     setModalOpen(true);
   };
 
@@ -355,16 +325,7 @@ export default function AdminDriversPage() {
     }
     if (!form.status_driver) errs.status_driver = "Status wajib dipilih";
     setFormErrors(errs);
-
-    const akunErrs: Record<string, string> = {};
-    if (!editing && buatAkun) {
-      if (!akunForm.username.trim()) akunErrs.username = "Username wajib diisi";
-      if (!akunForm.password) akunErrs.password = "Password wajib diisi";
-      else if (akunForm.password.length < 6) akunErrs.password = "Password minimal 6 karakter";
-    }
-    setAkunErrors(akunErrs);
-
-    return Object.keys(errs).length === 0 && Object.keys(akunErrs).length === 0;
+    return Object.keys(errs).length === 0;
   };
 
   // ── Save ──
@@ -382,40 +343,15 @@ export default function AdminDriversPage() {
         no_sim: form.no_sim.trim() ? form.no_sim.trim() : undefined,
         jenis_sim: form.jenis_sim || undefined,
         jabatan: form.jabatan?.trim() || undefined,
+        tipe_driver: tipe,
         status_driver: form.status_driver as "aktif" | "nonaktif",
       };
       if (editing) {
         await adminDriver.update(editing.id_driver, payload);
         swal.success("Driver Diperbarui", `Data ${form.nama_driver} berhasil disimpan.`);
       } else {
-        // 1. Buat driver
-        const res = await adminDriver.create(payload);
-        const driverId = (res as any)?.id_driver;
-
-        // 2. Kalau toggle aktif → buat akun user sekaligus
-        if (buatAkun) {
-          try {
-            await adminUser.create({
-              username: akunForm.username,
-              password: akunForm.password,
-              name: form.nama_driver,
-              role: "driver",
-              id_driver: driverId,
-            });
-            swal.success(
-              "Driver + Akun Berhasil Dibuat",
-              `Driver "${form.nama_driver}" dan akun login "@${akunForm.username}" sudah aktif.`,
-            );
-          } catch (akunErr: any) {
-            // Driver sudah dibuat, akun gagal — informasikan tanpa rollback
-            swal.error(
-              "Driver Dibuat, Akun Gagal",
-              `Driver berhasil ditambahkan tapi akun login gagal: ${akunErr?.message ?? "Error tidak diketahui"}. Buat akun manual di halaman Users.`,
-            );
-          }
-        } else {
-          swal.success("Driver Berhasil Ditambahkan", `${form.nama_driver} sudah terdaftar.`);
-        }
+        await adminDriver.create(payload);
+        swal.success("Driver Berhasil Ditambahkan", `${form.nama_driver} sudah terdaftar.`);
       }
       setModalOpen(false);
       await refresh();
@@ -447,23 +383,17 @@ export default function AdminDriversPage() {
     setFormState((p) => ({ ...p, [key]: val }));
     if (formErrors[key]) setFormErrors((p) => ({ ...p, [key]: "" }));
   };
-  const setAkunField = (key: string, val: string) => {
-    setAkunForm((p) => ({ ...p, [key]: val }));
-    if (akunErrors[key]) setAkunErrors((p) => ({ ...p, [key]: "" }));
-  };
 
-  const totalErrors = Object.keys(formErrors).length + Object.keys(akunErrors).length;
+  const totalErrors = Object.keys(formErrors).length;
   const modalDesc = editing
     ? `Perbarui data pengemudi`
-    : buatAkun
-    ? `Isi form berikut · Driver + akun login akan dibuat sekaligus`
-    : `Isi form berikut · 4 field wajib diisi`;
+    : `Isi form berikut · tambah profil driver ${isPickup ? "pickup" : "reguler"}`;
 
   return (
     <>
       <PageHeader
-        title={`Driver (${data.length})`}
-        description="Kelola master data pengemudi armada logistik"
+        title={`Driver ${isPickup ? "Pickup" : "Reguler"} (${processed.length})`}
+        description={isPickup ? "Kelola master data pengemudi pickup barang" : "Kelola master data pengemudi armada logistik"}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={handleExportExcel} className="border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800">
@@ -613,7 +543,6 @@ export default function AdminDriversPage() {
                 className="flex-[2] bg-[#0c1e3a] font-semibold text-white hover:bg-[#0c1e3a]/90 disabled:opacity-70">
                 {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Menyimpan…</>
                   : editing ? "Simpan Perubahan"
-                  : buatAkun ? "Tambah Driver + Akun"
                   : "Tambah Driver"}
               </Button>
             </div>
@@ -663,73 +592,6 @@ export default function AdminDriversPage() {
           <FieldWrapper label="Status Driver" required error={formErrors.status_driver}>
             <CustomSelect value={form.status_driver} onChange={(v) => setField("status_driver", v)} options={STATUS_OPTIONS} hasError={!!formErrors.status_driver} />
           </FieldWrapper>
-
-          {/* ── Toggle: Buat Akun Login Sekaligus (create only) ── */}
-          {!editing && (
-            <div className="sm:col-span-2">
-              <SectionDivider label="Akun Login Aplikasi (opsional)" />
-
-              {/* Toggle button */}
-              <button
-                type="button"
-                onClick={() => { setBuatAkun((p) => !p); setAkunErrors({}); }}
-                className={cn(
-                  "flex w-full items-center justify-between rounded-lg border px-4 py-3 text-sm transition-all",
-                  buatAkun
-                    ? "border-[#FEA103]/50 bg-amber-50/60 dark:border-[#FEA103]/30 dark:bg-amber-500/5"
-                    : "border-slate-200 bg-slate-50 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800/50"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-                    buatAkun ? "bg-[#FEA103]/15 text-[#E09102]" : "bg-slate-200/80 text-slate-500 dark:bg-slate-700"
-                  )}>
-                    <UserPlus className="h-4 w-4" />
-                  </div>
-                  <div className="text-left">
-                    <p className={cn("text-xs font-semibold", buatAkun ? "text-[#E09102] dark:text-[#FEA103]" : "text-slate-700 dark:text-slate-300")}>
-                      Buat akun login sekaligus
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                      {buatAkun ? "Driver bisa langsung login ke aplikasi mobile" : "Aktifkan untuk buat username & password dalam satu langkah"}
-                    </p>
-                  </div>
-                </div>
-                {buatAkun
-                  ? <ToggleRight className="h-6 w-6 shrink-0 text-[#FEA103]" />
-                  : <ToggleLeft className="h-6 w-6 shrink-0 text-slate-300 dark:text-slate-600" />}
-              </button>
-
-              {/* Akun fields — collapse/expand dengan animasi */}
-              {buatAkun && (
-                <div className="mt-3 grid grid-cols-1 gap-3 rounded-lg border border-[#FEA103]/20 bg-amber-50/40 p-4 dark:border-[#FEA103]/10 dark:bg-amber-500/5 sm:grid-cols-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <FieldWrapper label="Username" required error={akunErrors.username} hint="Digunakan driver untuk login ke aplikasi MUSTGO">
-                    <Input
-                      value={akunForm.username}
-                      onChange={(e) => setAkunField("username", e.target.value)}
-                      placeholder="Buat username unik"
-                      className={cn("h-11 rounded-lg text-sm", akunErrors.username && "border-rose-400 bg-rose-50/50 dark:bg-rose-500/5")}
-                    />
-                  </FieldWrapper>
-                  <FieldWrapper label="Password" required error={akunErrors.password} hint="Minimal 6 karakter">
-                    <PasswordInput
-                      value={akunForm.password}
-                      onChange={(v) => setAkunField("password", v)}
-                      placeholder="Minimal 6 karakter"
-                    />
-                  </FieldWrapper>
-                  {/* Info: role otomatis driver */}
-                  <div className="sm:col-span-2">
-                    <div className="flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-[11px] text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                      Role akun akan otomatis diset sebagai <span className="font-bold mx-1">Driver</span> — sesuai akses aplikasi mobile.
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </Modal>
 
@@ -813,4 +675,8 @@ export default function AdminDriversPage() {
       />
     </>
   );
+}
+
+export default function AdminDriversPage() {
+  return <DriverCrudPage tipe="reguler" />;
 }

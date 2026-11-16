@@ -29,7 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
-import { adminUser, UserAdmin } from "@/lib/admin-api";
+import { adminUser, UserAdmin, LinkableActor } from "@/lib/admin-api";
 
 /* ─────────── MODAL (with scroll lock) ─────────── */
 function Modal({
@@ -156,7 +156,9 @@ const ROLE_OPTIONS = [
   { value: "direktur",      label: "Direktur",       color: "bg-purple-500" },
   { value: "tower_control", label: "Tower Control",   color: "bg-blue-500" },
   { value: "kapten",        label: "Kapten",          color: "bg-orange-500" },
-  { value: "driver",        label: "Driver",          color: "bg-emerald-500" },
+  { value: "driver",        label: "Driver Reguler",  color: "bg-emerald-500" },
+  { value: "driver_pickup", label: "Driver Pickup",   color: "bg-teal-500" },
+  { value: "koor_gudang",   label: "Koordinator Gudang", color: "bg-cyan-600" },
 ];
 
 const ROLE_COLORS: Record<string, string> = {
@@ -166,6 +168,8 @@ const ROLE_COLORS: Record<string, string> = {
   tower_control: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400",
   kapten:        "bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400",
   driver:        "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
+  driver_pickup: "bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400",
+  koor_gudang:   "bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400",
 };
 
 /* ─────────── ROLE SELECT DROPDOWN ─────────── */
@@ -311,8 +315,10 @@ export default function AdminUsersPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailRow, setDetailRow] = useState<UserAdmin | null>(null);
 
-  const [form, setFormState] = useState({ username: "", password: "", name: "", role: "driver", id_driver: "" });
+  const [form, setFormState] = useState({ username: "", password: "", role: "driver", actorId: "" });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [actors, setActors] = useState<LinkableActor[]>([]);
+  const [actorsLoading, setActorsLoading] = useState(false);
   const [newPw, setNewPw] = useState("");
 
   const refresh = useCallback(async () => {
@@ -323,6 +329,17 @@ export default function AdminUsersPage() {
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  useEffect(() => {
+    if (!createOpen || !form.role) return;
+    let active = true;
+    setActorsLoading(true);
+    setActors([]);
+    adminUser.available(form.role)
+      .then((list) => { if (active) setActors(list); })
+      .finally(() => { if (active) setActorsLoading(false); });
+    return () => { active = false; };
+  }, [createOpen, form.role]);
 
   // ── Filtering ──
   const filtered = data.filter((row) => {
@@ -345,24 +362,40 @@ export default function AdminUsersPage() {
   // ── Validate & Save ──
   const validateCreate = () => {
     const errors: Record<string, string> = {};
+    if (!form.role) errors.role = "Role wajib dipilih";
+    if (!form.actorId) errors.actorId = "Nama wajib dipilih";
     if (!form.username.trim()) errors.username = "Username wajib diisi";
     if (!form.password) errors.password = "Password wajib diisi";
     else if (form.password.length < 6) errors.password = "Password minimal 6 karakter";
-    if (!form.name.trim()) errors.name = "Nama lengkap wajib diisi";
-    if (!form.role) errors.role = "Role wajib dipilih";
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  const resetCreateForm = () => {
+    setFormState({ username: "", password: "", role: "driver", actorId: "" });
+    setFormErrors({});
+    setActors([]);
   };
 
   const handleCreate = async () => {
     if (!validateCreate()) return;
     setSaving(true);
     try {
-      await adminUser.create({ ...form, id_driver: form.id_driver ? Number(form.id_driver) : undefined });
-      swal.success("User Baru Berhasil Dibuat");
+      const id = Number(form.actorId);
+      const payload: Parameters<typeof adminUser.create>[0] = {
+        username: form.username.trim(),
+        password: form.password,
+        role: form.role,
+      };
+      if (form.role === "kapten") payload.kapten_user_id = id;
+      else if (form.role === "koor_gudang") payload.id_koor_gudang = id;
+      else if (form.role === "driver" || form.role === "driver_pickup") payload.id_driver = id;
+      else payload.karyawan_id = id;
+
+      const res = await adminUser.create(payload);
+      swal.success("Akun Berhasil Dibuat", `Username "${res.username}" sudah aktif.`);
       setCreateOpen(false);
-      setFormState({ username: "", password: "", name: "", role: "driver", id_driver: "" });
-      setFormErrors({});
+      resetCreateForm();
       await refresh();
     } catch (err: any) { swal.error(err?.message || "Gagal membuat user"); }
     setSaving(false);
@@ -415,8 +448,7 @@ export default function AdminUsersPage() {
             </Button>
             <Button
               onClick={() => {
-                setFormState({ username: "", password: "", name: "", role: "driver", id_driver: "" });
-                setFormErrors({});
+                resetCreateForm();
                 setCreateOpen(true);
               }}
               className="bg-[#FEA103] text-xs font-semibold text-white shadow-sm hover:bg-[#E09102]"
@@ -543,11 +575,7 @@ export default function AdminUsersPage() {
                     Role <ArrowUpDown className="h-3 w-3 text-slate-400" />
                   </button>
                 </th>
-                <th className="w-28 px-4 py-2.5 text-right font-bold select-none">
-                  <button onClick={() => handleSort("id_driver")} className="inline-flex items-center gap-1 hover:text-slate-800 dark:hover:text-white">
-                    Driver ID <ArrowUpDown className="h-3 w-3 text-slate-400" />
-                  </button>
-                </th>
+                <th className="w-28 px-4 py-2.5 text-right font-bold select-none">ID Master</th>
                 <th className="w-24 px-4 py-2.5 font-bold select-none">
                   <button onClick={() => handleSort("status")} className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-white">
                     Status <ArrowUpDown className="h-3 w-3 text-slate-400" />
@@ -593,7 +621,15 @@ export default function AdminUsersPage() {
                         {ROLE_OPTIONS.find((o) => o.value === row.role)?.label ?? row.role}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right text-xs text-slate-500">{row.id_driver ?? "—"}</td>
+                    <td className="px-4 py-3 text-right text-xs text-slate-500">
+                      {row.id_driver
+                        ? `D-${row.id_driver}`
+                        : row.karyawan_id
+                          ? `K-${row.karyawan_id}`
+                          : row.id_koor_gudang
+                            ? `G-${row.id_koor_gudang}`
+                            : "—"}
+                    </td>
                     <td className="px-4 py-3"><StatusBadge status={row.status} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
@@ -649,7 +685,7 @@ export default function AdminUsersPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         title="Tambah Akun User Baru"
-        description="Isi form berikut · 4 field wajib diisi"
+        description="Pilih role & nama aktor · akun hanya bisa dipakai di platform sesuai role"
         icon={<UserPlus className="h-5 w-5" />}
         footer={
           <div className="space-y-3">
@@ -677,9 +713,43 @@ export default function AdminUsersPage() {
         }
       >
         <div className="space-y-5">
+          <SectionDivider label="Hak Akses" />
+          <FieldWrapper label="Role Hak Akses" required error={formErrors.role} hint="Nama yang muncul di bawah mengikuti role yang dipilih">
+            <RoleSelect value={form.role} onChange={(v) => { setField("role", v); setFormState((p) => ({ ...p, actorId: "" })); }} />
+          </FieldWrapper>
+
+          <SectionDivider label="Data Pengguna" />
+          <FieldWrapper label="Nama Lengkap" required error={formErrors.actorId} hint="Diambil otomatis dari master role · yang sudah punya akun tidak muncul">
+            <div className="relative">
+              <select
+                value={form.actorId}
+                onChange={(e) => setField("actorId", e.target.value)}
+                disabled={actorsLoading || actors.length === 0}
+                className={cn(
+                  "h-11 w-full appearance-none rounded-lg border bg-white px-3.5 pr-9 text-sm text-slate-700 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-800 dark:text-white",
+                  formErrors.actorId
+                    ? "border-rose-400 bg-rose-50/50 focus:border-rose-500 dark:bg-rose-500/5"
+                    : "border-slate-200 hover:border-slate-300 focus:border-[#FEA103] focus:ring-2 focus:ring-[#FEA103]/20 dark:border-slate-700"
+                )}
+              >
+                <option value="">
+                  {actorsLoading
+                    ? "Memuat data…"
+                    : actors.length === 0
+                      ? "Tidak ada data yang belum punya akun"
+                      : "Pilih nama…"}
+                </option>
+                {actors.map((a) => (
+                  <option key={a.id} value={a.id}>{a.nama}</option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            </div>
+          </FieldWrapper>
+
           <SectionDivider label="Kredensial Login" />
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <FieldWrapper label="Username" required error={formErrors.username} hint="Digunakan untuk login ke sistem">
+            <FieldWrapper label="Username" required error={formErrors.username} hint="Diketik manual oleh admin">
               <Input
                 value={form.username}
                 onChange={(e) => setField("username", e.target.value)}
@@ -691,32 +761,6 @@ export default function AdminUsersPage() {
               <PasswordInput value={form.password} onChange={(v) => setField("password", v)} placeholder="Minimal 6 karakter" />
             </FieldWrapper>
           </div>
-
-          <SectionDivider label="Data Pengguna" />
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <FieldWrapper label="Nama Lengkap" required error={formErrors.name}>
-              <Input
-                value={form.name}
-                onChange={(e) => setField("name", e.target.value)}
-                placeholder="Nama lengkap pengoperasi"
-                className={cn("h-11 rounded-lg text-sm", formErrors.name && "border-rose-400 bg-rose-50/50 focus:border-rose-500 dark:bg-rose-500/5")}
-              />
-            </FieldWrapper>
-            <FieldWrapper label="Driver ID" hint="Opsional — hubungkan ke ID driver">
-              <Input
-                type="number"
-                value={form.id_driver}
-                onChange={(e) => setField("id_driver", e.target.value)}
-                placeholder="cth: 1"
-                className="h-11 rounded-lg text-sm"
-              />
-            </FieldWrapper>
-          </div>
-
-          <SectionDivider label="Hak Akses" />
-          <FieldWrapper label="Role Hak Akses" required error={formErrors.role} hint="Menentukan menu dan fitur yang bisa diakses user">
-            <RoleSelect value={form.role} onChange={(v) => setField("role", v)} />
-          </FieldWrapper>
         </div>
       </Modal>
 
@@ -807,7 +851,7 @@ export default function AdminUsersPage() {
                   </span>
                 ),
               },
-              { label: "ID Driver", value: detailRow.id_driver ?? "—" },
+              { label: "ID Master", value: detailRow.id_driver ? `D-${detailRow.id_driver}` : detailRow.karyawan_id ? `K-${detailRow.karyawan_id}` : detailRow.id_koor_gudang ? `G-${detailRow.id_koor_gudang}` : "—" },
               {
                 label: "Status",
                 value: (

@@ -52,9 +52,11 @@ export default function AdminDashboardPage() {
     activeUsers: 0,
     roleCounts: {
       admin: 0,
+      developer: 0,
       koor_gudang: 0,
       kapten: 0,
       driver: 0,
+      driver_pickup: 0,
       tower_control: 0,
       direktur: 0,
       other: 0,
@@ -86,9 +88,11 @@ export default function AdminDashboardPage() {
 
       const roleMap: Record<string, number> = {
         admin: 0,
+        developer: 0,
         koor_gudang: 0,
         kapten: 0,
         driver: 0,
+        driver_pickup: 0,
         tower_control: 0,
         direktur: 0,
         other: 0,
@@ -98,8 +102,6 @@ export default function AdminDashboardPage() {
         const r = (user.role || "").toLowerCase();
         if (r in roleMap) {
           roleMap[r]++;
-        } else if (r === "driver_pickup") {
-          roleMap.driver++;
         } else {
           roleMap.other++;
         }
@@ -266,10 +268,12 @@ export default function AdminDashboardPage() {
 
   // Role Breakdown Cards
   const roleBadges = [
-    { label: "Admin & Dev", count: counts.roleCounts.admin, icon: Shield, desc: "Hak akses penuh sistem" },
+    { label: "Admin", count: counts.roleCounts.admin, icon: Shield, desc: "Hak akses penuh sistem" },
+    { label: "Developer", count: counts.roleCounts.developer, icon: Shield, desc: "Pengembangan sistem" },
     { label: "Koor Gudang", count: counts.roleCounts.koor_gudang, icon: Warehouse, desc: "Logistik & muatan gudang" },
     { label: "Kapten Implant", count: counts.roleCounts.kapten, icon: UserCheck, desc: "Input serah terima implant" },
-    { label: "Driver", count: counts.roleCounts.driver, icon: Truck, desc: "Pickup & gateway delivery" },
+    { label: "Driver Reguler", count: counts.roleCounts.driver, icon: Truck, desc: "Pengiriman gateway" },
+    { label: "Driver Pickup", count: counts.roleCounts.driver_pickup, icon: Truck, desc: "Penjemputan barang" },
     { label: "Tower Control", count: counts.roleCounts.tower_control, icon: UserCog, desc: "Monitoring & dispatching" },
     { label: "Direktur", count: counts.roleCounts.direktur, icon: CheckCircle2, desc: "Eksekutif & reporting" },
   ];

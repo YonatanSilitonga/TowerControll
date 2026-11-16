@@ -6,7 +6,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { ChevronRight, X } from "lucide-react";
 import { cn, formatDur } from "@/lib/utils";
 import { getFullPhotoUrl, statusLabel } from "@/lib/constants";
-import { useMuatanDetail } from "@/hooks/use-tracking";
+import { useMuatanDetail, type MuatanKonfirmasi } from "@/hooks/use-tracking";
 import type { TimelineItem, RitaseInfo } from "@/components/armada/status-timeline";
 
 export function DashboardLogTable({ events, activeRitaseId, ritaseInfoMap, roomy = false, newestFirst = false }: {
@@ -108,6 +108,52 @@ function MuatanValue({ d, className }: { d: { awb: number; koli: number; ecer: n
         </span>
       ))}
     </span>
+  );
+}
+
+const BREAKDOWN_REGIONS = ["JKT", "SEG", "BTN"] as const;
+
+function MuatanBreakdown({ k }: { k: MuatanKonfirmasi }) {
+  const rows = [
+    { label: "Koli", values: [k.koli_jkt ?? 0, k.koli_seg ?? 0, k.koli_btn ?? 0] },
+    { label: "Ecer", values: [k.ecer_jkt ?? 0, k.ecer_seg ?? 0, k.ecer_btn ?? 0] },
+    { label: "HV Koli", values: [k.koli_hv_jkt ?? 0, k.koli_hv_seg ?? 0, k.koli_hv_btn ?? 0] },
+    { label: "HV Ecer", values: [k.ecer_hv_jkt ?? 0, k.ecer_hv_seg ?? 0, k.ecer_hv_btn ?? 0] },
+    { label: "HV AWB", values: [k.awb_hv_jkt ?? 0, k.awb_hv_seg ?? 0, k.awb_hv_btn ?? 0] },
+  ].filter((row) => row.values.some((v) => v > 0));
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="mt-2 overflow-x-auto rounded-md border border-slate-100">
+      <table className="w-full text-[11px]">
+        <thead className="bg-slate-50 text-slate-400">
+          <tr>
+            <th className="px-2 py-1 text-left font-medium">Jenis</th>
+            {BREAKDOWN_REGIONS.map((region) => (
+              <th key={region} className="px-2 py-1 text-center font-medium">
+                {region}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.label} className="border-t border-slate-100">
+              <td className="whitespace-nowrap px-2 py-1 font-medium text-slate-600">{row.label}</td>
+              {row.values.map((value, i) => (
+                <td
+                  key={BREAKDOWN_REGIONS[i]}
+                  className="px-2 py-1 text-center font-semibold tabular-nums text-slate-800"
+                >
+                  {value > 0 ? value : ""}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -220,6 +266,7 @@ function MuatanDetailView({
                     <p className="mt-2 border-t border-slate-100 pt-2 text-sm font-semibold text-slate-800">
                       <MuatanValue d={{ awb: k.jumlah_awb, koli: k.koli, ecer: k.ecer, hv: k.hv }} />
                     </p>
+                    <MuatanBreakdown k={k} />
                     {k.catatan && (
                       <p className="mt-1 whitespace-pre-wrap break-words text-xs italic text-slate-500">
                         &quot;{k.catatan}&quot;

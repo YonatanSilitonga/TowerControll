@@ -146,7 +146,7 @@ export interface TrackingVehicle {
   has_confirmation?: boolean;
   /** Gateway akhir ritase: 'JKT' atau 'SEG' (termasuk BTN). */
   gateway_akhir?: string | null;
-  /** Total koli + koli HV sesuai gateway akhir; dipakai bubble truk. */
+  /** Koli + koli HV untuk bubble truk; difilter ke gateway akhir saat menuju/tiba. */
   bubble_total?: number | null;
   /** Role driver: 'driver' (reguler) atau 'driver_pickup'. */
   role_driver?: string | null;

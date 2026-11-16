@@ -6,6 +6,8 @@ import { adminSeller, SellerAdmin } from "@/lib/admin-api";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Store, UserCheck, Phone } from "lucide-react";
 
+const showLocationFields = (form: Record<string, any>) => String(form.is_dropper) !== "true";
+
 const columns: Column<SellerAdmin>[] = [
   {
     header: "Kode",
@@ -63,6 +65,20 @@ const columns: Column<SellerAdmin>[] = [
     render: (r) => (r.forecast_harian ? `${r.forecast_harian.toLocaleString("id-ID")}` : "—"),
   },
   {
+    header: "Tipe",
+    accessorKey: "is_dropper",
+    render: (r) =>
+      r.is_dropper ? (
+        <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+          Dropper
+        </span>
+      ) : (
+        <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+          Reguler
+        </span>
+      ),
+  },
+  {
     header: "Status",
     accessorKey: "status",
     render: (r) => <StatusBadge status={r.status} />,
@@ -87,9 +103,20 @@ const fields: FieldConfig[] = [
     placeholder: "Nama toko pengirim",
     colSpan: 1,
   },
+  {
+    key: "is_dropper",
+    label: "Status Dropper",
+    type: "select",
+    required: true,
+    options: [
+      { value: "false", label: "Bukan Dropper" },
+      { value: "true", label: "Ya, Seller Dropper" },
+    ],
+    hint: "Jika Ya, alamat, kota, area, dan titik lokasi disembunyikan serta dikosongkan. Seller dropper tidak muncul di peta dan tidak dipakai sebagai stop ritase reguler.",
+  },
 
   // ── Section: Lokasi & Area ──
-  { key: "sec_lokasi", type: "section-divider", label: "Lokasi & Area" },
+  { key: "sec_lokasi", type: "section-divider", label: "Lokasi & Area", visibleWhen: showLocationFields },
   {
     key: "alamat",
     label: "Alamat Lengkap",
@@ -97,9 +124,10 @@ const fields: FieldConfig[] = [
     colSpan: 2,
     placeholder: "Alamat gudang / toko seller",
     hint: "Alamat ini digunakan sebagai referensi rute driver",
+    visibleWhen: showLocationFields,
   },
-  { key: "kota", label: "Kota", placeholder: "Tangerang / Jakarta" },
-  { key: "area", label: "Area / Kecamatan", placeholder: "Cikupa / Balaraja / Kebon Jeruk" },
+  { key: "kota", label: "Kota", placeholder: "Tangerang / Jakarta", visibleWhen: showLocationFields },
+  { key: "area", label: "Area / Kecamatan", placeholder: "Cikupa / Balaraja / Kebon Jeruk", visibleWhen: showLocationFields },
 
   // ── Section: Kontak & Forecast ──
   { key: "sec_kontak", type: "section-divider", label: "Kontak & Forecast" },
@@ -121,7 +149,7 @@ const fields: FieldConfig[] = [
   },
 
   // ── Section: Koordinat ──
-  { key: "sec_koordinat", type: "section-divider", label: "Koordinat Lokasi Peta" },
+  { key: "sec_koordinat", type: "section-divider", label: "Koordinat Lokasi Peta", visibleWhen: showLocationFields },
   {
     key: "lokasi",
     label: "Titik Lokasi di Peta",
@@ -130,6 +158,7 @@ const fields: FieldConfig[] = [
     lngKey: "longitude",
     colSpan: 2,
     hint: "Digunakan untuk navigasi driver dan visualisasi di dashboard peta",
+    visibleWhen: showLocationFields,
   },
 
   // ── Section: Status ──
@@ -173,6 +202,7 @@ export default function AdminSellersPage() {
         latitude: -6.2402,
         longitude: 106.5856,
         status: "aktif",
+        is_dropper: "false",
       }}
       statusFilterKey="status"
       statusFilterOptions={[

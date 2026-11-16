@@ -40,7 +40,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAllDriverPickupHistory, useDriverPickups, useTrackingMap } from "@/hooks/use-tracking";
 import { useDriver } from "@/hooks/use-armada";
-import { formatDateTime, cn, normalizeSellerName } from "@/lib/utils";
+import { cn, normalizeSellerName } from "@/lib/utils";
+import { RITASE_CONFIG, getRitaseFromLog, type RitaseType } from "@/lib/ritase";
 import type { DriverPickupLog } from "@/types/armada";
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -70,63 +71,6 @@ interface SellerAggregated {
   totalHv: number;
   pickupCount: number;
   drivers: Set<string>;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
- * Pembagian Waktu Ritase Pickup (Otomatis berdasarkan jam WIB)
- * - Ritase 1: 00:00 - 15:59 WIB (Kloter Siang)
- * - Ritase 2: 16:00 - 19:59 WIB (Kloter Sore)
- * - Ritase 3: 20:00 - 23:59 WIB (Kloter Malam / Closing)
- * ───────────────────────────────────────────────────────────────────────────── */
-export type RitaseType = 1 | 2 | 3;
-
-export const RITASE_CONFIG = {
-  1: {
-    label: "Ritase 1",
-    shortTime: "00:00 - 15:59",
-    timeRange: "00:00 - 15:59 WIB",
-    desc: "Kloter Pagi & Siang",
-  },
-  2: {
-    label: "Ritase 2",
-    shortTime: "16:00 - 19:59",
-    timeRange: "16:00 - 19:59 WIB",
-    desc: "Kloter Sore / Prime",
-  },
-  3: {
-    label: "Ritase 3",
-    shortTime: "20:00 - 23:59",
-    timeRange: "20:00 - 23:59 WIB",
-    desc: "Kloter Malam / Closing",
-  },
-} as const;
-
-export function getRitaseFromLog(log: {
-  created_at?: string | null;
-  updated_at?: string | null;
-  tanggal?: string | null;
-}): RitaseType {
-  const timeStr = log.created_at || log.updated_at;
-  if (!timeStr) return 1;
-
-  try {
-    const d = new Date(timeStr);
-    if (isNaN(d.getTime())) return 1;
-
-    // Format jam dalam zona waktu WIB (Asia/Jakarta)
-    const wibHourStr = new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Jakarta",
-      hour: "numeric",
-      hour12: false,
-    }).format(d);
-    const hour = parseInt(wibHourStr, 10);
-
-    if (hour >= 0 && hour < 16) return 1;
-    if (hour >= 16 && hour < 20) return 2;
-    return 3;
-  } catch {
-    return 1;
-  }
 }
 
 function RiwayatPickupContent() {

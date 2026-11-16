@@ -123,11 +123,11 @@ export default function KendaraanPage() {
                 ),
               },
               {
-                header: "Kapasitas",
+                header: "Kapasitas Paket",
                 className: "w-28 text-right tabular-nums",
                 sortKey: "kapasitas_kg",
                 sortable: true,
-                render: (k) => `${formatNumber(k.kapasitas_kg ?? 0)} kg`,
+                render: (k) => `${formatNumber(k.kapasitas_kg ?? 0)} paket`,
               },
               {
                 header: "Status",
@@ -220,7 +220,7 @@ export default function KendaraanPage() {
                     )}
                   </div>
                   <div className="space-y-1.5">
-                    <DetailRow label="Kapasitas" value={`${formatNumber(selectedRow.kapasitas_kg ?? 0)} kg`} />
+                    <DetailRow label="Kapasitas Paket" value={`${formatNumber(selectedRow.kapasitas_kg ?? 0)} paket`} />
                     <DetailRow label="Status" value={<StatusBadge status={selectedRow.status_kendaraan} />} />
                     <DetailRow label="Driver" value={<span>{selectedLive?.nama_driver ?? "-"}<WhatsAppContact phone={drivers?.find((d) => d.id_driver === selectedLive?.id_driver)?.no_hp} name={selectedLive?.nama_driver} /></span>} />
                     {selectedLive && isLiveV(selectedLive) && (

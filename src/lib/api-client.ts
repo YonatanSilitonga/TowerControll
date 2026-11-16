@@ -49,6 +49,7 @@ export async function apiRequest<T>(
 
   const requestHeaders: Record<string, string> = {
     Accept: "application/json",
+    "X-Client-Platform": "web",
     // Wajib kalau backend lewat ngrok-free — biar gak kena halaman warning interstitial.
     "ngrok-skip-browser-warning": "true",
     ...(headers as Record<string, string> | undefined),

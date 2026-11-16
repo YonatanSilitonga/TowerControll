@@ -16,6 +16,7 @@ async function adminFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
     ...opts,
     headers: {
       "Content-Type": "application/json",
+      "X-Client-Platform": "web",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...opts.headers,
     },
@@ -65,6 +66,7 @@ export type DriverAdmin = {
   no_sim?: string;
   jenis_sim?: string;
   jabatan?: string;
+  tipe_driver?: "reguler" | "pickup";
   status_driver: "aktif" | "nonaktif";
   created_at?: string;
   created_by?: number;
@@ -143,6 +145,7 @@ export type KendaraanAdmin = {
   plat_nomor: string;
   jenis_kendaraan?: string;
   kapasitas_kg?: number;
+  kapasitas_koli?: number;
   status_kendaraan: "aktif" | "maintenance" | "nonaktif";
   created_at?: string;
   created_by?: number;
@@ -153,10 +156,10 @@ export type KendaraanAdmin = {
 };
 
 const defaultVehicles: KendaraanAdmin[] = [
-  { id_kendaraan: 1, plat_nomor: "B 1234 SLB", jenis_kendaraan: "Truk Box 6m", kapasitas_kg: 8000, status_kendaraan: "aktif" },
-  { id_kendaraan: 2, plat_nomor: "B 5678 SLB", jenis_kendaraan: "Truk Box 6m", kapasitas_kg: 8000, status_kendaraan: "aktif" },
-  { id_kendaraan: 3, plat_nomor: "B 9012 SLB", jenis_kendaraan: "Pickup Double", kapasitas_kg: 1500, status_kendaraan: "maintenance" },
-  { id_kendaraan: 4, plat_nomor: "L 1122 SLB", jenis_kendaraan: "Truk Wingbox 8m", kapasitas_kg: 12000, status_kendaraan: "aktif" },
+  { id_kendaraan: 1, plat_nomor: "B 1234 SLB", jenis_kendaraan: "CDDL", kapasitas_kg: 7000, kapasitas_koli: 60, status_kendaraan: "aktif" },
+  { id_kendaraan: 2, plat_nomor: "B 5678 SLB", jenis_kendaraan: "CDD", kapasitas_kg: 6000, kapasitas_koli: 50, status_kendaraan: "aktif" },
+  { id_kendaraan: 3, plat_nomor: "B 9012 SLB", jenis_kendaraan: "CDE", kapasitas_kg: 4500, kapasitas_koli: 40, status_kendaraan: "maintenance" },
+  { id_kendaraan: 4, plat_nomor: "L 1122 SLB", jenis_kendaraan: "BV", kapasitas_kg: 3000, kapasitas_koli: 10, status_kendaraan: "aktif" },
 ];
 
 export const adminKendaraan = {
@@ -171,8 +174,9 @@ export const adminKendaraan = {
       const newObj: KendaraanAdmin = {
         id_kendaraan: Date.now(),
         plat_nomor: (data.plat_nomor || "B 0000 XX").toUpperCase(),
-        jenis_kendaraan: data.jenis_kendaraan || "Truk Box 6m",
-        kapasitas_kg: data.kapasitas_kg || 5000,
+        jenis_kendaraan: data.jenis_kendaraan || "CDDL",
+        kapasitas_kg: data.kapasitas_kg || 7000,
+        kapasitas_koli: data.kapasitas_koli || 0,
         status_kendaraan: data.status_kendaraan || "aktif",
       };
       setStorage("vehicles", [newObj, ...list]);
@@ -205,15 +209,16 @@ export type SellerAdmin = {
   id_seller: number;
   kode_seller: string;
   nama_seller: string;
-  alamat?: string;
-  kota?: string;
-  area?: string;
+  alamat?: string | null;
+  kota?: string | null;
+  area?: string | null;
   pic?: string;
   no_hp?: string;
   forecast_harian?: number;
   status: "aktif" | "nonaktif";
-  latitude?: number;
-  longitude?: number;
+  is_dropper?: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
   created_at?: string;
   created_by?: number;
   created_by_name?: string;
@@ -221,6 +226,10 @@ export type SellerAdmin = {
   updated_by?: number;
   updated_by_name?: string;
 };
+
+function toBool(value: unknown): boolean {
+  return value === true || value === "true" || value === 1 || value === "1";
+}
 
 const defaultSellers: SellerAdmin[] = [
   { id_seller: 1, kode_seller: "SLR-001", nama_seller: "Gudang Shopee Cikupa", alamat: "Kawasan Industri Cikupa Mas", kota: "Tangerang", area: "Banten", pic: "Hendra", no_hp: "6281299887766", forecast_harian: 1500, status: "aktif", latitude: -6.2402, longitude: 106.5856 },
@@ -235,36 +244,57 @@ export const adminSeller = {
     catch { return getStorage("sellers", defaultSellers); }
   },
   create: async (data: Partial<SellerAdmin>) => {
-    const cleanKode = (data.kode_seller || "").trim().toUpperCase();
+    const isDropper = toBool(data.is_dropper);
+    const list = getStorage("sellers", defaultSellers);
+    const cleanKode =
+      (data.kode_seller || "").trim().toUpperCase() ||
+      `SLR-${String(list.length + 1).padStart(3, "0")}`;
     const newObj: SellerAdmin = {
       id_seller: Date.now(),
       kode_seller: cleanKode,
       nama_seller: data.nama_seller || "Seller Baru",
-      alamat: data.alamat || "",
-      kota: data.kota || "Tangerang",
-      area: data.area || "Banten",
+      alamat: isDropper ? null : (data.alamat || ""),
+      kota: isDropper ? null : (data.kota || "Tangerang"),
+      area: isDropper ? null : (data.area || "Banten"),
       pic: data.pic || "",
       no_hp: data.no_hp || "",
       forecast_harian: data.forecast_harian || 500,
       status: data.status || "aktif",
-      latitude: data.latitude ?? -6.2,
-      longitude: data.longitude ?? 106.8,
+      is_dropper: isDropper,
+      latitude: isDropper ? null : (data.latitude ?? -6.2),
+      longitude: isDropper ? null : (data.longitude ?? 106.8),
     };
     if (isMock) {
-      const list = getStorage("sellers", defaultSellers);
       setStorage("sellers", [newObj, ...list]);
       return { id_seller: newObj.id_seller };
     }
-    return await adminFetch<{ id_seller: number }>("/admin/sellers", { method: "POST", body: JSON.stringify({ ...data, kode_seller: cleanKode }) });
+    return await adminFetch<{ id_seller: number }>("/admin/sellers", {
+      method: "POST",
+      body: JSON.stringify({
+        ...data,
+        kode_seller: cleanKode,
+        is_dropper: isDropper,
+        ...(isDropper ? { alamat: null, kota: null, area: null, latitude: null, longitude: null } : {}),
+      }),
+    });
   },
   update: async (id: number, data: Partial<SellerAdmin>) => {
+    const isDropper = data.is_dropper === undefined ? undefined : toBool(data.is_dropper);
+    const normalized = {
+      ...data,
+      ...(isDropper === undefined ? {} : { is_dropper: isDropper }),
+      ...(isDropper === true ? { alamat: null, kota: null, area: null, latitude: null, longitude: null } : {}),
+    };
     if (isMock) {
       const list = getStorage("sellers", defaultSellers);
-      const updated = list.map((item) => item.id_seller === id ? { ...item, ...data } : item);
+      const updated = list.map((item) => item.id_seller === id ? { ...item, ...normalized } : item);
       setStorage("sellers", updated);
       return { success: true };
     }
-    return await adminFetch<any>(`/admin/sellers/${id}`, { method: "PUT", body: JSON.stringify(data) });
+    return await adminFetch<any>(`/admin/sellers/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(normalized),
+    });
   },
   delete: async (id: number) => {
     if (isMock) {
@@ -390,6 +420,9 @@ export type UserAdmin = {
   name: string;
   role: string;
   id_driver?: number;
+  karyawan_id?: number;
+  id_koor_gudang?: number;
+  must_set_password?: boolean;
   is_active: boolean;
   status: string;
   created_at?: string;
@@ -398,6 +431,11 @@ export type UserAdmin = {
   updated_at?: string;
   updated_by?: number;
   updated_by_name?: string;
+};
+
+export type LinkableActor = {
+  id: number;
+  nama: string;
 };
 
 const defaultUsers: UserAdmin[] = [
@@ -413,22 +451,37 @@ export const adminUser = {
     try { return await adminFetch<UserAdmin[]>("/admin/users"); }
     catch { return getStorage("users", defaultUsers); }
   },
-  create: async (data: { username: string; password: string; name: string; role: string; id_driver?: number }) => {
+  available: async (role: string): Promise<LinkableActor[]> => {
+    if (isMock) return [];
+    try { return await adminFetch<LinkableActor[]>(`/admin/users/available?role=${encodeURIComponent(role)}`); }
+    catch { return []; }
+  },
+  create: async (data: {
+    username: string;
+    password: string;
+    role: string;
+    id_driver?: number;
+    karyawan_id?: number;
+    id_koor_gudang?: number;
+    kapten_user_id?: number;
+  }) => {
     const list = getStorage("users", defaultUsers);
-    const newObj: UserAdmin = {
-      id_user: Date.now(),
-      username: data.username,
-      name: data.name,
-      role: data.role,
-      id_driver: data.id_driver,
-      is_active: true,
-      status: "aktif",
-    };
     if (isMock) {
+      const newObj: UserAdmin = {
+        id_user: Date.now(),
+        username: data.username,
+        name: "",
+        role: data.role,
+        id_driver: data.id_driver,
+        karyawan_id: data.karyawan_id,
+        id_koor_gudang: data.id_koor_gudang,
+        is_active: true,
+        status: "aktif",
+      };
       setStorage("users", [newObj, ...list]);
-      return { id_user: newObj.id_user };
+      return { id_user: newObj.id_user, username: data.username };
     }
-    return await adminFetch<{ id_user: number }>("/admin/users", { method: "POST", body: JSON.stringify(data) });
+    return await adminFetch<{ id_user: number; username: string }>("/admin/users", { method: "POST", body: JSON.stringify(data) });
   },
   updateRole: async (id: number, role: string) => {
     if (isMock) {
@@ -597,5 +650,116 @@ export const adminRitase = {
       return { success: true };
     }
     return await adminFetch<any>(`/admin/ritase/${id}`, { method: "DELETE" });
+  },
+};
+
+// ── Karyawan (master pegawai kantor) ──
+export type KaryawanAdmin = {
+  id_karyawan: number;
+  nik?: string;
+  nama: string;
+  jabatan?: string;
+  penempatan?: string;
+  tempat_penugasan?: string;
+  shift?: string;
+  peran: string;
+  status: "aktif" | "nonaktif";
+  id_user?: number;
+};
+
+export type KaryawanInput = {
+  nik?: string;
+  nama: string;
+  jabatan?: string;
+  penempatan?: string;
+  tempat_penugasan?: string;
+  shift?: string;
+  peran: string;
+  status: "aktif" | "nonaktif";
+};
+
+export const adminKaryawan = {
+  list: async (peran?: string): Promise<KaryawanAdmin[]> => {
+    if (isMock) return getStorage("karyawan", [] as KaryawanAdmin[]);
+    try {
+      const qs = peran ? `?peran=${encodeURIComponent(peran)}` : "";
+      return await adminFetch<KaryawanAdmin[]>(`/admin/karyawan${qs}`);
+    } catch { return []; }
+  },
+  create: async (data: KaryawanInput) => {
+    if (isMock) {
+      const list = getStorage("karyawan", [] as KaryawanAdmin[]);
+      const newObj: KaryawanAdmin = { id_karyawan: Date.now(), ...data };
+      setStorage("karyawan", [newObj, ...list]);
+      return { id_karyawan: newObj.id_karyawan };
+    }
+    return await adminFetch<{ id_karyawan: number }>("/admin/karyawan", { method: "POST", body: JSON.stringify(data) });
+  },
+  update: async (id: number, data: KaryawanInput) => {
+    if (isMock) {
+      const list = getStorage("karyawan", [] as KaryawanAdmin[]);
+      setStorage("karyawan", list.map((item) => item.id_karyawan === id ? { ...item, ...data } : item));
+      return { success: true };
+    }
+    return await adminFetch<any>(`/admin/karyawan/${id}`, { method: "PUT", body: JSON.stringify(data) });
+  },
+  delete: async (id: number) => {
+    if (isMock) {
+      const list = getStorage("karyawan", [] as KaryawanAdmin[]);
+      setStorage("karyawan", list.map((item) => item.id_karyawan === id ? { ...item, status: "nonaktif" as const } : item));
+      return { success: true };
+    }
+    return await adminFetch<any>(`/admin/karyawan/${id}`, { method: "DELETE" });
+  },
+};
+
+// ── Koordinator Gudang ──
+export type KoordinatorGudangAdmin = {
+  id_koor_gudang: number;
+  nama: string;
+  no_hp?: string;
+  id_gudang?: number;
+  nama_gudang?: string;
+  status: "aktif" | "nonaktif";
+  id_user?: number;
+};
+
+export type KoordinatorGudangInput = {
+  nama: string;
+  no_hp?: string;
+  id_gudang?: number;
+  status: "aktif" | "nonaktif";
+};
+
+export const adminKoordinatorGudang = {
+  list: async (): Promise<KoordinatorGudangAdmin[]> => {
+    if (isMock) return getStorage("koorGudang", [] as KoordinatorGudangAdmin[]);
+    try { return await adminFetch<KoordinatorGudangAdmin[]>("/admin/koordinator-gudang"); }
+    catch { return []; }
+  },
+  create: async (data: KoordinatorGudangInput) => {
+    if (isMock) {
+      const list = getStorage("koorGudang", [] as KoordinatorGudangAdmin[]);
+      const newObj: KoordinatorGudangAdmin = { id_koor_gudang: Date.now(), ...data };
+      setStorage("koorGudang", [newObj, ...list]);
+      return { id_koor_gudang: newObj.id_koor_gudang };
+    }
+    return await adminFetch<{ id_koor_gudang: number }>("/admin/koordinator-gudang", { method: "POST", body: JSON.stringify(data) });
+  },
+  update: async (id: number, data: KoordinatorGudangInput) => {
+    if (isMock) {
+      const list = getStorage("koorGudang", [] as KoordinatorGudangAdmin[]);
+      setStorage("koorGudang", list.map((item) => item.id_koor_gudang === id ? { ...item, ...data } : item));
+      return { success: true };
+    }
+    return await adminFetch<any>(`/admin/koordinator-gudang/${id}`, { method: "PUT", body: JSON.stringify(data) });
+  },
+  delete: async (id: number) => {
+    if (isMock) {
+      const list = getStorage("koorGudang", [] as KoordinatorGudangAdmin[]);
+      setStorage("koorGudang", list.map((item) => item.id_koor_gudang === id ? { ...item, status: "nonaktif" as const } : item));
+      return { success: true };
+    }
+    return await adminFetch<any>(`/admin/koordinator-gudang/${id}`, { method: "DELETE" });
   },
 };

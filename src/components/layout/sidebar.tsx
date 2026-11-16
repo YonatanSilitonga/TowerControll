@@ -4,17 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  Briefcase,
   Building2,
   Calendar,
   Camera,
   Car,
   ChevronDown,
-  ClipboardCheck,
-  History,
+  Gauge,
   LayoutDashboard,
   MapPin,
   Package,
-  PackageCheck,
+  RadioTower,
   Route,
   Store,
   TrendingUp,
@@ -44,11 +44,9 @@ export interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { label: "Menu Utama", href: "", icon: LayoutDashboard, key: "section-menu", isSection: true },
   { label: "Beranda", href: "/", icon: LayoutDashboard, key: "dashboard" },
-  { label: "Dashboard", href: "/analitik/efektivitas-armada", icon: BarChart3, key: "efektivitas-armada" },
   { label: "Live Maps", href: "/armada/live-map", icon: MapPin, key: "armada-live-map" },
-  { label: "Jadwal Ritase", href: "/jadwal", icon: Calendar, key: "jadwal" },
+  { label: "Penjadwalan Driver", href: "/jadwal", icon: Calendar, key: "jadwal" },
   {
     label: "Armada",
     href: "",
@@ -63,23 +61,36 @@ const NAV: NavItem[] = [
       { label: "Jadwal & Riwayat Ritase", href: "/armada/trips", key: "armada-trips" },
     ],
   },
-  { label: "Lainnya", href: "", icon: LayoutDashboard, key: "section-lainnya", isSection: true },
-  { label: "Riwayat Implan", href: "/riwayat-implan", icon: History, key: "riwayat-implan" },
-  { label: "Riwayat Pickup", href: "/riwayat-pickup", icon: PackageCheck, key: "riwayat-pickup" },
+  {
+    label: "Muatan",
+    href: "",
+    icon: Package,
+    key: "section-muatan",
+    children: [
+      { label: "Total Muatan", href: "/dropper", key: "dropper" },
+      { label: "Riwayat Implan", href: "/riwayat-implan", key: "riwayat-implan" },
+      { label: "Riwayat Pickup", href: "/riwayat-pickup", key: "riwayat-pickup" },
+      { label: "Riwayat Dropper", href: "/riwayat-dropper", key: "riwayat-dropper" },
+      { label: "Kelola Muatan", href: "/implan", key: "implan" },
+    ],
+  },
   { label: "Foto Manifest Driver", href: "/manifest-foto", icon: Camera, key: "manifest-foto" },
+  { label: "Utilisasi Muatan", href: "/utilisasi-muatan", icon: Gauge, key: "utilisasi-muatan" },
+  { label: "Dashboard", href: "/analitik/efektivitas-armada", icon: BarChart3, key: "efektivitas-armada" },
   { label: "Analitik", href: "/analitik", icon: BarChart3, key: "analitik" },
-  { label: "Gudang", href: "/gudang", icon: Warehouse, key: "gudang" },
-  { label: "Absensi", href: "/absensi", icon: ClipboardCheck, key: "absensi" },
-  { label: "Kelola AWB Implan", href: "/implan", icon: Package, key: "implan" },
 ];
 
 export const ADMIN_NAV: NavItem[] = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard, key: "admin-dashboard" },
-  { label: "Driver", href: "/admin/drivers", icon: Users, key: "admin-drivers" },
+  { label: "Driver Reguler", href: "/admin/drivers", icon: Car, key: "admin-drivers" },
+  { label: "Driver Pickup", href: "/admin/driver-pickup", icon: Truck, key: "admin-driver-pickup" },
+  { label: "Kapten", href: "/admin/kapten", icon: Users, key: "admin-kapten" },
+  { label: "Koordinator Gudang", href: "/admin/koor-gudang", icon: Warehouse, key: "admin-koor-gudang" },
+  { label: "Direktur", href: "/admin/karyawan-direktur", icon: Briefcase, key: "admin-karyawan-direktur" },
+  { label: "Tower Control", href: "/admin/karyawan-tower-control", icon: RadioTower, key: "admin-karyawan-tower-control" },
   { label: "Kendaraan", href: "/admin/vehicles", icon: Car, key: "admin-vehicles" },
   { label: "Seller", href: "/admin/sellers", icon: Store, key: "admin-sellers" },
   { label: "Implant", href: "/admin/implants", icon: Building2, key: "admin-implants" },
-  { label: "Kapten", href: "/admin/kapten", icon: Users, key: "admin-kapten" },
   { label: "Gateway", href: "/admin/drop-points", icon: MapPin, key: "admin-drop-points" },
   { label: "Users & Role", href: "/admin/users", icon: Users, key: "admin-users" },
 ];

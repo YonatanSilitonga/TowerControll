@@ -78,7 +78,12 @@ export default function SellersPage() {
               render: (s) => (
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="truncate">{s.name}</span>
-                  {!trackedIds.has(s.id) && (
+                  {s.is_dropper && (
+                    <span className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                      Dropper
+                    </span>
+                  )}
+                  {!s.is_dropper && !trackedIds.has(s.id) && (
                     <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
                       Tanpa posisi
                     </span>
@@ -112,23 +117,28 @@ export default function SellersPage() {
             {
               header: "Lokasi",
               className: "w-28 text-right",
-              render: (s) => (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedId((cur) => (cur === s.id ? null : s.id));
-                  }}
-                  className={cn(
-                    "inline-flex min-h-[44px] items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold sm:min-h-[30px]",
-                    selectedId === s.id
-                      ? "border-[#FEA103] bg-[#FEA103] text-white"
-                      : "border-slate-200 bg-white text-[#FEA103] hover:bg-slate-50"
-                  )}
-                >
-                  <MapPin className="h-3 w-3" /> Map
-                </button>
-              ),
+              render: (s) =>
+                s.is_dropper ? (
+                  <span className="text-[11px] font-medium text-slate-400">
+                    Tidak di peta
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedId((cur) => (cur === s.id ? null : s.id));
+                    }}
+                    className={cn(
+                      "inline-flex min-h-[44px] items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold sm:min-h-[30px]",
+                      selectedId === s.id
+                        ? "border-[#FEA103] bg-[#FEA103] text-white"
+                        : "border-slate-200 bg-white text-[#FEA103] hover:bg-slate-50"
+                    )}
+                  >
+                    <MapPin className="h-3 w-3" /> Map
+                  </button>
+                ),
             },
           ]}
         />
@@ -185,12 +195,22 @@ export default function SellersPage() {
                       <p className="font-mono text-xs text-slate-400">{selected.code}</p>
                     </div>
                   </div>
-                  {!hasPos && (
+                  {selected.is_dropper ? (
                     <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                      Seller ini belum punya posisi (koordinat belum diisi).
+                      Seller dropper tidak ditampilkan di peta dan tidak masuk rute pickup reguler.
                     </p>
+                  ) : (
+                    !hasPos && (
+                      <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                        Seller ini belum punya posisi (koordinat belum diisi).
+                      </p>
+                    )
                   )}
                   <div className="space-y-1.5">
+                    <DetailRow
+                      label="Tipe"
+                      value={selected.is_dropper ? "Dropper" : "Reguler"}
+                    />
                     <DetailRow label="Kota" value={selected.city ?? "-"} />
                     <DetailRow label="Alamat" value={selected.address ?? "-"} />
                     <DetailRow

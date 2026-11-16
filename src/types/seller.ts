@@ -7,6 +7,7 @@ export interface Seller {
   city?: string;
   pic?: string;
   no_hp?: string;
+  is_dropper?: boolean;
   latitude?: number;
   longitude?: number;
 }

@@ -147,14 +147,14 @@ function SelectField({
   placeholder,
   hasError,
 }: {
-  value: string;
+  value: string | boolean;
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
   placeholder?: string;
   hasError?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const selected = options.find((o) => o.value === value);
+  const selected = options.find((o) => o.value === String(value));
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -180,7 +180,7 @@ function SelectField({
             : "border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600"
         )}
       >
-        <span className={cn("flex items-center gap-2 truncate", !selected && "text-slate-400 text-sm")}>
+        <span className={cn("flex items-center gap-2 truncate", !selected && !value && "text-slate-400 text-sm")}>
           {selected ? (
             <>
               {STATUS_DOT[selected.value] && (
@@ -188,6 +188,8 @@ function SelectField({
               )}
               {selected.label}
             </>
+          ) : value ? (
+            String(value)
           ) : (
             placeholder ?? "Pilih…"
           )}
@@ -214,7 +216,7 @@ function SelectField({
                   }}
                   className={cn(
                     "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
-                    value === opt.value
+                    String(value) === opt.value
                       ? "bg-[#FEA103]/10 text-[#E09102] font-semibold dark:bg-[#FEA103]/10 dark:text-[#FEA103]"
                       : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"
                   )}
@@ -391,6 +393,10 @@ export type FieldConfig = {
   /** For type="coordinates": keys for lat/lng in form state */
   latKey?: string;
   lngKey?: string;
+  /** Sembunyikan field berdasarkan nilai form saat ini. */
+  visibleWhen?: (form: Record<string, any>) => boolean;
+  /** Dipanggil setelah select berubah; kembalikan patch untuk mengisi field lain. */
+  onSelect?: (value: string, form: Record<string, any>) => Partial<Record<string, any>> | void;
 };
 
 /* ─────────── INPUT CLASS HELPERS ─────────── */
@@ -544,11 +550,19 @@ export function AdminCrudPage<T extends Record<string, any>>({
   };
 
   const openEdit = (row: T) => {
+    const next: Record<string, any> = { ...row };
+    for (const f of fields) {
+      if (f.type === "select" && typeof next[f.key] === "boolean") {
+        next[f.key] = String(next[f.key]);
+      }
+    }
     setEditing(row);
-    setForm({ ...row });
+    setForm(next);
     setFormErrors({});
     setModalOpen(true);
   };
+
+  const isFieldVisible = (f: FieldConfig) => !f.visibleWhen || f.visibleWhen(form);
 
   // ── Validation ──
   const validateForm = (): boolean => {
@@ -556,6 +570,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
     for (const f of fields) {
       if (f.type === "section-divider") continue;
       if (f.createOnly && editing) continue;
+      if (!isFieldVisible(f)) continue;
       const val = form[f.key];
 
       if (f.required && (val === undefined || val === null || String(val).trim() === "")) {
@@ -964,7 +979,7 @@ export function AdminCrudPage<T extends Record<string, any>>({
       >
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           {fields
-            .filter((f) => !f.createOnly || !editing)
+            .filter((f) => (!f.createOnly || !editing) && isFieldVisible(f))
             .map((f) => {
               // ── Section divider ──
               if (f.type === "section-divider") {
@@ -986,7 +1001,11 @@ export function AdminCrudPage<T extends Record<string, any>>({
                     {f.type === "select" ? (
                       <SelectField
                         value={form[f.key] ?? ""}
-                        onChange={(v) => setField(f.key, v)}
+                        onChange={(v) => {
+                          setField(f.key, v);
+                          const patch = f.onSelect?.(v, form);
+                          if (patch) setForm((prev) => ({ ...prev, ...patch }));
+                        }}
                         options={f.options ?? []}
                         placeholder={`Pilih ${f.label}…`}
                         hasError={hasError}

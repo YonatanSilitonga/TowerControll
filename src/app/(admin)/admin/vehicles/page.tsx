@@ -3,7 +3,8 @@
 import { AdminCrudPage, Column, FieldConfig } from "../_components/crud-layout";
 import { adminKendaraan, KendaraanAdmin } from "@/lib/admin-api";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Truck, Weight } from "lucide-react";
+import { VEHICLE_CAPACITY_RULES, VEHICLE_TYPE_OPTIONS } from "@/lib/vehicle-capacity";
+import { Boxes, Package, Truck } from "lucide-react";
 
 const columns: Column<KendaraanAdmin>[] = [
   {
@@ -30,13 +31,24 @@ const columns: Column<KendaraanAdmin>[] = [
     ),
   },
   {
-    header: "Kapasitas (kg)",
+    header: "Kapasitas Paket (AWB)",
     accessorKey: "kapasitas_kg",
     className: "tabular-nums",
     render: (r) => (
       <div className="flex items-center gap-1 font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">
-        <Weight className="h-3.5 w-3.5 text-slate-400" />
-        <span>{r.kapasitas_kg ? `${r.kapasitas_kg.toLocaleString("id-ID")} kg` : "—"}</span>
+        <Boxes className="h-3.5 w-3.5 text-slate-400" />
+        <span>{r.kapasitas_kg ? `${r.kapasitas_kg.toLocaleString("id-ID")} paket` : "—"}</span>
+      </div>
+    ),
+  },
+  {
+    header: "Kapasitas Koli",
+    accessorKey: "kapasitas_koli",
+    className: "tabular-nums",
+    render: (r) => (
+      <div className="flex items-center gap-1 font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">
+        <Package className="h-3.5 w-3.5 text-slate-400" />
+        <span>{r.kapasitas_koli ? `${r.kapasitas_koli.toLocaleString("id-ID")} koli` : "—"}</span>
       </div>
     ),
   },
@@ -64,26 +76,34 @@ const fields: FieldConfig[] = [
     label: "Jenis Kendaraan",
     type: "select",
     required: true,
-    options: [
-      { value: "Truk Box 6m", label: "Truk Box 6m" },
-      { value: "Truk Wingbox 8m", label: "Truk Wingbox 8m" },
-      { value: "Truk Tronton", label: "Truk Tronton" },
-      { value: "Pickup Double", label: "Pickup Double" },
-      { value: "Blind Van", label: "Blind Van" },
-    ],
-    hint: "Menentukan kapasitas maksimal muatan di ritase",
+    options: VEHICLE_TYPE_OPTIONS,
+    onSelect: (value) => {
+      const rule = VEHICLE_CAPACITY_RULES[value];
+      return {
+        kapasitas_kg: rule?.maxAWB ?? 0,
+        kapasitas_koli: rule?.maxKoli ?? 0,
+      };
+    },
+    hint: "Menentukan kapasitas paket & koli kendaraan (batas atas)",
   },
 
   // ── Section: Teknis & Status ──
   { key: "sec_teknis", type: "section-divider", label: "Teknis & Status" },
   {
     key: "kapasitas_kg",
-    label: "Kapasitas Maksimal",
+    label: "Kapasitas Paket (AWB)",
     type: "number",
-    unit: "kg",
     required: true,
-    placeholder: "8000",
-    hint: "Batas berat muatan maksimal yang boleh diangkut",
+    placeholder: "7000",
+    hint: "Batas atas muatan dalam jumlah paket/AWB (bisa diubah manual)",
+  },
+  {
+    key: "kapasitas_koli",
+    label: "Kapasitas Koli",
+    type: "number",
+    unit: "koli",
+    placeholder: "60",
+    hint: "Batas atas muatan dalam jumlah koli — dikosongkan untuk kendaraan pickup (TRAGA/BV)",
   },
   {
     key: "status_kendaraan",
@@ -115,8 +135,9 @@ export default function AdminVehiclesPage() {
       deleteFn={adminKendaraan.delete}
       initialForm={{
         plat_nomor: "",
-        jenis_kendaraan: "Truk Box 6m",
-        kapasitas_kg: 8000,
+        jenis_kendaraan: "",
+        kapasitas_kg: 0,
+        kapasitas_koli: 0,
         status_kendaraan: "aktif",
       }}
       statusFilterKey="status_kendaraan"

@@ -196,6 +196,8 @@ function StatusSelect({ value, onChange }: { value: string; onChange: (v: string
   );
 }
 
+type ImplantOwners = Record<number, { nama: string[]; idTitik: number }>;
+
 /* ─────────── IMPLANT MULTI-SELECT ─────────── */
 function ImplantMultiSelect({
   implants,
@@ -247,35 +249,53 @@ function ImplantPointPicker({
   selected,
   titik,
   onChange,
+  owners,
 }: {
   implants: ImplantAdmin[];
   selected: number[];
   titik: Record<number, number>;
   onChange: (id: number, host: number) => void;
+  owners: ImplantOwners;
 }) {
   const selectedImplants = implants.filter((s) => selected.includes(s.id_implant));
   if (selectedImplants.length === 0) return null;
-  const hosts = new Set(selectedImplants.map((s) => titik[s.id_implant] || s.id_implant));
+  const hostOf = (id: number) => owners[id]?.idTitik ?? (titik[id] || id);
+  const hosts = new Set(selectedImplants.map((s) => hostOf(s.id_implant)));
   return (
     <div className="space-y-2 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
       <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
         {hosts.size} titik penjemputan
       </p>
-      {selectedImplants.map((s) => (
-        <div key={s.id_implant} className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="min-w-0 flex-1 truncate">{s.nama_implant}</span>
-          <span className="text-xs text-slate-400">diambil di</span>
-          <select
-            value={titik[s.id_implant] || s.id_implant}
-            onChange={(e) => onChange(s.id_implant, Number(e.target.value))}
-            className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs dark:border-slate-600 dark:bg-slate-800"
-          >
-            {selectedImplants.map((h) => (
-              <option key={h.id_implant} value={h.id_implant}>{h.nama_implant}</option>
-            ))}
-          </select>
-        </div>
-      ))}
+      {selectedImplants.map((s) => {
+        const owner = owners[s.id_implant];
+        if (owner) {
+          const hostName = implants.find((h) => h.id_implant === owner.idTitik)?.nama_implant ?? `#${owner.idTitik}`;
+          return (
+            <div key={s.id_implant} className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="min-w-0 flex-1 truncate">{s.nama_implant}</span>
+              <span className="text-xs text-slate-400">diambil di</span>
+              <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                {hostName}
+              </span>
+            </div>
+          );
+        }
+        return (
+          <div key={s.id_implant} className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="min-w-0 flex-1 truncate">{s.nama_implant}</span>
+            <span className="text-xs text-slate-400">diambil di</span>
+            <select
+              value={hostOf(s.id_implant)}
+              onChange={(e) => onChange(s.id_implant, Number(e.target.value))}
+              className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs dark:border-slate-600 dark:bg-slate-800"
+            >
+              {selectedImplants.map((h) => (
+                <option key={h.id_implant} value={h.id_implant}>{h.nama_implant}</option>
+              ))}
+            </select>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -304,11 +324,11 @@ export default function AdminKaptenPage() {
       swal.info("Ekspor Dibatalkan", "Tidak ada data untuk diekspor");
       return;
     }
-    const headersHTML = "<th>#</th><th>Nama Kapten</th><th>Username</th><th>No HP</th><th>Implant</th><th>Status</th>";
+    const headersHTML = "<th>#</th><th>Nama Kapten</th><th>No HP</th><th>Implant</th><th>Status</th>";
     const rowsHTML = filtered
       .map((row, idx) => {
         const imp = (row.implants ?? []).map((s) => s.nama_implant).join(", ") || "-";
-        return `<tr><td>${idx + 1}</td><td>${row.nama}</td><td>${row.username || "-"}</td><td>${row.no_hp || "-"}</td><td>${imp}</td><td>${row.status}</td></tr>`;
+        return `<tr><td>${idx + 1}</td><td>${row.nama}</td><td>${row.no_hp || "-"}</td><td>${imp}</td><td>${row.status}</td></tr>`;
       })
       .join("");
     const excelTemplate = `
@@ -331,7 +351,6 @@ export default function AdminKaptenPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailRow, setDetailRow] = useState<KaptenAdmin | null>(null);
   const [saving, setSaving] = useState(false);
-  const [createdCred, setCreatedCred] = useState<{ username: string; password: string } | null>(null);
 
   const [form, setFormState] = useState({
     nama: "", no_hp: "", status: "aktif",
@@ -340,6 +359,26 @@ export default function AdminKaptenPage() {
     implant_titik: {} as Record<number, number>,
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const buildImplantOwners = (excludeID?: number): ImplantOwners => {
+    const owners: ImplantOwners = {};
+    data.forEach((row) => {
+      if (row.status !== "aktif" || row.id_kapten === excludeID) return;
+      (row.implants ?? []).forEach((s) => {
+        const cur = owners[s.id_implant];
+        if (cur) {
+          cur.nama.push(row.nama);
+        } else {
+          owners[s.id_implant] = {
+            nama: [row.nama],
+            idTitik: s.id_titik_implant || s.id_implant,
+          };
+        }
+      });
+    });
+    return owners;
+  };
+  const implantOwners = buildImplantOwners(editTarget?.id_kapten);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -381,7 +420,7 @@ export default function AdminKaptenPage() {
   const setImplantIds = (ids: number[]) => {
     setFormState((p) => {
       const titik: Record<number, number> = {};
-      ids.forEach((id) => { titik[id] = p.implant_titik[id] || id; });
+      ids.forEach((id) => { titik[id] = implantOwners[id]?.idTitik || p.implant_titik[id] || id; });
       return { ...p, implant_ids: ids, implant_titik: titik };
     });
     if (formErrors.implant_ids) setFormErrors((p) => ({ ...p, implant_ids: "" }));
@@ -391,11 +430,14 @@ export default function AdminKaptenPage() {
     setFormState((p) => {
       const titik: Record<number, number> = {};
       p.implant_ids.forEach((sid) => {
-        const cur = p.implant_titik[sid] || sid;
-        titik[sid] = cur === id && sid !== id ? host : cur;
+        const locked = implantOwners[sid]?.idTitik;
+        const cur = locked || p.implant_titik[sid] || sid;
+        titik[sid] = !locked && cur === id && sid !== id ? host : cur;
       });
-      titik[id] = host;
-      if (host !== id) titik[host] = host;
+      if (!implantOwners[id]) {
+        titik[id] = host;
+        if (host !== id) titik[host] = host;
+      }
       return { ...p, implant_titik: titik };
     });
   };
@@ -404,17 +446,17 @@ export default function AdminKaptenPage() {
     setEditTarget(null);
     setFormState({ nama: "", no_hp: "", status: "aktif", implant_ids: [], implant_peran: {}, implant_titik: {} });
     setFormErrors({});
-    setCreatedCred(null);
     setFormOpen(true);
   };
 
   const openEdit = (row: KaptenAdmin) => {
     setEditTarget(row);
+    const owners = buildImplantOwners(row.id_kapten);
     const peran: Record<number, string> = {};
     const titik: Record<number, number> = {};
     (row.implants ?? []).forEach((s) => {
       peran[s.id_implant] = s.peran || "utama";
-      titik[s.id_implant] = s.id_titik_implant || s.id_implant;
+      titik[s.id_implant] = owners[s.id_implant]?.idTitik || s.id_titik_implant || s.id_implant;
     });
     setFormState({
       nama: row.nama,
@@ -425,7 +467,6 @@ export default function AdminKaptenPage() {
       implant_titik: titik,
     });
     setFormErrors({});
-    setCreatedCred(null);
     setFormOpen(true);
   };
 
@@ -471,11 +512,11 @@ export default function AdminKaptenPage() {
       if (editTarget) {
         await adminKapten.update(editTarget.id_kapten, payload);
         swal.success("Kapten Diperbarui", `Data ${form.nama} berhasil disimpan.`);
-        setFormOpen(false);
       } else {
-        const res = await adminKapten.create(payload);
-        setCreatedCred({ username: res.username, password: res.password_awal });
+        await adminKapten.create(payload);
+        swal.success("Kapten Ditambahkan", `Profil ${form.nama} dibuat. Akun login dapat dibuat di menu Users & Role.`);
       }
+      setFormOpen(false);
       await refresh();
       await queryClient.invalidateQueries({ queryKey: ["admin-master-options"] });
       await queryClient.invalidateQueries({ queryKey: ["tracking-map"] });
@@ -504,7 +545,7 @@ export default function AdminKaptenPage() {
     <>
       <PageHeader
         title={`Kapten (${data.length})`}
-        description="Kelola master data kapten seller implant beserta akun loginnya."
+        description="Kelola profil kapten seller implant. Akun login dikelola di menu Users & Role."
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -610,9 +651,6 @@ export default function AdminKaptenPage() {
                     <td className="px-4 py-3 text-center text-xs font-medium text-slate-400 tabular-nums">{i + 1}</td>
                     <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">
                       {row.nama}
-                      {row.username && (
-                        <span className="ml-2 font-mono text-[10px] font-medium text-slate-400">@{row.username}</span>
-                      )}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-slate-500">
                       {row.no_hp ? (
@@ -692,52 +730,31 @@ export default function AdminKaptenPage() {
         description={editTarget ? "Ubah data kapten" : "Isi form berikut · nama wajib diisi"}
         icon={<UserPlus className="h-5 w-5" />}
         footer={
-          createdCred ? (
-            <Button onClick={() => setFormOpen(false)} className="w-full bg-[#0c1e3a] font-semibold text-white hover:bg-[#0c1e3a]/90">
-              Selesai
-            </Button>
-          ) : (
-            <div className="space-y-3">
-              {hasErrors && (
-                <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-500/20 dark:bg-rose-500/10">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
-                  <p className="text-xs font-medium text-rose-600 dark:text-rose-400">
-                    {Object.keys(formErrors).length} field belum terisi dengan benar
-                  </p>
-                </div>
-              )}
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setFormOpen(false)} className="flex-1 font-semibold">
-                  Batal
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex-[2] bg-[#0c1e3a] font-semibold text-white hover:bg-[#0c1e3a]/90 disabled:opacity-70"
-                >
-                  {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Menyimpan…</> : editTarget ? "Simpan Perubahan" : "Tambah Kapten"}
-                </Button>
+          <div className="space-y-3">
+            {hasErrors && (
+              <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-500/20 dark:bg-rose-500/10">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
+                <p className="text-xs font-medium text-rose-600 dark:text-rose-400">
+                  {Object.keys(formErrors).length} field belum terisi dengan benar
+                </p>
               </div>
-            </div>
-          )
-        }
-      >
-        {createdCred ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
-              <Check className="h-5 w-5 shrink-0 text-emerald-600" />
-              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Akun login berhasil dibuat</p>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/50">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Kredensial awal (catat & sampaikan ke kapten)</p>
-              <div className="space-y-1.5 font-mono text-sm">
-                <p className="text-slate-700 dark:text-slate-200">Username: <span className="font-bold">{createdCred.username}</span></p>
-                <p className="text-slate-700 dark:text-slate-200">Password: <span className="font-bold">{createdCred.password}</span></p>
-              </div>
+            )}
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setFormOpen(false)} className="flex-1 font-semibold">
+                Batal
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex-[2] bg-[#0c1e3a] font-semibold text-white hover:bg-[#0c1e3a]/90 disabled:opacity-70"
+              >
+                {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Menyimpan…</> : editTarget ? "Simpan Perubahan" : "Tambah Kapten"}
+              </Button>
             </div>
           </div>
-        ) : (
-          <div className="space-y-5">
+        }
+      >
+        <div className="space-y-5">
             <SectionDivider label="Identitas Kapten" />
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <FieldWrapper label="Nama Kapten" required error={formErrors.nama}>
@@ -777,6 +794,7 @@ export default function AdminKaptenPage() {
                 selected={form.implant_ids}
                 titik={form.implant_titik}
                 onChange={setImplantTitik}
+                owners={implantOwners}
               />
             </FieldWrapper>
 
@@ -785,7 +803,6 @@ export default function AdminKaptenPage() {
               <StatusSelect value={form.status} onChange={(v) => setField("status", v)} />
             </FieldWrapper>
           </div>
-        )}
       </Modal>
 
       {/* ── Detail Modal ── */}
@@ -794,7 +811,7 @@ export default function AdminKaptenPage() {
           open={detailOpen}
           onClose={() => setDetailOpen(false)}
           title="Detail Kapten"
-          description="Informasi lengkap kapten + akun login"
+          description="Informasi lengkap profil kapten"
           icon={<Eye className="h-5 w-5" />}
           footer={
             <div className="flex gap-3">
