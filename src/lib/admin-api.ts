@@ -413,6 +413,71 @@ export const adminDropPoint = {
   },
 };
 
+// â”€â”€ Gudang â”€â”€
+export type GudangAdmin = {
+  id_gudang: number;
+  nama_gudang: string;
+  alamat?: string | null;
+  kota?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  status: "aktif" | "nonaktif";
+  created_at?: string;
+  created_by?: number;
+  created_by_name?: string;
+  updated_at?: string;
+  updated_by?: number;
+  updated_by_name?: string;
+};
+
+const defaultGudang: GudangAdmin[] = [
+  { id_gudang: 1, nama_gudang: "Gudang Outgoing", alamat: "Kawasan Industri Bitung", kota: "Tangerang", latitude: -6.2100, longitude: 106.5500, status: "aktif" },
+  { id_gudang: 2, nama_gudang: "Gudang Incoming", alamat: "Buaran Indah", kota: "Tangerang", latitude: -6.1900, longitude: 106.6300, status: "aktif" },
+];
+
+export const adminGudang = {
+  list: async (): Promise<GudangAdmin[]> => {
+    if (isMock) return getStorage("gudang", defaultGudang);
+    try { return await adminFetch<GudangAdmin[]>("/admin/gudang"); }
+    catch { return getStorage("gudang", defaultGudang); }
+  },
+  create: async (data: Partial<GudangAdmin>) => {
+    if (isMock) {
+      const list = getStorage("gudang", defaultGudang);
+      const newObj: GudangAdmin = {
+        id_gudang: Date.now(),
+        nama_gudang: data.nama_gudang || "Gudang Baru",
+        alamat: data.alamat || "",
+        kota: data.kota || "",
+        latitude: data.latitude ?? -6.2,
+        longitude: data.longitude ?? 106.8,
+        status: data.status || "aktif",
+      };
+      setStorage("gudang", [newObj, ...list]);
+      return { id_gudang: newObj.id_gudang };
+    }
+    return await adminFetch<{ id_gudang: number }>("/admin/gudang", { method: "POST", body: JSON.stringify(data) });
+  },
+  update: async (id: number, data: Partial<GudangAdmin>) => {
+    if (isMock) {
+      const list = getStorage("gudang", defaultGudang);
+      const updated = list.map((item) => item.id_gudang === id ? { ...item, ...data } : item);
+      setStorage("gudang", updated);
+      return { success: true };
+    }
+    return await adminFetch<any>(`/admin/gudang/${id}`, { method: "PUT", body: JSON.stringify(data) });
+  },
+  delete: async (id: number) => {
+    if (isMock) {
+      const list = getStorage("gudang", defaultGudang);
+      const updated = list.map((item) => item.id_gudang === id ? { ...item, status: "nonaktif" as const } : item);
+      setStorage("gudang", updated);
+      return { success: true };
+    }
+    return await adminFetch<any>(`/admin/gudang/${id}`, { method: "DELETE" });
+  },
+};
+
 // â”€â”€ User â”€â”€
 export type UserAdmin = {
   id_user: number;

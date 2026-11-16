@@ -86,6 +86,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Driver Pickup", href: "/admin/driver-pickup", icon: Truck, key: "admin-driver-pickup" },
   { label: "Kapten", href: "/admin/kapten", icon: Users, key: "admin-kapten" },
   { label: "Koordinator Gudang", href: "/admin/koor-gudang", icon: Warehouse, key: "admin-koor-gudang" },
+  { label: "Gudang", href: "/admin/gudang", icon: Warehouse, key: "admin-gudang" },
   { label: "Direktur", href: "/admin/karyawan-direktur", icon: Briefcase, key: "admin-karyawan-direktur" },
   { label: "Tower Control", href: "/admin/karyawan-tower-control", icon: RadioTower, key: "admin-karyawan-tower-control" },
   { label: "Kendaraan", href: "/admin/vehicles", icon: Car, key: "admin-vehicles" },
