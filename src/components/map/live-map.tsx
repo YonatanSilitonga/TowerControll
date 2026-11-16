@@ -71,6 +71,9 @@ const DROP_ICON = createGudangIcon("#ef4444"); // MERAH — gateway / drop point
 const truckIconCache = new Map<string, L.DivIcon>();
 const sellerIconCache = new Map<string, L.DivIcon>();
 
+// Cache koordinat terakhir armada (Last Known Position persistence) agar icon TIDAK HILANG dari peta
+const lastKnownVehicleCoords = new Map<string, [number, number]>();
+
 /** Ikon Truk/Driver:
  *  - Driver Pickup: Oranye (#ea580c) saat LIVE, gelap saat offline; bubble AWB.
  *  - Driver Reguler: Hijau (#10b981) saat LIVE, gelap saat offline; bubble koli
@@ -1115,58 +1118,96 @@ function LiveMapView({
   // Hanya tampilkan kendaraan yang AKTIF di map (driver yang sedang login / memiliki sesi aktif).
   // Driver yang sudah LOGOUT tidak boleh muncul di map.
   // PENCEGAHAN (PREVENTION): Jangan pernah sembunyikan icon armada/driver yang masih aktif/login
-  // hanya karena berhenti lama, macet, atau statusnya 'selesai'.
+  // hanya karena berhenti lama, macet, atau sinyal GPS stale!
   // Gunakan koordinat terakhir (last known position) armada tersebut di peta.
-  // Jika 1 driver terhubung ke lebih dari 1 kendaraan (misal baru ganti armada), hanya tampilkan armada dengan update terbaru.
+  // Jika 1 driver terhubung ke lebih dari 1 kendaraan (misal baru ganti armada), hanya tampilkan armada dengan status aktif / update terbaru.
   const activeVehicles = useMemo(() => {
+    // 1. Simpan koordinat valid ke cache persistensi last known position
+    (uniqueVehicles ?? []).forEach((v) => {
+      if (
+        v.latitude &&
+        v.longitude &&
+        Number.isFinite(v.latitude) &&
+        Number.isFinite(v.longitude) &&
+        !(v.latitude === 0 && v.longitude === 0)
+      ) {
+        if (v.id_kendaraan) lastKnownVehicleCoords.set(`veh:${v.id_kendaraan}`, [v.latitude, v.longitude]);
+        if (v.id_driver) lastKnownVehicleCoords.set(`drv:${v.id_driver}`, [v.latitude, v.longitude]);
+        if (v.nama_driver) lastKnownVehicleCoords.set(`name:${v.nama_driver.toLowerCase().trim()}`, [v.latitude, v.longitude]);
+      }
+    });
+
+    const activeKeywords = [
+      "menuju",
+      "kembali",
+      "perjalanan",
+      "transit",
+      "berjalan",
+      "loading",
+      "muat",
+      "pickup",
+      "otw",
+    ];
+
     const filtered = uniqueVehicles.filter((v) => {
-      if (!v.latitude || !v.longitude || !Number.isFinite(v.latitude) || !Number.isFinite(v.longitude)) return false;
-      if (v.latitude === 0 && v.longitude === 0) return false;
-
-      const lastT = v.last_update ? Date.parse(v.last_update) : 0;
-      const isGpsActive = !v.offline && lastT > 0 && (Date.now() - lastT < 15 * 60 * 1000);
-      const isOnline = isGpsActive || Boolean(v.session_online) || hasActiveSession(v.last_login);
-
       const statusLower = (v.status || "").toLowerCase().trim();
       const ritaseStatusLower = (v.status_ritase || "").toLowerCase().trim();
 
-      // KHUSUS STATUS SUDAH SAMPAI GUDANG / SELESAI:
-      // Armada otomatis hilang dari peta live tracking karena perjalanan telah tuntas sampai di gudang/tujuan akhir.
+      const hasActiveTripStatus = activeKeywords.some(
+        (kw) => statusLower.includes(kw) || ritaseStatusLower.includes(kw)
+      );
+
+      // Pastikan ada koordinat yang valid (jika kosong/0, pulihkan dari last known position)
+      if (
+        !v.latitude ||
+        !v.longitude ||
+        !Number.isFinite(v.latitude) ||
+        !Number.isFinite(v.longitude) ||
+        (v.latitude === 0 && v.longitude === 0)
+      ) {
+        const cached =
+          (v.id_kendaraan ? lastKnownVehicleCoords.get(`veh:${v.id_kendaraan}`) : null) ||
+          (v.id_driver ? lastKnownVehicleCoords.get(`drv:${v.id_driver}`) : null) ||
+          (v.nama_driver ? lastKnownVehicleCoords.get(`name:${v.nama_driver.toLowerCase().trim()}`) : null);
+
+        if (cached) {
+          v.latitude = cached[0];
+          v.longitude = cached[1];
+        } else if (hasActiveTripStatus) {
+          // Fallback untuk armada yang sedang jalan tapi belum ada koordinat GPS di database: gunakan koordinat Gudang Outgoing
+          const seed = typeof v.id_kendaraan === "number" ? v.id_kendaraan : 1;
+          v.latitude = OUTGOING_LAT + Math.sin(seed) * 0.0012;
+          v.longitude = OUTGOING_LON + Math.cos(seed) * 0.0012;
+        } else {
+          return false;
+        }
+      }
+
+      // ATURAN 1 (PRIORITAS TERTINGGI): STATUS PERJALANAN AKTIF
+      // (sedang menuju seller/titik, kembali ke gudang, perjalanan, otw, dll).
+      // Selama statusnya aktif, ICON WAJIB SELALU MUNCUL DI PETA!
+      // TIDAK BOLEH HILANG meski GPS stale, driver macet/diam, atau aplikasi di latar belakang!
+      if (hasActiveTripStatus) {
+        return true;
+      }
+
+      // ATURAN 2: KHUSUS STATUS SUDAH TUNTAS SAMPAI GUDANG / SELESAI:
+      // Hanya sembunyikan jika status benar-benar selesai (dan tidak punya status trip aktif).
       const isSampaiGudang =
         statusLower === "selesai" ||
         statusLower === "sampai gudang" ||
         statusLower === "sampai di gudang" ||
-        statusLower === "selesai perjalanan" ||
-        ritaseStatusLower === "selesai";
+        statusLower === "selesai perjalanan";
 
       if (isSampaiGudang) {
         return false;
       }
 
-      // ATURAN PENCEGAHAN (PREVENTION RULE):
-      // Jika driver sedang memiliki status aktif (sedang menuju seller/titik, kembali ke gudang, perjalanan, dll),
-      // ICON TIDAK BOLEH HILANG DARI PETA meskipun diam di tempat lama, macet, atau sinyal GPS stale!
-      // Posisi icon tetap dipertahankan pada titik koordinat terakhir (last known position).
-      const activeKeywords = [
-        "menuju",
-        "kembali",
-        "perjalanan",
-        "transit",
-        "berjalan",
-        "loading",
-        "muat",
-        "pickup",
-        "otw",
-      ];
-      const hasActiveTripStatus = activeKeywords.some(
-        (kw) => statusLower.includes(kw) || ritaseStatusLower.includes(kw)
-      );
+      // ATURAN 3: Jika tidak sedang dalam tugas aktif, sembunyikan hanya jika driver benar-benar logout/offline
+      const lastT = v.last_update ? Date.parse(v.last_update) : 0;
+      const isGpsActive = !v.offline && lastT > 0 && (Date.now() - lastT < 15 * 60 * 1000);
+      const isOnline = isGpsActive || Boolean(v.session_online) || hasActiveSession(v.last_login);
 
-      if (hasActiveTripStatus) {
-        return true;
-      }
-
-      // Sembunyikan kendaraan HANYA jika driver benar-benar sudah LOGOUT / OFFLINE dan TIDAK ADA tugas aktif
       if (!isOnline) {
         return false;
       }
@@ -1174,6 +1215,8 @@ function LiveMapView({
       return true;
     });
 
+    // Deduplikasi armada per driver: Jika 1 driver punya lebih dari 1 record armada,
+    // utamakan yang SEDANG MEMILIKI STATUS AKTIF!
     const driverBest = new Map<number, (typeof uniqueVehicles)[0]>();
     const withoutDriver: typeof uniqueVehicles = [];
 
@@ -1186,10 +1229,21 @@ function LiveMapView({
       if (!existing) {
         driverBest.set(v.id_driver, v);
       } else {
-        const tExisting = existing.last_update ? Date.parse(existing.last_update) : 0;
-        const tCurrent = v.last_update ? Date.parse(v.last_update) : 0;
-        if (tCurrent > tExisting) {
+        const isCurrentActive = activeKeywords.some((kw) => (v.status || "").toLowerCase().includes(kw));
+        const isExistingActive = activeKeywords.some((kw) => (existing.status || "").toLowerCase().includes(kw));
+
+        // Prioritas 1: Armada yang sedang aktif jalan harus selalu menang daripada yang standby
+        if (isCurrentActive && !isExistingActive) {
           driverBest.set(v.id_driver, v);
+        } else if (!isCurrentActive && isExistingActive) {
+          // Pertahankan existing yang sedang aktif
+        } else {
+          // Prioritas 2: Update GPS paling baru
+          const tExisting = existing.last_update ? Date.parse(existing.last_update) : 0;
+          const tCurrent = v.last_update ? Date.parse(v.last_update) : 0;
+          if (tCurrent > tExisting) {
+            driverBest.set(v.id_driver, v);
+          }
         }
       }
     }

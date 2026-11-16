@@ -828,6 +828,7 @@ function RiwayatPickupContent() {
 
       const rawSeller = l.asal_seller && l.asal_seller.trim() ? l.asal_seller.trim() : "Gudang Utama";
       const sMap = sMaps[rit];
+      const logTime = l.updated_at || l.created_at || l.tanggal;
       const exist = sMap.get(rawSeller) || {
         namaSeller: rawSeller,
         awb: 0,
@@ -835,7 +836,7 @@ function RiwayatPickupContent() {
         ecer: 0,
         hv: 0,
         pickupCount: 0,
-        lastTime: l.updated_at || l.created_at || l.tanggal,
+        lastTime: logTime,
         fotoUrl: l.foto_url,
         status: l.status,
         catatan: l.catatan,
@@ -848,17 +849,29 @@ function RiwayatPickupContent() {
       if (l.foto_url && !exist.fotoUrl) {
         exist.fotoUrl = l.foto_url;
       }
-      if (!exist.lastTime && (l.updated_at || l.created_at || l.tanggal)) {
-        exist.lastTime = l.updated_at || l.created_at || l.tanggal;
-      }
-      if (l.catatan && !exist.catatan) {
-        exist.catatan = l.catatan;
+      if (logTime) {
+        const tLog = new Date(logTime).getTime();
+        const tExist = exist.lastTime ? new Date(exist.lastTime).getTime() : 0;
+        if (isNaN(tExist) || tLog > tExist) {
+          exist.lastTime = logTime;
+          if (l.catatan) exist.catatan = l.catatan;
+          if (l.status) exist.status = l.status;
+          if (l.foto_url) exist.fotoUrl = l.foto_url;
+        }
       }
       sMap.set(rawSeller, exist);
     });
 
     ([1, 2, 3] as RitaseType[]).forEach((rit) => {
-      result[rit].sellers = Array.from(sMaps[rit].values()).sort((a, b) => b.awb - a.awb);
+      result[rit].sellers = Array.from(sMaps[rit].values()).sort((a, b) => {
+        const timeA = a.lastTime ? new Date(a.lastTime).getTime() : 0;
+        const timeB = b.lastTime ? new Date(b.lastTime).getTime() : 0;
+        if (timeB !== timeA) {
+          // Berurutan kronologis berdasarkan jam waktu pengangkutan (persis seperti Timeline)
+          return timeB - timeA;
+        }
+        return b.awb - a.awb;
+      });
     });
 
     return result;
