@@ -1,0 +1,21 @@
+
+> tower-controll-frontend@0.1.0 dev
+> next dev
+
+▲ Next.js 16.3.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.18.26:3000
+- Environments: .env.local
+✓ Ready in 7.9s
+✓ Running next.config.mjs took 64ms
+⚠ Slow filesystem detected. The benchmark took 317ms. If \\?\D:\Intern\Develop\Web\.next\dev is a network drive, consider moving it to a local folder.
+See more: https://nextjs.org/docs/app/guides/local-development
+
+○ Compiling /admin/gudang ...
+ GET /admin/gudang 200 in 24.7s (next.js: 24.3s, application-code: 360ms)
+ GET /admin/gudang 200 in 33.1s (next.js: 32.7s, application-code: 333ms)
+[browser] Image with src "/logo-icon.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+ GET /admin/gudang 200 in 66ms (next.js: 15ms, application-code: 52ms)
+ GET /admin/gudang 200 in 555ms (next.js: 257ms, application-code: 299ms)
+ GET /admin/gudang 200 in 87ms (next.js: 9ms, application-code: 77ms)

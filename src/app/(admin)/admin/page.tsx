@@ -9,6 +9,7 @@ import {
   adminImplant,
   adminKapten,
   adminDropPoint,
+  adminGudang,
   adminUser,
 } from "@/lib/admin-api";
 import {
@@ -48,6 +49,8 @@ export default function AdminDashboardPage() {
     activeKapten: 0,
     dropPoints: 0,
     activeDropPoints: 0,
+    gudang: 0,
+    activeGudang: 0,
     users: 0,
     activeUsers: 0,
     roleCounts: {
@@ -76,13 +79,14 @@ export default function AdminDashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const [d, v, s, imp, k, dp, u] = await Promise.all([
+      const [d, v, s, imp, k, dp, g, u] = await Promise.all([
         adminDriver.list().catch(() => []),
         adminKendaraan.list().catch(() => []),
         adminSeller.list().catch(() => []),
         adminImplant.list().catch(() => []),
         adminKapten.list().catch(() => []),
         adminDropPoint.list().catch(() => []),
+        adminGudang.list().catch(() => []),
         adminUser.list().catch(() => []),
       ]);
 
@@ -127,6 +131,8 @@ export default function AdminDashboardPage() {
         activeKapten: k.filter((item) => item.status === "aktif").length,
         dropPoints: dp.length,
         activeDropPoints: dp.filter((item) => item.status === "aktif").length,
+        gudang: g.length,
+        activeGudang: g.filter((item) => item.status === "aktif").length,
         users: u.length,
         activeUsers: u.filter((item) => item.status === "aktif" || item.is_active).length,
         roleCounts: roleMap as any,
@@ -206,6 +212,14 @@ export default function AdminDashboardPage() {
       href: "/admin/drop-points",
       color: "from-cyan-500/10 to-sky-500/5",
     },
+    {
+      label: "GUDANG",
+      value: counts.gudang,
+      sub: `${counts.activeGudang} aktif`,
+      icon: Warehouse,
+      href: "/admin/gudang",
+      color: "from-indigo-500/10 to-blue-500/5",
+    },
   ];
 
   // Overview status rincian master data
@@ -263,6 +277,15 @@ export default function AdminDashboardPage() {
       inactiveLabel: "nonaktif",
       href: "/admin/drop-points",
       icon: Navigation,
+    },
+    {
+      title: "Gudang",
+      total: counts.gudang,
+      active: counts.activeGudang,
+      inactive: counts.gudang - counts.activeGudang,
+      inactiveLabel: "nonaktif",
+      href: "/admin/gudang",
+      icon: Warehouse,
     },
   ];
 
@@ -330,7 +353,7 @@ export default function AdminDashboardPage() {
       )}
 
       {/* ─── 6 KPI CARDS (SINKRON DENGAN MENU MASTER DATA ADMIN) ─── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-7 gap-3.5">
         {kpiCards.map((c) => (
           <Link
             key={c.href}
@@ -367,12 +390,12 @@ export default function AdminDashboardPage() {
               Master Data Status
             </CardTitle>
             <span className="text-[11px] text-slate-500 dark:text-slate-400">
-              6 Entitas Terintegrasi
+              7 Entitas Terintegrasi
             </span>
           </div>
         </CardHeader>
         <CardContent className="pt-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
             {masterDataList.map((item) => (
               <Link
                 key={item.href}
