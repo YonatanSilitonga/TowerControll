@@ -10,6 +10,7 @@ import {
   Camera,
   Car,
   ChevronDown,
+  FileSpreadsheet,
   Gauge,
   LayoutDashboard,
   MapPin,
@@ -76,6 +77,7 @@ const NAV: NavItem[] = [
   },
   { label: "Foto Manifest Driver", href: "/manifest-foto", icon: Camera, key: "manifest-foto" },
   { label: "Utilisasi Muatan", href: "/utilisasi-muatan", icon: Gauge, key: "utilisasi-muatan" },
+  { label: "Export Excel", href: "/export-excel", icon: FileSpreadsheet, key: "export-excel" },
   { label: "Dashboard", href: "/analitik/efektivitas-armada", icon: BarChart3, key: "efektivitas-armada" },
   { label: "Analitik", href: "/analitik", icon: BarChart3, key: "analitik" },
 ];

@@ -55,12 +55,14 @@ export const ROLE_MENU: Record<UserRole, string[]> = {
     "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-trips",
     "implan", "dropper", "riwayat-pickup", "riwayat-dropper", "jadwal", "manifest-foto", "analitik",
     "section-armada", "section-muatan",
+    "export-excel",
   ],
   tower_control: [
     "dashboard", "utilisasi-muatan", "armada-live-map",
     "armada", "armada-vehicles", "armada-drivers", "armada-sellers", "armada-implants", "armada-trips",
     "implan", "dropper", "riwayat-implan", "riwayat-pickup", "riwayat-dropper", "jadwal", "manifest-foto",
     "section-armada", "section-muatan",
+    "export-excel",
   ],
   direktur: [
     "dashboard", "efektivitas-armada", "armada-live-map",
