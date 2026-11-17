@@ -443,17 +443,35 @@ export default function ExportExcelPage() {
   const unifiedRows = useMemo(() => {
     const list: UnifiedRow[] = [];
 
-    // A. Masukkan Baris Pickup Driver
+    // A. Masukkan Baris Pickup Driver (Hanya transaksi penjemputan riil toko seller)
     rawPickupLogs.forEach((p) => {
-      const isSelesai = p.status === "selesai";
+      const sellerStr = (p.asal_seller ?? "").trim();
+      const sellerLower = sellerStr.toLowerCase();
+      const statusLower = (p.status ?? "").trim().toLowerCase();
+      const catatanLower = (p.catatan ?? "").trim().toLowerCase();
+
+      // Filter: Abaikan semua log Gudang, kepulangan, atau perjalanan gudang
+      const isGudangOrTravel =
+        sellerLower === "gudang" ||
+        sellerLower.includes("gudang") ||
+        sellerLower.includes("perjalanan") ||
+        sellerLower === "" ||
+        statusLower === "selesai" ||
+        statusLower === "kembali_ke_gudang" ||
+        catatanLower.includes("gudang");
+
+      if (isGudangOrTravel) {
+        return; // Lewati, tidak perlu dimasukkan
+      }
+
       list.push({
         id: `pickup-${p.id_log}`,
         sourceType: "pickup",
         timestamp: p.created_at || p.tanggal,
-        lokasi: isSelesai ? "Tiba di Gudang" : p.asal_seller || "Seller",
+        lokasi: sellerStr,
         driverOrPetugas: p.nama_driver || "Driver Pickup",
         platOrCode: getPlatNomor(p),
-        awb: isSelesai ? 0 : p.jumlah_barang || 0,
+        awb: p.jumlah_barang || 0,
         koliJkt: 0,
         koliSeg: 0,
         koliBtn: 0,
@@ -468,9 +486,17 @@ export default function ExportExcelPage() {
       });
     });
 
-    // B. Masukkan Baris Implan Kapten
+    // B. Masukkan Baris Implan Kapten (Abaikan jika lokasi adalah Gudang)
     const implanRiwayat = rawImplanData?.riwayat ?? [];
     implanRiwayat.forEach((imp: RiwayatPenjemputan) => {
+      const lokasiStr = (imp.nama_lokasi ?? "").trim();
+      const lokasiLower = lokasiStr.toLowerCase();
+
+      // Abaikan jika lokasi bernilai Gudang
+      if (lokasiLower === "gudang" || lokasiLower.includes("gudang") || lokasiStr === "") {
+        return;
+      }
+
       const koliJ = imp.koli_jkt ?? 0;
       const koliS = imp.koli_seg ?? 0;
       const koliB = imp.koli_btn ?? 0;
@@ -482,8 +508,8 @@ export default function ExportExcelPage() {
         id: `implan-${imp.id}`,
         sourceType: "implan",
         timestamp: imp.created_at || imp.tanggal,
-        lokasi: imp.nama_lokasi || "Titik Implan",
-        driverOrPetugas: imp.nama_driver || "Kapten Gudang",
+        lokasi: lokasiStr || "Titik Implan",
+        driverOrPetugas: imp.nama_driver || "Kapten",
         platOrCode: imp.kode_ritase || "Line Haul",
         awb: imp.jumlah_awb || 0,
         koliJkt: koliJ,
@@ -505,7 +531,10 @@ export default function ExportExcelPage() {
 
   /* ── 5. Filtering & Sorting ── */
   const filteredRows = useMemo(() => {
-    let result = unifiedRows;
+    // Pastikan tidak ada data Gudang yang lolos ke tabel
+    let result = unifiedRows.filter(
+      (r) => !r.lokasi.toLowerCase().includes("gudang") && r.lokasi.trim() !== ""
+    );
 
     // Filter Kategori (Pickup / Implan)
     if (categoryFilter !== "all") {
@@ -854,15 +883,10 @@ export default function ExportExcelPage() {
                 </tr>
               ) : (
                 filteredRows.map((r, idx) => {
-                  const isSelesaiGudang = r.sourceType === "pickup" && r.status === "selesai";
-
                   return (
                     <tr
                       key={r.id}
-                      className={cn(
-                        "transition-colors hover:bg-slate-50/80",
-                        isSelesaiGudang && "bg-emerald-50/20"
-                      )}
+                      className="transition-colors hover:bg-slate-50/80"
                     >
                       {/* Nomor */}
                       <td className="px-3 py-2.5 text-center font-medium text-slate-400 border-r border-slate-100">
@@ -880,12 +904,8 @@ export default function ExportExcelPage() {
                       </td>
 
                       {/* Toko / Lokasi */}
-                      <td className="px-3 py-2.5 font-medium text-slate-800 border-r border-slate-100">
-                        {isSelesaiGudang ? (
-                          <span className="italic text-emerald-700">Tiba di Gudang (Bongkar)</span>
-                        ) : (
-                          <span>{r.lokasi}</span>
-                        )}
+                      <td className="px-3 py-2.5 font-semibold text-slate-800 border-r border-slate-100">
+                        <span>{r.lokasi}</span>
                       </td>
 
                       {/* Driver / Petugas */}
@@ -900,7 +920,7 @@ export default function ExportExcelPage() {
 
                       {/* AWB */}
                       <td className="px-3 py-2.5 text-right font-bold tabular-nums text-slate-900 border-r border-slate-100">
-                        {isSelesaiGudang || r.awb === 0 ? (
+                        {r.awb === 0 ? (
                           <span className="text-slate-300 font-normal">-</span>
                         ) : (
                           r.awb.toLocaleString("id-ID")
@@ -974,11 +994,7 @@ export default function ExportExcelPage() {
 
                       {/* Ritase */}
                       <td className="px-3 py-2.5 text-center whitespace-nowrap border-r border-slate-100">
-                        {isSelesaiGudang ? (
-                          <span className="text-slate-300">-</span>
-                        ) : (
-                          <RitaseBadge ritase={r.ritase} />
-                        )}
+                        <RitaseBadge ritase={r.ritase} />
                       </td>
 
                       {/* Status */}
